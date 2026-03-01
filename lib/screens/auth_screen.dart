@@ -3,7 +3,9 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:kazakh_learning_app/screens/admin_home_screen.dart';
-import 'package:kazakh_learning_app/screens/home_screen.dart'; // ✅ Вариант A
+import 'package:kazakh_learning_app/screens/forgot_password_screen.dart';
+import 'package:kazakh_learning_app/screens/home_screen.dart';
+import 'package:kazakh_learning_app/screens/confirm_email_screen.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -44,6 +46,18 @@ class _AuthScreenState extends State<AuthScreen> {
     _passC.dispose();
     _confirmC.dispose();
     super.dispose();
+  }
+
+  // ================= SAFE JSON =================
+
+  Map<String, dynamic> _safeJsonMap(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) return decoded;
+      return {};
+    } catch (_) {
+      return {};
+    }
   }
 
   // ================= VALIDATION =================
@@ -152,7 +166,8 @@ class _AuthScreenState extends State<AuthScreen> {
   Future<void> _register() async {
     setState(() => isLoading = true);
 
-    final url = Uri.parse('https://oyu-learnkz.onrender.com/api/auth/register');
+    // ✅ бір стандарт: AuthService.baseUrl
+    final url = Uri.parse('${AuthService.baseUrl}/auth/register');
 
     try {
       final response = await http.post(
@@ -162,15 +177,23 @@ class _AuthScreenState extends State<AuthScreen> {
           "username": _nameC.text.trim(),
           "email": _emailC.text.trim(),
           "password": _passC.text.trim(),
+          "repeatPassword": _confirmC.text.trim(),
         }),
       );
 
-      final data = jsonDecode(response.body);
+      final data = _safeJsonMap(response.body);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        await _login(afterRegister: true);
+        if (!mounted) return;
+
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ConfirmEmailScreen(email: _emailC.text.trim()),
+          ),
+        );
       } else {
-        _showError(data['message'] ?? 'Registration failed');
+        _showError((data['message'] ?? 'Registration failed').toString());
       }
     } catch (e) {
       _showError('Server error');
@@ -179,10 +202,11 @@ class _AuthScreenState extends State<AuthScreen> {
     if (mounted) setState(() => isLoading = false);
   }
 
-  Future<void> _login({bool afterRegister = false}) async {
+  Future<void> _login() async {
     setState(() => isLoading = true);
 
-    final url = Uri.parse('https://oyu-learnkz.onrender.com/api/auth/login');
+    // ✅ бір стандарт: AuthService.baseUrl
+    final url = Uri.parse('${AuthService.baseUrl}/auth/login');
 
     try {
       final response = await http.post(
@@ -194,7 +218,7 @@ class _AuthScreenState extends State<AuthScreen> {
         }),
       );
 
-      final data = jsonDecode(response.body);
+      final data = _safeJsonMap(response.body);
 
       if (response.statusCode == 200) {
         final token = (data['token'] ?? data['accessToken'] ?? '').toString();
@@ -205,7 +229,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
         await AuthService().saveToken(token);
 
-        final user = (data['user'] is Map) ? data['user'] as Map : {};
+        final user = (data['user'] is Map) ? (data['user'] as Map) : {};
         final role = (user['role'] ?? 'user').toString().trim().toLowerCase();
         await AuthService().saveRole(role);
 
@@ -218,20 +242,15 @@ class _AuthScreenState extends State<AuthScreen> {
 
         if (role == 'admin') {
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => AdminHomeScreen(userName: userName),
-            ),
+            MaterialPageRoute(builder: (_) => AdminHomeScreen(userName: userName)),
           );
         } else {
-          // ✅ ВАРИАНТ A: user -> HomeScreen (өз nav бар)
           Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => HomeScreen(userName: userName),
-            ),
+            MaterialPageRoute(builder: (_) => HomeScreen(userName: userName)),
           );
         }
       } else {
-        _showError(data['message'] ?? 'Login failed');
+        _showError((data['message'] ?? 'Login failed').toString());
       }
     } catch (e) {
       _showError('Server error');
@@ -241,6 +260,7 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   void _showError(String message) {
+    // ✅ SnackBar тек error үшін (сенің талапқа сай)
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message)),
     );
@@ -273,6 +293,13 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  void _openForgotPassword() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
+    );
+  }
+
   // ================= UI BUILD =================
 
   @override
@@ -284,7 +311,7 @@ class _AuthScreenState extends State<AuthScreen> {
           padding: const EdgeInsets.only(bottom: 24),
           child: Column(
             children: [
-              // HEADER (OYU text + Qoshqar)
+              // HEADER
               Container(
                 width: double.infinity,
                 height: 170,
@@ -303,6 +330,11 @@ class _AuthScreenState extends State<AuthScreen> {
                         'assets/images/Qoshqar.png',
                         height: 50,
                         fit: BoxFit.contain,
+                        errorBuilder: (_, __, ___) => const Icon(
+                          Icons.image_not_supported_outlined,
+                          color: Colors.white,
+                          size: 34,
+                        ),
                       ),
                       const SizedBox(width: 10),
                       const Text(
@@ -321,7 +353,7 @@ class _AuthScreenState extends State<AuthScreen> {
 
               const SizedBox(height: 14),
 
-              // LOG IN / SIGN UP tabs
+              // tabs
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 22),
                 child: Row(
@@ -366,6 +398,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                       const SizedBox(height: 14),
                     ],
+
                     _label('Your Email'),
                     _textField(
                       controller: _emailC,
@@ -373,7 +406,9 @@ class _AuthScreenState extends State<AuthScreen> {
                       errorText: _emailError,
                       keyboardType: TextInputType.emailAddress,
                     ),
+
                     const SizedBox(height: 14),
+
                     _label('Password'),
                     _passwordField(
                       controller: _passC,
@@ -382,14 +417,14 @@ class _AuthScreenState extends State<AuthScreen> {
                       obscure: _hidePass,
                       onToggle: () => setState(() => _hidePass = !_hidePass),
                     ),
+
                     if (isLogin) ...[
                       const SizedBox(height: 8),
                       Row(
                         mainAxisAlignment: MainAxisAlignment.end,
                         children: [
                           TextButton(
-                            onPressed: () =>
-                                _showError('Forgot password (кейін қосамыз)'),
+                            onPressed: _openForgotPassword,
                             child: const Text(
                               'Forgot password?',
                               style: TextStyle(
@@ -401,6 +436,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         ],
                       ),
                     ],
+
                     if (!isLogin) ...[
                       const SizedBox(height: 14),
                       _label('Repeat Password'),
@@ -409,8 +445,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         hint: '••••••••••••',
                         errorText: _confirmError,
                         obscure: _hideConfirm,
-                        onToggle: () =>
-                            setState(() => _hideConfirm = !_hideConfirm),
+                        onToggle: () => setState(() => _hideConfirm = !_hideConfirm),
                       ),
                     ],
 
@@ -452,19 +487,12 @@ class _AuthScreenState extends State<AuthScreen> {
 
                     Row(
                       children: const [
-                        Expanded(
-                          child: Divider(color: Colors.black12, thickness: 1),
-                        ),
+                        Expanded(child: Divider(color: Colors.black12, thickness: 1)),
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 10),
-                          child: Text(
-                            'Or',
-                            style: TextStyle(color: Colors.black45),
-                          ),
+                          child: Text('Or', style: TextStyle(color: Colors.black45)),
                         ),
-                        Expanded(
-                          child: Divider(color: Colors.black12, thickness: 1),
-                        ),
+                        Expanded(child: Divider(color: Colors.black12, thickness: 1)),
                       ],
                     ),
 
@@ -562,24 +590,15 @@ class _AuthScreenState extends State<AuthScreen> {
           style: const TextStyle(fontWeight: FontWeight.w700),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(
-              color: Colors.black38,
-              fontWeight: FontWeight.w600,
-            ),
-            contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            hintStyle: const TextStyle(color: Colors.black38, fontWeight: FontWeight.w600),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: hasError ? Colors.redAccent : Colors.black26,
-              ),
+              borderSide: BorderSide(color: hasError ? Colors.redAccent : Colors.black26),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: hasError ? Colors.redAccent : purple,
-                width: 1.6,
-              ),
+              borderSide: BorderSide(color: hasError ? Colors.redAccent : purple, width: 1.6),
             ),
           ),
         ),
@@ -616,24 +635,15 @@ class _AuthScreenState extends State<AuthScreen> {
           style: const TextStyle(fontWeight: FontWeight.w700),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(
-              color: Colors.black38,
-              fontWeight: FontWeight.w600,
-            ),
-            contentPadding:
-            const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+            hintStyle: const TextStyle(color: Colors.black38, fontWeight: FontWeight.w600),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: hasError ? Colors.redAccent : Colors.black26,
-              ),
+              borderSide: BorderSide(color: hasError ? Colors.redAccent : Colors.black26),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(
-                color: hasError ? Colors.redAccent : purple,
-                width: 1.6,
-              ),
+              borderSide: BorderSide(color: hasError ? Colors.redAccent : purple, width: 1.6),
             ),
             suffixIcon: IconButton(
               onPressed: onToggle,

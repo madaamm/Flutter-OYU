@@ -1,7 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
+
 import 'package:kazakh_learning_app/services/auth_service.dart';
+import 'package:kazakh_learning_app/screens/auth_screen.dart';
 
 class AdminUserDetailScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -17,6 +20,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
 
   late Map<String, dynamic> user;
   bool loading = false;
+  bool deleting = false;
 
   @override
   void initState() {
@@ -36,8 +40,14 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
         title: const Text('Рөлді өзгерту'),
         content: Text('Қазір: $current\nЖаңа рөл: $newRole\n\nӨзгерте береміз бе?'),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Жоқ')),
-          ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Иә')),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Жоқ'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Иә'),
+          ),
         ],
       ),
     );
@@ -54,15 +64,8 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
         return;
       }
 
-      final id = (user['id'] ?? '').toString();
-      if (id.isEmpty) {
-        _toast('User id табылмады.');
-        if (mounted) setState(() => loading = false);
-        return;
-      }
-
       final res = await http.patch(
-        Uri.parse('${AuthService.baseUrl}/admin/users/$id/role'),
+        Uri.parse('${AuthService.baseUrl}/users/me'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -80,7 +83,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
 
         _toast('Role өзгерді: $newRole');
 
-        if (mounted) Navigator.pop(context, true); // ✅ refresh үшін
+        if (mounted) Navigator.pop(context, true); // refresh үшін
       } else {
         _toast('Қате: ${res.statusCode}\n${res.body}');
       }
@@ -89,6 +92,71 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     }
 
     if (mounted) setState(() => loading = false);
+  }
+
+  Future<void> _deleteMe() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Аккаунтты өшіру'),
+        content: const Text(
+          'Бұл әрекет қайтарылмайды.\n'
+              'Сіздің аккаунтыңыз толық өшіріледі.\n\n'
+              'Жалғастырамыз ба?',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Жоқ'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Иә, өшіру'),
+          ),
+        ],
+      ),
+    );
+
+    if (ok != true) return;
+
+    setState(() => deleting = true);
+
+    try {
+      final token = await AuthService().getToken();
+      if (token == null || token.isEmpty) {
+        _toast('Token жоқ. Қайта login жаса.');
+        if (mounted) setState(() => deleting = false);
+        return;
+      }
+
+      // ✅ ТҮЗЕТІЛДІ: /api/users/me емес, /users/me
+      final res = await http.delete(
+        Uri.parse('${AuthService.baseUrl}/users/me'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+
+      if (res.statusCode == 200 || res.statusCode == 204) {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.remove('token');
+        await prefs.remove('role');
+
+        if (!mounted) return;
+
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const AuthScreen()),
+              (route) => false,
+        );
+        return;
+      }
+
+      _toast('Қате: ${res.statusCode}\n${res.body}');
+    } catch (e) {
+      _toast('Server error: $e');
+    }
+
+    if (mounted) setState(() => deleting = false);
   }
 
   void _toast(String msg) {
@@ -126,7 +194,11 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                   backgroundColor: purple.withOpacity(0.15),
                   child: Text(
                     username.isNotEmpty ? username[0].toUpperCase() : '?',
-                    style: const TextStyle(color: purple, fontWeight: FontWeight.w900, fontSize: 20),
+                    style: const TextStyle(
+                      color: purple,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 20,
+                    ),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -167,7 +239,11 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                     _roleChip(_role),
                     const Spacer(),
                     if (loading)
-                      const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)),
+                      const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(strokeWidth: 2.5),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 12),
@@ -175,15 +251,18 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: loading ? null : () => _changeRole('USER'),
+                        onPressed: (loading || deleting) ? null : () => _changeRole('USER'),
                         child: const Text('USER'),
                       ),
                     ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(backgroundColor: purple, foregroundColor: Colors.white),
-                        onPressed: loading ? null : () => _changeRole('ADMIN'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: purple,
+                          foregroundColor: Colors.white,
+                        ),
+                        onPressed: (loading || deleting) ? null : () => _changeRole('ADMIN'),
                         child: const Text('ADMIN'),
                       ),
                     ),
@@ -206,8 +285,16 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                 ListTile(
                   leading: const Icon(Icons.delete_outline),
                   title: const Text('Удалить пользователя'),
-                  subtitle: const Text('TODO: кейін қосамыз'),
-                  onTap: () => _toast('Delete TODO (кейін)'),
+                  subtitle: const Text('Аккаунтты өшіру'),
+                  enabled: !(deleting || loading),
+                  onTap: (deleting || loading) ? null : _deleteMe,
+                  trailing: deleting
+                      ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(strokeWidth: 2.3),
+                  )
+                      : null,
                 ),
                 const Divider(height: 1),
                 ListTile(
