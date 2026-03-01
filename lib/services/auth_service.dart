@@ -29,29 +29,25 @@ class AuthService {
   /// Егер token жоқ/бос болса немесе сервер 200 қайтармаса — Exception лақтырады.
   Future<Map<String, dynamic>> me() async {
     final token = await getToken();
-
     if (token == null || token.isEmpty) {
-      throw Exception('Token жоқ. Logout жасап қайта login жаса.');
+      throw Exception('Token жоқ (сақталмаған).');
     }
 
-    final res = await http.get(
-      Uri.parse('$baseUrl/user/me'),
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-    );
+    final uri = Uri.parse('$baseUrl/user/me');
+
+    final res = await http
+        .get(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    )
+        .timeout(const Duration(seconds: 20));
 
     if (res.statusCode != 200) {
-      // өте пайдалы: нақты статус + body көрсетеді
       throw Exception('ME error ${res.statusCode}: ${res.body}');
     }
 
     final decoded = jsonDecode(res.body);
-
-    if (decoded is Map<String, dynamic>) {
-      return decoded;
-    }
+    if (decoded is Map<String, dynamic>) return decoded;
 
     throw Exception('ME response дұрыс емес: ${res.body}');
   }
