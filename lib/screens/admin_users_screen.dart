@@ -2,8 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:kazakh_learning_app/services/auth_service.dart';
-
-import 'admin_user_detail_screen.dart';
+import 'package:kazakh_learning_app/screens/admin_user_detail_screen.dart';
 
 class AdminUsersScreen extends StatefulWidget {
   const AdminUsersScreen({super.key});
@@ -155,7 +154,6 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
         if (index == 0) return header;
 
         final raw = _users[index - 1];
-        // ✅ Қауіпсіз cast
         final u = (raw is Map<String, dynamic>) ? raw : Map<String, dynamic>.from(raw as Map);
 
         final id = (u['id'] ?? '').toString();
@@ -175,36 +173,22 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                 backgroundColor: purple.withOpacity(0.15),
                 child: Text(
                   username.isNotEmpty ? username[0].toUpperCase() : '?',
-                  style: const TextStyle(
-                    color: purple,
-                    fontWeight: FontWeight.w900,
-                  ),
+                  style: const TextStyle(color: purple, fontWeight: FontWeight.w900),
                 ),
               ),
-              title: Text(
-                '$username  (#$id)',
-                style: const TextStyle(fontWeight: FontWeight.w900),
-              ),
+              title: Text('$username  (#$id)', style: const TextStyle(fontWeight: FontWeight.w900)),
               subtitle: Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text('$email\nrole: $role   level: $level   xp: $xp'),
               ),
               isThreeLine: true,
               trailing: const Icon(Icons.chevron_right),
-
-              // ✅ МІНЕ ОСЫ ЖЕР ЕҢ МАҢЫЗДЫ
               onTap: () async {
                 final changed = await Navigator.push(
                   context,
-                  MaterialPageRoute(
-                    builder: (_) => AdminUserDetailScreen(user: u),
-                  ),
+                  MaterialPageRoute(builder: (_) => AdminUserDetailScreen(user: u)),
                 );
-
-                // detail экран true қайтарса — списокты жаңартамыз
-                if (changed == true) {
-                  _fetchUsers();
-                }
+                if (changed == true) _fetchUsers();
               },
             ),
           ),

@@ -1,10 +1,8 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:kazakh_learning_app/services/auth_service.dart';
-import 'package:kazakh_learning_app/screens/auth_screen.dart';
 
 class AdminUserDetailScreen extends StatefulWidget {
   final Map<String, dynamic> user;
@@ -28,8 +26,17 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
     user = Map<String, dynamic>.from(widget.user);
   }
 
-  String get _role => (user['role'] ?? 'USER').toString().toUpperCase();
+  String get _role => (user['role'] ?? 'USER').toString().trim().toUpperCase();
 
+  Map<String, dynamic> _safeJsonMap(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) return decoded;
+    } catch (_) {}
+    return {};
+  }
+
+  // ✅ PUT /admin/users/:id/role
   Future<void> _changeRole(String newRole) async {
     final current = _role;
     if (newRole == current) return;
@@ -60,49 +67,69 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
       final token = await AuthService().getToken();
       if (token == null || token.isEmpty) {
         _toast('Token жоқ. Қайта login жаса.');
-        if (mounted) setState(() => loading = false);
         return;
       }
 
-      final res = await http.patch(
-        Uri.parse('${AuthService.baseUrl}/users/me'),
+      final id = (user['id'] ?? '').toString().trim();
+      if (id.isEmpty) {
+        _toast('User id табылмады.');
+        return;
+      }
+
+      // ✅ дұрыс endpoint
+      final url = '${AuthService.baseUrl}/admin/users/$id/role';
+      debugPrint('ROLE PUT => $url');
+
+      final res = await http.put(
+        Uri.parse(url),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode({"role": newRole}),
+        body: jsonEncode({"role": newRole}), // USER / MODERATOR / ADMIN
       );
 
       if (res.statusCode == 200) {
-        final decoded = jsonDecode(res.body);
-        if (decoded is Map<String, dynamic>) {
-          setState(() => user = decoded);
+        final decoded = _safeJsonMap(res.body);
+
+        // backend кейде { user: {...} } қайтарады
+        final updatedUser =
+        (decoded['user'] is Map) ? Map<String, dynamic>.from(decoded['user']) : decoded;
+
+        if (updatedUser.isNotEmpty) {
+          setState(() => user = updatedUser);
         } else {
           setState(() => user['role'] = newRole);
         }
 
         _toast('Role өзгерді: $newRole');
-
-        if (mounted) Navigator.pop(context, true); // refresh үшін
+        if (mounted) Navigator.pop(context, true); // ✅ list refresh
       } else {
         _toast('Қате: ${res.statusCode}\n${res.body}');
       }
     } catch (e) {
       _toast('Server error: $e');
+    } finally {
+      if (mounted) setState(() => loading = false);
     }
-
-    if (mounted) setState(() => loading = false);
   }
 
-  Future<void> _deleteMe() async {
+  // ✅ DELETE /admin/users/:id
+  Future<void> _deleteUser() async {
+    final targetId = (user['id'] ?? '').toString().trim();
+    if (targetId.isEmpty) {
+      _toast('User id табылмады.');
+      return;
+    }
+
     final ok = await showDialog<bool>(
       context: context,
       builder: (_) => AlertDialog(
-        title: const Text('Аккаунтты өшіру'),
-        content: const Text(
-          'Бұл әрекет қайтарылмайды.\n'
-              'Сіздің аккаунтыңыз толық өшіріледі.\n\n'
-              'Жалғастырамыз ба?',
+        title: const Text('Пайдаланушыны өшіру'),
+        content: Text(
+          'ID: #$targetId\n'
+              'Бұл әрекет қайтарылмайды.\n\n'
+              'Өшіреміз бе?',
         ),
         actions: [
           TextButton(
@@ -125,38 +152,30 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
       final token = await AuthService().getToken();
       if (token == null || token.isEmpty) {
         _toast('Token жоқ. Қайта login жаса.');
-        if (mounted) setState(() => deleting = false);
         return;
       }
 
-      // ✅ ТҮЗЕТІЛДІ: /api/users/me емес, /users/me
+      final url = '${AuthService.baseUrl}/admin/users/$targetId';
+      debugPrint('DELETE USER => $url');
+
       final res = await http.delete(
-        Uri.parse('${AuthService.baseUrl}/users/me'),
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
+        Uri.parse(url),
+        headers: {'Authorization': 'Bearer $token'},
       );
 
       if (res.statusCode == 200 || res.statusCode == 204) {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.remove('token');
-        await prefs.remove('role');
-
         if (!mounted) return;
-
-        Navigator.of(context).pushAndRemoveUntil(
-          MaterialPageRoute(builder: (_) => const AuthScreen()),
-              (route) => false,
-        );
+        _toast('User өшірілді');
+        Navigator.pop(context, true); // ✅ list refresh
         return;
       }
 
       _toast('Қате: ${res.statusCode}\n${res.body}');
     } catch (e) {
       _toast('Server error: $e');
+    } finally {
+      if (mounted) setState(() => deleting = false);
     }
-
-    if (mounted) setState(() => deleting = false);
   }
 
   void _toast(String msg) {
@@ -183,10 +202,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-            ),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
             child: Row(
               children: [
                 CircleAvatar(
@@ -194,11 +210,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                   backgroundColor: purple.withOpacity(0.15),
                   child: Text(
                     username.isNotEmpty ? username[0].toUpperCase() : '?',
-                    style: const TextStyle(
-                      color: purple,
-                      fontWeight: FontWeight.w900,
-                      fontSize: 20,
-                    ),
+                    style: const TextStyle(color: purple, fontWeight: FontWeight.w900, fontSize: 20),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -225,10 +237,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
 
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-            ),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -239,14 +248,12 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                     _roleChip(_role),
                     const Spacer(),
                     if (loading)
-                      const SizedBox(
-                        width: 22,
-                        height: 22,
-                        child: CircularProgressIndicator(strokeWidth: 2.5),
-                      ),
+                      const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2.5)),
                   ],
                 ),
                 const SizedBox(height: 12),
+
+                // ✅ USER / MODERATOR / ADMIN
                 Row(
                   children: [
                     Expanded(
@@ -257,11 +264,15 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                     ),
                     const SizedBox(width: 10),
                     Expanded(
+                      child: OutlinedButton(
+                        onPressed: (loading || deleting) ? null : () => _changeRole('MODERATOR'),
+                        child: const Text('MODERATOR'),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
                       child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: purple,
-                          foregroundColor: Colors.white,
-                        ),
+                        style: ElevatedButton.styleFrom(backgroundColor: purple, foregroundColor: Colors.white),
                         onPressed: (loading || deleting) ? null : () => _changeRole('ADMIN'),
                         child: const Text('ADMIN'),
                       ),
@@ -276,24 +287,17 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
 
           Container(
             padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(18),
-            ),
+            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
             child: Column(
               children: [
                 ListTile(
                   leading: const Icon(Icons.delete_outline),
                   title: const Text('Удалить пользователя'),
-                  subtitle: const Text('Аккаунтты өшіру'),
+                  subtitle: const Text('Admin: user өшіру'),
                   enabled: !(deleting || loading),
-                  onTap: (deleting || loading) ? null : _deleteMe,
+                  onTap: (deleting || loading) ? null : _deleteUser,
                   trailing: deleting
-                      ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2.3),
-                  )
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2.3))
                       : null,
                 ),
                 const Divider(height: 1),
@@ -312,18 +316,21 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
   }
 
   Widget _roleChip(String role) {
+    final isAdmin = role == 'ADMIN';
+    final isMod = role == 'MODERATOR';
+
+    final bg = (isAdmin || isMod) ? purple.withOpacity(0.12) : Colors.black.withOpacity(0.06);
+    final fg = (isAdmin || isMod) ? purple : Colors.black87;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: role == 'ADMIN' ? purple.withOpacity(0.12) : Colors.black.withOpacity(0.06),
+        color: bg,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
         role,
-        style: TextStyle(
-          color: role == 'ADMIN' ? purple : Colors.black87,
-          fontWeight: FontWeight.w900,
-        ),
+        style: TextStyle(color: fg, fontWeight: FontWeight.w900),
       ),
     );
   }

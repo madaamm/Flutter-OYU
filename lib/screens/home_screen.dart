@@ -16,34 +16,65 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const purple = Color(0xFF8E5BFF);
+
   int currentIndex = 0;
-  late final List<Widget> pages;
+
+  final _auth = AuthService();
+  String _name = 'User';
+
+  late List<Widget> pages;
 
   @override
   void initState() {
     super.initState();
 
-    pages = [
-      HomePage(userName: widget.userName),
+    // бастапқыда login-нан келген ат тұрады
+    _name = widget.userName;
+
+    // pages бастапқы құрылады
+    pages = _buildPages();
+
+    // кейін кештен (username_u_<id>) оқып жаңартамыз
+    _loadNameFromCache();
+  }
+
+  List<Widget> _buildPages() {
+    return [
+      HomePage(userName: _name),
       const AlphabetScreen(),
-      const AskAiScreen(), // ✅ AI tab -> AskAiScreen
+      const AskAiScreen(),
       const GameZoneScreen(),
-      ProfileScreen(userName: widget.userName),
+      ProfileScreen(userName: _name),
     ];
+  }
+
+  Future<void> _loadNameFromCache() async {
+    final cached = await _auth.getCachedUsernameOrDefault();
+    if (!mounted) return;
+
+    // егер кеште "User" немесе бос емес нақты ат болса — жаңартамыз
+    if (cached.trim().isNotEmpty && cached.trim() != _name.trim()) {
+      setState(() {
+        _name = cached.trim();
+        pages = _buildPages(); // маңызды: pages қайта құру
+      });
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    const purple = Color(0xFF8E5BFF);
-
     return Scaffold(
       backgroundColor: const Color(0xFFF6F1FF),
-      body: SafeArea(
-        child: pages[currentIndex],
-      ),
+      body: SafeArea(child: pages[currentIndex]),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: currentIndex,
-        onTap: (index) => setState(() => currentIndex = index),
+        onTap: (index) async {
+          setState(() => currentIndex = index);
+
+          // ✅ әр tab ауысқанда кештен қайта оқимыз
+          await _loadNameFromCache();
+        },
         selectedItemColor: purple,
         unselectedItemColor: Colors.grey,
         type: BottomNavigationBarType.fixed,
@@ -120,6 +151,8 @@ class HomePage extends StatelessWidget {
 
               Text(
                 '$userName 👋',
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 28,
@@ -131,13 +164,9 @@ class HomePage extends StatelessWidget {
 
               Row(
                 children: [
-                  Expanded(
-                    child: _miniCard(title: 'Score', value: '0 ⭐'),
-                  ),
+                  Expanded(child: _miniCard(title: 'Score', value: '0 ⭐')),
                   const SizedBox(width: 12),
-                  Expanded(
-                    child: _miniCard(title: 'Level', value: 'Beginner'),
-                  ),
+                  Expanded(child: _miniCard(title: 'Level', value: 'Beginner')),
                 ],
               ),
             ],

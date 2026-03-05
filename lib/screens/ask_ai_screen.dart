@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:kazakh_learning_app/services/auth_service.dart';
+import 'package:kazakh_learning_app/services/chat_service.dart';
 
 class AskAiScreen extends StatefulWidget {
   const AskAiScreen({super.key});
@@ -8,288 +10,216 @@ class AskAiScreen extends StatefulWidget {
 }
 
 class _AskAiScreenState extends State<AskAiScreen> {
-  static const Color purple = Color(0xFF8E5BFF);
-  static const Color deepPurple = Color(0xFF6D2DFF);
-  static const Color lightPurple = Color(0xFF8E5BFF);
+  static const purple = Color(0xFF8E5BFF);
 
-  final TextEditingController _msgC = TextEditingController();
-  final ScrollController _scrollC = ScrollController();
+  final _c = TextEditingController();
+  final _scroll = ScrollController();
 
-  final List<_ChatMsg> _messages = [
-    const _ChatMsg(
-      text:
-      'Lorem Ipsum Dolor Sit Amet, Consectetur Adipiscing Elit, Sed Do Eiusmod Tempor Incididunt Ut Labore Et Dolore.',
-      isMe: false,
-      time: '10 AM',
-      dark: true,
-    ),
-    const _ChatMsg(
-      text:
-      'Sed Do Eiusmod Tempor Incididunt Ut Labore Et Magna Aliqua. Ut Enim Ad Minim Veniam, Quis Nostrud Exercitation Ullamco Laboris Nisi Ut Aliqui.',
-      isMe: false,
-      time: '10 AM',
-      dark: false,
-    ),
-    const _ChatMsg(
-      text: 'Lorem Ipsum Dolor Sit',
-      isMe: true,
-      time: '10 AM',
-      dark: true,
-    ),
-    const _ChatMsg(
-      text:
-      'Sed Do Eiusmod Tempor Incididunt Ut Labore Et Magna Aliqua. Ut Enim Ad Minim Veniam,.',
-      isMe: false,
-      time: '10 AM',
-      dark: false,
-    ),
-    const _ChatMsg(
-      text: 'Lorem Ipsum Dolor Sit Amet, Consectetur Adipiscing',
-      isMe: false,
-      time: '10 AM',
-      dark: true,
-    ),
-    const _ChatMsg(
-      text: 'Sed Do Eiusmod Tempor Incididunt Ut Labore Et',
-      isMe: false,
-      time: '10 AM',
-      dark: false,
-    ),
-    const _ChatMsg(
-      text: 'Ok',
-      isMe: true,
-      time: '10 AM',
-      dark: true,
-    ),
-  ];
+  bool sending = false;
+
+  // message model (simple)
+  final List<_Msg> messages = [];
 
   @override
   void dispose() {
-    _msgC.dispose();
-    _scrollC.dispose();
+    _c.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
-  void _send() {
-    final text = _msgC.text.trim();
-    if (text.isEmpty) return;
+  void _error(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
 
-    setState(() {
-      _messages.add(
-        _ChatMsg(
-          text: text,
-          isMe: true,
-          time: _nowTime(),
-          dark: true,
-        ),
-      );
-      _msgC.clear();
-    });
+  Future<int> _getUserId() async {
+    // 1) first try from /user/me
+    final me = await AuthService().me();
+    final id = me['id'];
+    if (id is int) return id;
+    return int.tryParse(id.toString()) ?? 0;
+  }
 
+  void _scrollDown() {
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (_scrollC.hasClients) {
-        _scrollC.animateTo(
-          _scrollC.position.maxScrollExtent + 260,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
-      }
+      if (!_scroll.hasClients) return;
+      _scroll.animateTo(
+        _scroll.position.maxScrollExtent + 200,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      );
     });
   }
 
-  String _nowTime() {
-    final now = TimeOfDay.now();
-    final hour = now.hourOfPeriod == 0 ? 12 : now.hourOfPeriod;
-    final minute = now.minute.toString().padLeft(2, '0');
-    final ampm = now.period == DayPeriod.am ? 'AM' : 'PM';
-    return '$hour:$minute $ampm';
+  Future<void> _send() async {
+    final text = _c.text.trim();
+    if (text.isEmpty || sending) return;
+
+    FocusScope.of(context).unfocus();
+
+    setState(() {
+      sending = true;
+      messages.add(_Msg.user(text));
+      _c.clear();
+      messages.add(_Msg.ai('...')); // typing placeholder
+    });
+    _scrollDown();
+
+    try {
+      final userId = await _getUserId();
+      if (userId == 0) throw Exception('userId табылмады');
+
+      final reply = await ChatService.sendMessage(userId: userId, message: text);
+
+      setState(() {
+        // replace last "..." with real reply
+        final idx = messages.lastIndexWhere((m) => m.isAi && m.text == '...');
+        if (idx != -1) {
+          messages[idx] = _Msg.ai(reply);
+        } else {
+          messages.add(_Msg.ai(reply));
+        }
+      });
+      _scrollDown();
+    } catch (e) {
+      setState(() {
+        // remove typing bubble if exists
+        if (messages.isNotEmpty && messages.last.isAi && messages.last.text == '...') {
+          messages.removeLast();
+        }
+      });
+      _error('Chat error: $e');
+    } finally {
+      if (mounted) setState(() => sending = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF6F1FF),
-      body: SafeArea(
-        child: Column(
-          children: [
-            // TOP HEADER (purple + white rounded sheet)
-            Container(
-              width: double.infinity,
-              height: 130,
-              decoration: const BoxDecoration(color: purple),
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: Container(
-                  width: double.infinity,
-                  height: 96,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(34),
-                      topRight: Radius.circular(34),
-                    ),
-                  ),
-                  child: const Center(
-                    child: Text(
-                      'Ask Ai',
-                      style: TextStyle(
-                        color: deepPurple,
-                        fontSize: 24,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
+      appBar: AppBar(
+        backgroundColor: purple,
+        title: const Text('Ask Ai'),
+        centerTitle: true,
+      ),
+      body: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              controller: _scroll,
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+              itemCount: messages.length,
+              itemBuilder: (_, i) => _Bubble(msg: messages[i]),
             ),
+          ),
+          _Composer(
+            controller: _c,
+            sending: sending,
+            onSend: _send,
+          ),
+        ],
+      ),
+    );
+  }
+}
 
-            // CHAT LIST
-            Expanded(
-              child: ListView.builder(
-                controller: _scrollC,
-                padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
-                itemCount: _messages.length,
-                itemBuilder: (_, i) => _ChatBubble(
-                  msg: _messages[i],
-                  purpleDark: deepPurple,
-                  purpleLight: lightPurple,
-                ),
-              ),
-            ),
+class _Msg {
+  final bool isAi;
+  final String text;
+  _Msg({required this.isAi, required this.text});
 
-            // INPUT BAR
-            Padding(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 12),
-              child: Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(26),
-                  boxShadow: const [
-                    BoxShadow(
-                      blurRadius: 18,
-                      offset: Offset(0, 8),
-                      color: Color(0x14000000),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.emoji_emotions_outlined,
-                        color: Colors.black54),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        controller: _msgC,
-                        textInputAction: TextInputAction.send,
-                        onSubmitted: (_) => _send(),
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          border: InputBorder.none,
-                          hintText: 'Type message here...',
-                          hintStyle: TextStyle(
-                            color: Colors.black38,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                        style: const TextStyle(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    GestureDetector(
-                      onTap: _send,
-                      child: Container(
-                        width: 46,
-                        height: 46,
-                        decoration: const BoxDecoration(
-                          color: deepPurple,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.send_rounded,
-                            color: Colors.white),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
+  factory _Msg.user(String t) => _Msg(isAi: false, text: t);
+  factory _Msg.ai(String t) => _Msg(isAi: true, text: t);
+}
+
+class _Bubble extends StatelessWidget {
+  static const purple = Color(0xFF8E5BFF);
+  final _Msg msg;
+  const _Bubble({required this.msg});
+
+  @override
+  Widget build(BuildContext context) {
+    final isAi = msg.isAi;
+
+    return Align(
+      alignment: isAi ? Alignment.centerLeft : Alignment.centerRight,
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 10),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        constraints: const BoxConstraints(maxWidth: 290),
+        decoration: BoxDecoration(
+          color: isAi ? purple : purple.withOpacity(0.85),
+          borderRadius: BorderRadius.circular(18),
+        ),
+        child: Text(
+          msg.text,
+          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700),
         ),
       ),
     );
   }
 }
 
-// ====== Bubble widget ======
+class _Composer extends StatelessWidget {
+  static const purple = Color(0xFF8E5BFF);
 
-class _ChatBubble extends StatelessWidget {
-  final _ChatMsg msg;
-  final Color purpleDark;
-  final Color purpleLight;
+  final TextEditingController controller;
+  final bool sending;
+  final VoidCallback onSend;
 
-  const _ChatBubble({
-    required this.msg,
-    required this.purpleDark,
-    required this.purpleLight,
+  const _Composer({
+    required this.controller,
+    required this.sending,
+    required this.onSend,
   });
 
   @override
   Widget build(BuildContext context) {
-    final bubbleColor = msg.dark ? purpleDark : purpleLight;
-    final align = msg.isMe ? Alignment.centerRight : Alignment.centerLeft;
-
-    final radius = msg.isMe
-        ? const BorderRadius.only(
-      topLeft: Radius.circular(20),
-      topRight: Radius.circular(20),
-      bottomLeft: Radius.circular(20),
-      bottomRight: Radius.circular(6),
-    )
-        : const BorderRadius.only(
-      topLeft: Radius.circular(20),
-      topRight: Radius.circular(20),
-      bottomLeft: Radius.circular(6),
-      bottomRight: Radius.circular(20),
-    );
-
-    return Align(
-      alignment: align,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 14),
-        child: Column(
-          crossAxisAlignment:
-          msg.isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+    return SafeArea(
+      top: false,
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(14, 10, 14, 12),
+        child: Row(
           children: [
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.82,
-              ),
+            Expanded(
               child: Container(
-                padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 14),
                 decoration: BoxDecoration(
-                  color: bubbleColor,
-                  borderRadius: radius,
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(999),
                 ),
-                child: Text(
-                  msg.text,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 13.5,
-                    height: 1.25,
-                    fontWeight: FontWeight.w600,
+                child: TextField(
+                  controller: controller,
+                  minLines: 1,
+                  maxLines: 4,
+                  textInputAction: TextInputAction.send,
+                  onSubmitted: (_) => onSend(),
+                  decoration: const InputDecoration(
+                    border: InputBorder.none,
+                    hintText: 'Type message here...',
                   ),
                 ),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              msg.time,
-              style: const TextStyle(
-                color: Colors.black38,
-                fontSize: 10.5,
-                fontWeight: FontWeight.w700,
+            const SizedBox(width: 10),
+            SizedBox(
+              width: 52,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: sending ? null : onSend,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: purple,
+                  foregroundColor: Colors.white,
+                  shape: const CircleBorder(),
+                  elevation: 0,
+                ),
+                child: sending
+                    ? const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
+                )
+                    : const Icon(Icons.send),
               ),
             ),
           ],
@@ -297,20 +227,4 @@ class _ChatBubble extends StatelessWidget {
       ),
     );
   }
-}
-
-class _ChatMsg {
-  final String text;
-  final bool isMe;
-  final String time;
-
-  /// dark=true => deepPurple, dark=false => lightPurple
-  final bool dark;
-
-  const _ChatMsg({
-    required this.text,
-    required this.isMe,
-    required this.time,
-    required this.dark,
-  });
 }
