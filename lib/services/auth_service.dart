@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kazakh_learning_app/services/api_config.dart';
 
 class AuthService {
-  static const String baseUrl = 'https://oyu-learnkz.onrender.com/api';
+  static const String baseUrl = 'https://learnkz.kazi.rocks/api';
 
   static String _scenarioKey(String email) =>
       'scenario_shown_${email.trim().toLowerCase()}';
@@ -93,7 +93,7 @@ class AuthService {
     (data['token'] ?? data['accessToken'] ?? '').toString().trim();
 
     if (token.isEmpty) {
-      throw Exception('Token келмеді');
+      throw Exception('Token not received');
     }
 
     await saveToken(token);
@@ -198,7 +198,7 @@ class AuthService {
   Future<Map<String, dynamic>> me() async {
     final token = await getToken();
     if (token == null || token.isEmpty) {
-      throw Exception('Token жоқ (сақталмаған).');
+      throw Exception('Token missing (not saved).');
     }
 
     final uri = Uri.parse('$baseUrl/user/me');
@@ -210,7 +210,7 @@ class AuthService {
 
     if (res.statusCode == 401) {
       await logout();
-      throw Exception('Session expired. Қайта кіріңіз.');
+      throw Exception('Session expired. Please log in again.');
     }
 
     if (res.statusCode != 200) {
@@ -233,7 +233,7 @@ class AuthService {
       return decoded;
     }
 
-    throw Exception('ME response дұрыс емес: ${res.body}');
+    throw Exception('ME response is incorrect: ${res.body}');
   }
 
   Future<Map<String, dynamic>> updateUsername(String newUsername) async {
@@ -241,13 +241,13 @@ class AuthService {
     final userId = await getUserId();
 
     if (token == null || token.isEmpty) {
-      return {'ok': false, 'message': 'Token жоқ'};
+      return {'ok': false, 'message': 'No token'};
     }
     if (userId == null) {
-      return {'ok': false, 'message': 'user_id жоқ'};
+      return {'ok': false, 'message': 'user_id missing'};
     }
     if (newUsername.trim().isEmpty) {
-      return {'ok': false, 'message': 'Аты бос болмау керек'};
+      return {'ok': false, 'message': 'The name must not be empty.'};
     }
 
     final uri = Uri.parse('$baseUrl/user/me/username');

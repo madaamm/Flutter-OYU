@@ -73,7 +73,7 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
         lives = (lives - 1).clamp(0, 3);
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Қате 😅 Қайта көр!")),
+        const SnackBar(content: Text("Error 😅 Try again!")),
       );
     }
   }

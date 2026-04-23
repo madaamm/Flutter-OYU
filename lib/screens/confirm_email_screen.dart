@@ -25,7 +25,7 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
     final code = _codeController.text.trim();
 
     if (code.isEmpty) {
-      setState(() => errorText = 'Кодты енгізіңіз');
+      setState(() => errorText = 'Enter the code.');
       return;
     }
 
@@ -55,7 +55,7 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Email сәтті расталды 🎉 Енді логин жасаңыз'),
+            content: Text('Email successfully verified 🎉 Login now'),
           ),
         );
 
@@ -69,7 +69,7 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
         );
       } else {
         setState(() {
-          errorText = (data['message'] ?? 'Қате код').toString();
+          errorText = (data['message'] ?? 'Error code').toString();
         });
       }
     } catch (_) {
@@ -127,7 +127,7 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
                 child: Column(
                   children: [
                     const Text(
-                      'Код жіберілді:',
+                      'Code sent:',
                       style: TextStyle(
                         color: Colors.black54,
                         fontWeight: FontWeight.w600,
@@ -146,7 +146,7 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
                       controller: _codeController,
                       style: const TextStyle(fontWeight: FontWeight.w700),
                       decoration: InputDecoration(
-                        hintText: 'Кодты енгізіңіз',
+                        hintText: 'Enter the code.',
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: 14,

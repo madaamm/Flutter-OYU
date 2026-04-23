@@ -209,6 +209,11 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+  String get _safeUserName {
+    final name = widget.userName.trim();
+    return name.isEmpty ? 'User' : name;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -346,21 +351,38 @@ class _HomePageState extends State<HomePage> {
           end: Alignment.bottomCenter,
         ),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const _HeaderStat(
-            icon: Icons.bolt_rounded,
-            iconColor: Color(0xFFFFD54F),
-            value: '3',
-          ),
-          const Spacer(),
-          IconButton(
-            onPressed: () => _logout(context),
-            icon: const Icon(
-              Icons.settings_rounded,
+          Text(
+            'Welcome, $_safeUserName 👋',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
               color: Colors.white,
-              size: 32,
+              fontSize: 20,
+              fontWeight: FontWeight.w800,
+              height: 1.1,
             ),
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              const _HeaderStat(
+                icon: Icons.bolt_rounded,
+                iconColor: Color(0xFFFFD54F),
+                value: '3',
+              ),
+              const Spacer(),
+              IconButton(
+                onPressed: () => _logout(context),
+                icon: const Icon(
+                  Icons.settings_rounded,
+                  color: Colors.white,
+                  size: 32,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -1082,6 +1104,7 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
       },
     );
   }
+
 
   Future<void> _showFinishDialog() async {
     await showDialog<void>(

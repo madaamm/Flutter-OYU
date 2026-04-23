@@ -100,29 +100,29 @@ class _AuthScreenState extends State<AuthScreen> {
     final confirm = _confirmC.text.trim();
 
     if (name.isEmpty) {
-      nameErr = 'Full name міндетті түрде толтырылуы керек';
+      nameErr = 'Full name is required.';
     } else if (!_isTitleCaseName(name)) {
-      nameErr = 'Атыңызды бас әріппен жазыңыз (мыс: Saltanat Nurbaeva)';
+      nameErr = 'Write your name in capital letters (for example: Saltanat Nurbaeva))';
     }
 
     if (email.isEmpty) {
-      emailErr = 'Email міндетті';
+      emailErr = 'Email is required';
     } else if (!_emailRegex.hasMatch(email)) {
-      emailErr = 'Email форматы дұрыс емес (мыс: example@mail.com)';
+      emailErr = 'The email format is incorrect (e.g. example@mail.com)';
     }
 
     if (pass.isEmpty) {
-      passErr = 'Құпиясөз міндетті';
+      passErr = 'Password is required.';
     } else if (pass.length < 8) {
-      passErr = 'Құпиясөз кемі 8 символ болуы керек';
+      passErr = 'Password must be at least 8 characters long.';
     } else if (!_passRegex.hasMatch(pass)) {
-      passErr = 'Құпиясөзде әріп, сан және символ болуы керек (мыс: Abc123!@)';
+      passErr = 'The password must contain a letter, a number, and a symbol (for example: Abc123!@)';
     }
 
     if (confirm.isEmpty) {
-      confirmErr = 'Құпиясөзді қайта енгізіңіз';
+      confirmErr = 'Re-enter password.';
     } else if (pass != confirm) {
-      confirmErr = 'Құпиясөздер сәйкес келмейді';
+      confirmErr = 'Passwords do not match.';
     }
 
     setState(() {
@@ -146,13 +146,13 @@ class _AuthScreenState extends State<AuthScreen> {
     final pass = _passC.text.trim();
 
     if (email.isEmpty) {
-      emailErr = 'Email міндетті';
+      emailErr = 'Email is required';
     } else if (!_emailRegex.hasMatch(email)) {
-      emailErr = 'Email форматы дұрыс емес';
+      emailErr = 'Email format is incorrect!';
     }
 
     if (pass.isEmpty) {
-      passErr = 'Құпиясөз міндетті';
+      passErr = 'Password is required!';
     }
 
     setState(() {
@@ -477,17 +477,11 @@ class _AuthScreenState extends State<AuthScreen> {
                         Expanded(child: Divider(color: Colors.black12, thickness: 1)),
                       ],
                     ),
-                    const SizedBox(height: 14),
-                    _socialButton(
-                      text: 'login with Apple',
-                      icon: Icons.apple,
-                      onTap: () => _showError('Apple login (кейін қосамыз)'),
-                    ),
                     const SizedBox(height: 10),
                     _socialButton(
                       text: 'Login with Google',
                       icon: Icons.g_mobiledata,
-                      onTap: () => _showError('Google login (кейін қосамыз)'),
+                      onTap: () => _showError('Google login '),
                     ),
                   ],
                 ),
