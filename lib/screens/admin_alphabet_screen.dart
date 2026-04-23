@@ -1,95 +1,130 @@
-import 'dart:async';
-import 'dart:convert';
-
 import 'package:audioplayers/audioplayers.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import 'package:kazakh_learning_app/services/alphabet_prediction_service.dart';
 import 'package:kazakh_learning_app/services/alphabet_service.dart';
-import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:kazakh_learning_app/widgets/letter_recorder_button.dart';
 
-class AlphabetScreen extends StatefulWidget {
-  const AlphabetScreen({super.key});
+class AdminAlphabetScreen extends StatefulWidget {
+  const AdminAlphabetScreen({super.key});
 
   @override
-  State<AlphabetScreen> createState() => _AlphabetScreenState();
+  State<AdminAlphabetScreen> createState() => _AdminAlphabetScreenState();
 }
 
-class _AlphabetScreenState extends State<AlphabetScreen> {
+class _AdminAlphabetScreenState extends State<AdminAlphabetScreen> {
   static const Color purple = Color(0xFF8E5BFF);
   static const Color bg = Color(0xFFF6F1FF);
 
+  final AlphabetService service = AlphabetService();
+
   bool loading = true;
-  String? error;
   List<AlphabetLetterVM> letters = [];
 
   @override
   void initState() {
     super.initState();
-    _loadLetters();
+    _load();
   }
 
-  Future<void> _loadLetters() async {
+  void _errorSnack(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
+  Future<void> _load() async {
     if (mounted) {
-      setState(() {
-        loading = true;
-        error = null;
-      });
+      setState(() => loading = true);
     }
 
     try {
-      final res = await http.get(
-        Uri.parse('${AuthService.baseUrl}/alphabet'),
-        headers: const {
-          'Accept': 'application/json',
-        },
-      );
+      final data = await service.getAll();
 
-      if (res.statusCode >= 200 && res.statusCode < 300) {
-        final decoded = jsonDecode(res.body);
-
-        if (decoded is List) {
-          final loaded = decoded
-              .whereType<Map>()
-              .map(
-                (e) => AlphabetLetterVM.fromJson(
-              Map<String, dynamic>.from(e),
-            ),
-          )
-              .toList()
-            ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
-
-          if (mounted) {
-            setState(() {
-              letters = loaded;
-            });
-          }
-        } else {
-          throw Exception('Alphabet response list емес');
-        }
-      } else {
-        throw Exception('Alphabet load error: ${res.statusCode} ${res.body}');
-      }
+      letters = data
+          .map<AlphabetLetterVM>(
+            (e) => AlphabetLetterVM.fromJson(Map<String, dynamic>.from(e)),
+      )
+          .toList()
+        ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
     } catch (e) {
-      if (mounted) {
-        setState(() {
-          error = e.toString();
-        });
-      }
-    } finally {
-      if (mounted) {
-        setState(() => loading = false);
-      }
+      _errorSnack('Ошибка: $e');
+    }
+
+    if (mounted) {
+      setState(() => loading = false);
     }
   }
 
-  void _openLetter(AlphabetLetterVM letter) {
-    Navigator.of(context, rootNavigator: true).push(
-      MaterialPageRoute(
-        builder: (_) => UserAlphabetLetterDetailScreen(letterId: letter.id),
+  Future<void> _addOrEdit({AlphabetLetterVM? existing}) async {
+    final result = await showModalBottomSheet<AlphabetLetterVM>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _LetterEditorSheet(letter: existing),
+    );
+
+    if (result == null) return;
+
+    try {
+      final body = result.toApiJson();
+
+      if (existing == null) {
+        await service.create(body);
+      } else {
+        await service.update(existing.id, body);
+      }
+
+      await _load();
+    } catch (e) {
+      _errorSnack('Ошибка: $e');
+    }
+  }
+
+  Future<void> _delete(AlphabetLetterVM l) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Өшіру?'),
+        content: Text('${l.uppercase} әрпін өшірейік пе?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text('Жоқ'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Иә'),
+          ),
+        ],
       ),
     );
+
+    if (ok != true) return;
+
+    try {
+      await service.delete(l.id);
+      await _load();
+    } catch (e) {
+      _errorSnack('Delete error: $e');
+    }
+  }
+
+  Future<void> _openLetter(AlphabetLetterVM l) async {
+    final refreshed =
+    await Navigator.of(context, rootNavigator: true).push<bool>(
+      MaterialPageRoute(
+        builder: (_) => AdminAlphabetLetterDetailScreen(letterId: l.id),
+      ),
+    );
+
+    if (refreshed == true) {
+      await _load();
+    }
   }
 
   @override
@@ -114,7 +149,11 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
                 children: [
                   Row(
                     children: [
-                      const SizedBox(width: 48),
+                      IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () =>
+                            Navigator.of(context, rootNavigator: true).pop(),
+                      ),
                       const Spacer(),
                       const Text(
                         'Alphabet',
@@ -125,7 +164,10 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
                         ),
                       ),
                       const Spacer(),
-                      const SizedBox(width: 48),
+                      IconButton(
+                        icon: const Icon(Icons.add, color: Colors.white),
+                        onPressed: () => _addOrEdit(),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 10),
@@ -153,94 +195,30 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
             ),
             const SizedBox(height: 14),
             Expanded(
-              child: Builder(
-                builder: (context) {
-                  if (loading) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
+              child: loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : RefreshIndicator(
+                onRefresh: _load,
+                color: purple,
+                child: GridView.builder(
+                  padding: const EdgeInsets.fromLTRB(16, 6, 16, 18),
+                  itemCount: letters.length,
+                  gridDelegate:
+                  const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 4,
+                    mainAxisSpacing: 14,
+                    crossAxisSpacing: 14,
+                    childAspectRatio: 1,
+                  ),
+                  itemBuilder: (context, i) {
+                    final l = letters[i];
 
-                  if (error != null) {
-                    return Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text(
-                              error!,
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(
-                                color: Colors.black54,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            ElevatedButton(
-                              onPressed: _loadLetters,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: purple,
-                                foregroundColor: Colors.white,
-                              ),
-                              child: const Text('Қайта жүктеу'),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
-
-                  if (letters.isEmpty) {
-                    return RefreshIndicator(
-                      onRefresh: _loadLetters,
-                      color: purple,
-                      child: ListView(
-                        children: const [
-                          SizedBox(height: 140),
-                          Center(
-                            child: Text(
-                              'Әзірге әріптер қосылмаған',
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.black54,
-                              ),
-                            ),
-                          ),
-                          SizedBox(height: 8),
-                          Center(
-                            child: Text(
-                              'Admin әріп қосқанда мұнда автоматты шығады',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.black38,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    );
-                  }
-
-                  return RefreshIndicator(
-                    onRefresh: _loadLetters,
-                    color: purple,
-                    child: GridView.builder(
-                      padding: const EdgeInsets.fromLTRB(16, 6, 16, 18),
-                      itemCount: letters.length,
-                      gridDelegate:
-                      const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 4,
-                        mainAxisSpacing: 14,
-                        crossAxisSpacing: 14,
-                        childAspectRatio: 1,
-                      ),
-                      itemBuilder: (context, i) {
-                        final l = letters[i];
-
-                        return InkWell(
-                          borderRadius: BorderRadius.circular(14),
-                          onTap: () => _openLetter(l),
-                          child: Container(
+                    return InkWell(
+                      borderRadius: BorderRadius.circular(14),
+                      onTap: () => _openLetter(l),
+                      child: Stack(
+                        children: [
+                          Container(
                             decoration: BoxDecoration(
                               color: purple.withOpacity(0.72),
                               borderRadius: BorderRadius.circular(14),
@@ -254,7 +232,8 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
                             ),
                             child: Center(
                               child: Column(
-                                mainAxisAlignment: MainAxisAlignment.center,
+                                mainAxisAlignment:
+                                MainAxisAlignment.center,
                                 children: [
                                   Text(
                                     l.uppercase,
@@ -285,11 +264,40 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
                               ),
                             ),
                           ),
-                        );
-                      },
-                    ),
-                  );
-                },
+                          Positioned(
+                            right: 2,
+                            top: 2,
+                            child: PopupMenuButton<String>(
+                              padding: EdgeInsets.zero,
+                              icon: const Icon(
+                                Icons.more_vert,
+                                color: Colors.white,
+                              ),
+                              onSelected: (v) {
+                                if (v == 'edit') {
+                                  _addOrEdit(existing: l);
+                                }
+                                if (v == 'delete') {
+                                  _delete(l);
+                                }
+                              },
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(
+                                  value: 'edit',
+                                  child: Text('Edit'),
+                                ),
+                                PopupMenuItem(
+                                  value: 'delete',
+                                  child: Text('Delete'),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    );
+                  },
+                ),
               ),
             ),
           ],
@@ -299,53 +307,48 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
   }
 }
 
-class UserAlphabetLetterDetailScreen extends StatefulWidget {
+class AdminAlphabetLetterDetailScreen extends StatefulWidget {
   final int letterId;
 
-  const UserAlphabetLetterDetailScreen({
+  const AdminAlphabetLetterDetailScreen({
     super.key,
     required this.letterId,
   });
 
   @override
-  State<UserAlphabetLetterDetailScreen> createState() =>
-      _UserAlphabetLetterDetailScreenState();
+  State<AdminAlphabetLetterDetailScreen> createState() =>
+      _AdminAlphabetLetterDetailScreenState();
 }
 
-class _UserAlphabetLetterDetailScreenState
-    extends State<UserAlphabetLetterDetailScreen> {
+class _AdminAlphabetLetterDetailScreenState
+    extends State<AdminAlphabetLetterDetailScreen> {
   static const Color purple = Color(0xFF8E5BFF);
   static const Color bg = Color(0xFFF6F1FF);
   static const Color deep = Color(0xFF4B007D);
 
-  final AudioPlayer _player = AudioPlayer();
   final AlphabetService _service = AlphabetService();
+  final AudioPlayer _player = AudioPlayer();
 
   bool _screenLoading = true;
-  bool _playing = false;
+  bool uploading = false;
   bool _audioLoading = false;
+  bool _playing = false;
   bool _predictLoading = false;
   String? _recordedPath;
   AlphabetLetterVM? _letter;
-
-  StreamSubscription<PlayerState>? _playerStateSub;
-  StreamSubscription<void>? _playerCompleteSub;
 
   @override
   void initState() {
     super.initState();
 
-    _playerStateSub = _player.onPlayerStateChanged.listen((state) {
+    _player.onPlayerStateChanged.listen((state) {
       if (!mounted) return;
-      final isPlayingNow = state == PlayerState.playing;
-      if (_playing != isPlayingNow) {
-        setState(() {
-          _playing = isPlayingNow;
-        });
-      }
+      setState(() {
+        _playing = state == PlayerState.playing;
+      });
     });
 
-    _playerCompleteSub = _player.onPlayerComplete.listen((_) {
+    _player.onPlayerComplete.listen((_) {
       if (!mounted) return;
       setState(() {
         _playing = false;
@@ -356,52 +359,104 @@ class _UserAlphabetLetterDetailScreenState
     _loadLetter();
   }
 
+  @override
+  void dispose() {
+    _player.dispose();
+    super.dispose();
+  }
+
+  void _toast(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   Future<void> _loadLetter() async {
     try {
       if (mounted) {
         setState(() => _screenLoading = true);
       }
 
-      final res = await http.get(
-        Uri.parse('${AuthService.baseUrl}/alphabet/${widget.letterId}'),
-        headers: const {'Accept': 'application/json'},
-      );
-
-      if (res.statusCode < 200 || res.statusCode >= 300) {
-        throw Exception('Letter load error: ${res.statusCode} ${res.body}');
-      }
-
-      final decoded = jsonDecode(res.body);
-      if (decoded is! Map<String, dynamic>) {
-        throw Exception('Letter response object емес');
-      }
+      final data = await _service.getById(widget.letterId);
+      final loaded = AlphabetLetterVM.fromJson(data);
 
       if (!mounted) return;
       setState(() {
-        _letter = AlphabetLetterVM.fromJson(decoded);
+        _letter = loaded;
         _screenLoading = false;
       });
     } catch (e) {
       if (!mounted) return;
       setState(() => _screenLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Load error: $e')),
-      );
+      _toast('Load error: $e');
     }
   }
 
-  @override
-  void dispose() {
-    _playerStateSub?.cancel();
-    _playerCompleteSub?.cancel();
-    _player.dispose();
-    super.dispose();
+  Future<void> _pickAndUploadAudio() async {
+    try {
+      setState(() => uploading = true);
+
+      final result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: const ['mp3', 'wav', 'ogg'],
+        withData: kIsWeb,
+      );
+
+      if (result == null || result.files.isEmpty) {
+        if (mounted) {
+          setState(() => uploading = false);
+        }
+        return;
+      }
+
+      final file = result.files.first;
+
+      if (kIsWeb) {
+        final bytes = file.bytes;
+        if (bytes == null || bytes.isEmpty) {
+          throw Exception('Web-та файл bytes жоқ');
+        }
+
+        await _service.uploadAudio(
+          id: widget.letterId,
+          fileName: file.name,
+          fileBytes: bytes,
+        );
+      } else {
+        final path = file.path;
+        if (path == null || path.isEmpty) {
+          throw Exception('Файл path жоқ');
+        }
+
+        await _service.uploadAudio(
+          id: widget.letterId,
+          fileName: file.name,
+          filePath: path,
+        );
+      }
+
+      await _loadLetter();
+
+      if (!mounted) return;
+      _toast('Audio сәтті жүктелді');
+    } catch (e) {
+      if (!mounted) return;
+      _toast('Upload error: $e');
+    } finally {
+      if (mounted) {
+        setState(() => uploading = false);
+      }
+    }
   }
 
   String _withCacheBuster(String url) {
     final uri = Uri.parse(url);
     final updatedParams = Map<String, String>.from(uri.queryParameters);
     updatedParams['t'] = DateTime.now().millisecondsSinceEpoch.toString();
+
     return uri.replace(queryParameters: updatedParams).toString();
   }
 
@@ -420,13 +475,7 @@ class _UserAlphabetLetterDetailScreenState
       if (!exists) {
         if (!mounted) return;
         setState(() => _audioLoading = false);
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('This letter has no sound.'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+        _toast('This letter has no sound.');
         return;
       }
 
@@ -443,12 +492,7 @@ class _UserAlphabetLetterDetailScreenState
         _playing = false;
       });
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('This letter has no sound.'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _toast('This letter has no sound.');
     }
   }
 
@@ -457,9 +501,7 @@ class _UserAlphabetLetterDetailScreenState
       await _player.pause();
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Audio pause error: $e')),
-      );
+      _toast('Audio pause error: $e');
     }
   }
 
@@ -470,12 +512,7 @@ class _UserAlphabetLetterDetailScreenState
     if (letter == null) return;
 
     if (recordedPath == null || recordedPath.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Алдымен микрофонмен өз даусыңды жазып ал'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _toast('Алдымен микрофонмен өз даусыңды жазып ал');
       return;
     }
 
@@ -579,13 +616,7 @@ class _UserAlphabetLetterDetailScreenState
     } catch (e) {
       if (!mounted) return;
       setState(() => _predictLoading = false);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Тексеру error: $e'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      _toast('Тексеру error: $e');
     }
   }
 
@@ -616,8 +647,19 @@ class _UserAlphabetLetterDetailScreenState
                 children: [
                   IconButton(
                     icon: const Icon(Icons.arrow_back, color: Colors.black87),
-                    onPressed: () =>
-                        Navigator.of(context, rootNavigator: true).pop(),
+                    onPressed: () => Navigator.of(context).pop(true),
+                  ),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: uploading ? null : _pickAndUploadAudio,
+                    icon: uploading
+                        ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                        : const Icon(Icons.upload_file_rounded),
+                    label: Text(uploading ? 'Uploading...' : 'Upload audio'),
                   ),
                 ],
               ),
@@ -630,7 +672,7 @@ class _UserAlphabetLetterDetailScreenState
                     final double cardW =
                     c.maxWidth.clamp(0.0, 380.0).toDouble();
                     final double cardH =
-                    (cardW * 1.22).clamp(460.0, 720.0).toDouble();
+                    (cardW * 1.22).clamp(520.0, 760.0).toDouble();
 
                     return Center(
                       child: SizedBox(
@@ -969,6 +1011,251 @@ class _SquareBtn extends StatelessWidget {
   }
 }
 
+class _LetterEditorSheet extends StatefulWidget {
+  final AlphabetLetterVM? letter;
+
+  const _LetterEditorSheet({required this.letter});
+
+  @override
+  State<_LetterEditorSheet> createState() => _LetterEditorSheetState();
+}
+
+class _LetterEditorSheetState extends State<_LetterEditorSheet> {
+  static const Color purple = Color(0xFF8E5BFF);
+
+  late final TextEditingController orderC;
+  late final TextEditingController uppercaseC;
+  late final TextEditingController lowercaseC;
+  late final TextEditingController pronunciationRuC;
+  late final TextEditingController pronunciationEnC;
+  late final TextEditingController descriptionRuC;
+  late final TextEditingController descriptionEnC;
+  late final TextEditingController examplesC;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final l = widget.letter;
+
+    orderC = TextEditingController(text: (l?.orderIndex ?? 0).toString());
+    uppercaseC = TextEditingController(text: l?.uppercase ?? '');
+    lowercaseC = TextEditingController(text: l?.lowercase ?? '');
+    pronunciationRuC = TextEditingController(text: l?.pronunciationRu ?? '');
+    pronunciationEnC = TextEditingController(text: l?.pronunciationEn ?? '');
+    descriptionRuC = TextEditingController(text: l?.descriptionRu ?? '');
+    descriptionEnC = TextEditingController(text: l?.descriptionEn ?? '');
+    examplesC = TextEditingController(
+      text: l == null
+          ? ''
+          : l.examples.map((e) => '${e.kz}|${e.ru}|${e.en}').join('\n'),
+    );
+  }
+
+  @override
+  void dispose() {
+    orderC.dispose();
+    uppercaseC.dispose();
+    lowercaseC.dispose();
+    pronunciationRuC.dispose();
+    pronunciationEnC.dispose();
+    descriptionRuC.dispose();
+    descriptionEnC.dispose();
+    examplesC.dispose();
+    super.dispose();
+  }
+
+  List<AlphabetExampleVM> _parseExamples(String raw) {
+    final lines = raw
+        .split('\n')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    final result = <AlphabetExampleVM>[];
+
+    for (final line in lines) {
+      final parts = line.split('|');
+      if (parts.length >= 3) {
+        result.add(
+          AlphabetExampleVM(
+            kz: parts[0].trim(),
+            ru: parts[1].trim(),
+            en: parts[2].trim(),
+          ),
+        );
+      }
+    }
+
+    return result;
+  }
+
+  void _save() {
+    final order = int.tryParse(orderC.text.trim()) ?? 0;
+    final uppercase = uppercaseC.text.trim();
+    final lowercase = lowercaseC.text.trim();
+
+    if (uppercase.isEmpty || lowercase.isEmpty) return;
+
+    Navigator.pop(
+      context,
+      AlphabetLetterVM(
+        id: widget.letter?.id ?? 0,
+        orderIndex: order,
+        uppercase: uppercase,
+        lowercase: lowercase,
+        pronunciationRu: pronunciationRuC.text.trim(),
+        pronunciationEn: pronunciationEnC.text.trim(),
+        descriptionRu: descriptionRuC.text.trim(),
+        descriptionEn: descriptionEnC.text.trim(),
+        examples: _parseExamples(examplesC.text),
+      ),
+    );
+  }
+
+  Widget _field({
+    required TextEditingController controller,
+    required String label,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    String? hint,
+  }) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      decoration: InputDecoration(
+        labelText: label,
+        hintText: hint,
+        border: const OutlineInputBorder(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final inset = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      padding: EdgeInsets.only(bottom: inset),
+      decoration: const BoxDecoration(
+        color: Color(0xFFF6F1FF),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 48,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.black12,
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                widget.letter == null ? 'Add letter' : 'Edit letter',
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+              const SizedBox(height: 14),
+              _field(
+                controller: orderC,
+                label: 'OrderIndex',
+                keyboardType: TextInputType.number,
+              ),
+              const SizedBox(height: 10),
+              _field(
+                controller: uppercaseC,
+                label: 'Uppercase',
+                hint: 'Ә',
+              ),
+              const SizedBox(height: 10),
+              _field(
+                controller: lowercaseC,
+                label: 'Lowercase',
+                hint: 'ә',
+              ),
+              const SizedBox(height: 10),
+              _field(
+                controller: pronunciationRuC,
+                label: 'Pronunciation RU',
+                hint: "похоже на мягкое 'а'",
+              ),
+              const SizedBox(height: 10),
+              _field(
+                controller: pronunciationEnC,
+                label: 'Pronunciation EN',
+                hint: "similar to 'a' in cat",
+              ),
+              const SizedBox(height: 10),
+              _field(
+                controller: descriptionRuC,
+                label: 'Description RU',
+                maxLines: 3,
+                hint: 'гласная переднего ряда',
+              ),
+              const SizedBox(height: 10),
+              _field(
+                controller: descriptionEnC,
+                label: 'Description EN',
+                maxLines: 3,
+                hint: 'front vowel',
+              ),
+              const SizedBox(height: 10),
+              _field(
+                controller: examplesC,
+                label: 'Examples',
+                maxLines: 6,
+                hint: 'әке|отец|father\nәлем|мир|world',
+              ),
+              const SizedBox(height: 8),
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Формат examples: kz|ru|en (әр жолға бір example)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: Colors.black54,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                height: 52,
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _save,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: purple,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                  child: const Text(
+                    'Save',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class AlphabetLetterVM {
   final int id;
   final int orderIndex;
@@ -1002,6 +1289,17 @@ class AlphabetLetterVM {
     return '/—/';
   }
 
+  Map<String, dynamic> toApiJson() => {
+    'orderIndex': orderIndex,
+    'uppercase': uppercase,
+    'lowercase': lowercase,
+    'pronunciationRu': pronunciationRu,
+    'pronunciationEn': pronunciationEn,
+    'descriptionRu': descriptionRu,
+    'descriptionEn': descriptionEn,
+    'examples': examples.map((e) => e.toJson()).toList(),
+  };
+
   factory AlphabetLetterVM.fromJson(Map<String, dynamic> j) {
     final rawExamples = j['examples'];
     final examples = <AlphabetExampleVM>[];
@@ -1018,7 +1316,8 @@ class AlphabetLetterVM {
       }
     }
 
-    final id = (j['id'] is int) ? j['id'] : int.tryParse('${j['id']}') ?? 0;
+    final id =
+    (j['id'] is int) ? j['id'] : int.tryParse('${j['id']}') ?? 0;
 
     return AlphabetLetterVM(
       id: id,
@@ -1048,6 +1347,12 @@ class AlphabetExampleVM {
     required this.ru,
     required this.en,
   });
+
+  Map<String, dynamic> toJson() => {
+    'kz': kz,
+    'ru': ru,
+    'en': en,
+  };
 
   factory AlphabetExampleVM.fromJson(Map<String, dynamic> j) {
     return AlphabetExampleVM(

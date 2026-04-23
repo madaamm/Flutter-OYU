@@ -3,6 +3,7 @@ import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:kazakh_learning_app/screens/auth_screen.dart';
 import 'package:kazakh_learning_app/screens/admin_users_screen.dart';
 import 'package:kazakh_learning_app/screens/admin_task_screen.dart';
+import 'package:kazakh_learning_app/screens/admin_alphabet_screen.dart'; // ✅ NEW
 
 class AdminHomeScreen extends StatefulWidget {
   final String userName;
@@ -26,8 +27,8 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         onGoModeration: () => setState(() => currentIndex = 3),
       ),
       const AdminUsersScreen(),
-      const AdminTaskScreen(), // ✅ Tasks бөлек файлдан
-      const AdminModerationScreen(),
+      const AdminTaskScreen(),
+      const AdminAlphabetScreen(), // ✅ бұрын: AdminModerationScreen()
     ];
 
     return Scaffold(
@@ -45,7 +46,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
           BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
           BottomNavigationBarItem(icon: Icon(Icons.people_alt_outlined), label: ''),
           BottomNavigationBarItem(icon: Icon(Icons.task_alt_outlined), label: ''),
-          BottomNavigationBarItem(icon: Icon(Icons.shield_outlined), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.abc_outlined), label: ''), // ✅ shield -> abc
         ],
       ),
     );
@@ -114,7 +115,6 @@ class AdminDashboardPage extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 14),
-
               Row(
                 children: [
                   Container(
@@ -150,9 +150,7 @@ class AdminDashboardPage extends StatelessWidget {
                   ),
                 ],
               ),
-
               const SizedBox(height: 16),
-
               Row(
                 children: [
                   Expanded(child: _miniCard(title: 'Роль', value: 'Админ')),
@@ -163,7 +161,6 @@ class AdminDashboardPage extends StatelessWidget {
             ],
           ),
         ),
-
         const SizedBox(height: 16),
 
         Expanded(
@@ -184,10 +181,10 @@ class AdminDashboardPage extends StatelessWidget {
                   onTap: onGoTasks,
                 ),
                 _actionCard(
-                  title: 'Moderation (review)',
-                  subtitle: 'Проверка/мониторинг ответов',
-                  icon: Icons.shield_outlined,
-                  onTap: onGoModeration,
+                  title: 'Alphabet (әріптер)',
+                  subtitle: 'Алфавит және әріп тапсырмалары',
+                  icon: Icons.abc_outlined,
+                  onTap: onGoModeration, // ✅ 4-ші табқа апарады
                 ),
               ],
             ),
@@ -254,13 +251,7 @@ class AdminDashboardPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        title,
-                        style: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
+                      Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w900)),
                       const SizedBox(height: 4),
                       Text(subtitle, style: const TextStyle(color: Colors.black54)),
                     ],
@@ -271,20 +262,6 @@ class AdminDashboardPage extends StatelessWidget {
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class AdminModerationScreen extends StatelessWidget {
-  const AdminModerationScreen({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return const Center(
-      child: Text(
-        'Moderation screen coming soon',
-        style: TextStyle(fontWeight: FontWeight.w800),
       ),
     );
   }

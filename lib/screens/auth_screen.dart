@@ -1,12 +1,12 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 
 import 'package:kazakh_learning_app/screens/admin_home_screen.dart';
 import 'package:kazakh_learning_app/screens/moderator_home_screen.dart';
 import 'package:kazakh_learning_app/screens/forgot_password_screen.dart';
 import 'package:kazakh_learning_app/screens/home_screen.dart';
 import 'package:kazakh_learning_app/screens/confirm_email_screen.dart';
+import 'package:kazakh_learning_app/screens/scenario_select_screen.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
 
 class AuthScreen extends StatefulWidget {
@@ -30,6 +30,8 @@ class _AuthScreenState extends State<AuthScreen> {
   final _passC = TextEditingController();
   final _confirmC = TextEditingController();
 
+  final _auth = AuthService();
+
   String? _nameError;
   String? _emailError;
   String? _passError;
@@ -49,20 +51,20 @@ class _AuthScreenState extends State<AuthScreen> {
     super.dispose();
   }
 
-  Map<String, dynamic> _safeJsonMap(String body) {
+  Map<String, dynamic> _safeJsonMap(dynamic value) {
     try {
-      final decoded = jsonDecode(body);
-      if (decoded is Map<String, dynamic>) return decoded;
+      if (value is Map<String, dynamic>) return value;
+      if (value is String && value.isNotEmpty) {
+        final decoded = jsonDecode(value);
+        if (decoded is Map<String, dynamic>) return decoded;
+      }
     } catch (_) {}
     return {};
   }
 
   void _showError(String message) {
-    // ✅ SnackBar тек error
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
-
-  // ================= VALIDATION =================
 
   bool _isTitleCaseName(String name) {
     final trimmed = name.trim();
@@ -130,7 +132,10 @@ class _AuthScreenState extends State<AuthScreen> {
       _confirmError = confirmErr;
     });
 
-    return nameErr == null && emailErr == null && passErr == null && confirmErr == null;
+    return nameErr == null &&
+        emailErr == null &&
+        passErr == null &&
+        confirmErr == null;
   }
 
   bool _validateLoginFields() {
@@ -160,131 +165,108 @@ class _AuthScreenState extends State<AuthScreen> {
     return emailErr == null && passErr == null;
   }
 
-  // ================= BACKEND =================
-
   Future<void> _register() async {
     setState(() => isLoading = true);
 
-    final url = Uri.parse('${AuthService.baseUrl}/auth/register');
-
     try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          "username": _nameC.text.trim(),
-          "email": _emailC.text.trim(),
-          "password": _passC.text.trim(),
-          "repeatPassword": _confirmC.text.trim(),
-        }),
+      final email = _emailC.text.trim().toLowerCase();
+
+      await _auth.register(
+        username: _nameC.text.trim(),
+        email: email,
+        password: _passC.text.trim(),
+        repeatPassword: _confirmC.text.trim(),
       );
 
-      final data = _safeJsonMap(response.body);
+      await _auth.resetScenarioForEmail(email);
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (!mounted) return;
+      if (!mounted) return;
 
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => ConfirmEmailScreen(email: _emailC.text.trim()),
-          ),
-        );
-      } else {
-        _showError((data['message'] ?? 'Registration failed').toString());
-      }
-    } catch (_) {
-      _showError('Server error');
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => ConfirmEmailScreen(email: email),
+        ),
+      );
+    } catch (e) {
+      _showError(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => isLoading = false);
     }
-
-    if (mounted) setState(() => isLoading = false);
   }
 
-  // ✅ LOGIN: token/role/userId/nickname/username кеш
   Future<void> _login() async {
     setState(() => isLoading = true);
 
-    final url = Uri.parse('${AuthService.baseUrl}/auth/login');
-
     try {
-      final response = await http.post(
-        url,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          "email": _emailC.text.trim(),
-          "password": _passC.text.trim(),
-        }),
+      final email = _emailC.text.trim().toLowerCase();
+
+      await _auth.login(
+        email: email,
+        password: _passC.text.trim(),
       );
 
-      final data = _safeJsonMap(response.body);
+      if (!mounted) return;
 
-      if (response.statusCode == 200) {
-        final token = (data['token'] ?? data['accessToken'] ?? '').toString().trim();
-        if (token.isEmpty) {
-          _showError('Token келмеді (backend response тексер)');
-          return;
-        }
-        await AuthService().saveToken(token);
-
-        final user = (data['user'] is Map) ? (data['user'] as Map) : {};
-
-        // ✅ role normalize → USER / MODERATOR / ADMIN
-        final roleRaw = (user['role'] ?? 'USER').toString().trim();
-        final role = roleRaw.toUpperCase(); // "admin" => "ADMIN"
-        await AuthService().saveRole(role.toLowerCase()); // сенде role lower сақталады
-
-        // ✅ userId
-        final idRaw = user['id'];
-        final userId = (idRaw is int) ? idRaw : int.tryParse(idRaw.toString()) ?? 0;
-        if (userId > 0) {
-          await AuthService().saveUserId(userId);
-        }
-
-        // ✅ nickname cache
-        final nickRaw = user['nickname'] ?? user['nickName'] ?? user['handle'];
-        final nick = (nickRaw ?? '').toString().trim();
-        if (userId > 0 && nick.isNotEmpty) {
-          await AuthService().saveNicknameForUser(userId, nick);
-        }
-
-        // ✅ full name (backend: username) cache
-        final username = (user['username'] ?? user['name'] ?? '').toString().trim();
-        if (userId > 0 && username.isNotEmpty) {
-          await AuthService().saveUsernameForUser(userId, username);
-        }
-
-        // UI-ға көрсетілетін userName (fallback)
-        final userName = username.isNotEmpty
-            ? username
-            : _emailC.text.trim().split('@').first;
-
-        if (!mounted) return;
-
-        // ✅ redirect: ADMIN / MODERATOR / USER
-        if (role == 'ADMIN') {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => AdminHomeScreen(userName: userName)),
-          );
-        } else if (role == 'MODERATOR') {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => ModeratorHomeScreen(userName: userName)),
-          );
-        } else {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => HomeScreen(userName: userName)),
-          );
-        }
-      } else {
-        _showError((data['message'] ?? 'Login failed').toString());
-      }
-    } catch (_) {
-      _showError('Server error');
+      await _goBySavedRole(
+        fallbackUserName: email.split('@').first,
+      );
+    } catch (e) {
+      _showError(e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => isLoading = false);
     }
-
-    if (mounted) setState(() => isLoading = false);
   }
 
-  // ================= UI ACTIONS =================
+  Future<void> _goBySavedRole({required String fallbackUserName}) async {
+    final role = (await _auth.getRole() ?? 'user').toLowerCase();
+    final userName = await _auth.getCachedUsernameOrDefault();
+    final resolvedName =
+    userName.trim().isEmpty || userName == 'User' ? fallbackUserName : userName;
+
+    final email = _emailC.text.trim().toLowerCase();
+
+    if (!mounted) return;
+
+    if (role == 'admin') {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => AdminHomeScreen(userName: resolvedName),
+        ),
+      );
+      return;
+    }
+
+    if (role == 'moderator') {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => ModeratorHomeScreen(userName: resolvedName),
+        ),
+      );
+      return;
+    }
+
+    final alreadyShown = await _auth.isScenarioShownForEmail(email);
+
+    if (!mounted) return;
+
+    if (!alreadyShown) {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => ScenarioSelectScreen(
+            userName: resolvedName,
+            email: email,
+          ),
+        ),
+      );
+    } else {
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => HomeScreen(userName: resolvedName),
+        ),
+      );
+    }
+  }
 
   void _switchTab(bool login) {
     setState(() {
@@ -317,8 +299,6 @@ class _AuthScreenState extends State<AuthScreen> {
       MaterialPageRoute(builder: (_) => const ForgotPasswordScreen()),
     );
   }
-
-  // ================= UI BUILD =================
 
   @override
   Widget build(BuildContext context) {
@@ -368,7 +348,6 @@ class _AuthScreenState extends State<AuthScreen> {
                 ),
               ),
               const SizedBox(height: 14),
-
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 22),
                 child: Row(
@@ -390,9 +369,7 @@ class _AuthScreenState extends State<AuthScreen> {
                   ],
                 ),
               ),
-
               const SizedBox(height: 18),
-
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 18),
                 padding: const EdgeInsets.all(18),
@@ -412,7 +389,6 @@ class _AuthScreenState extends State<AuthScreen> {
                       ),
                       const SizedBox(height: 14),
                     ],
-
                     _label('Your Email'),
                     _textField(
                       controller: _emailC,
@@ -420,9 +396,7 @@ class _AuthScreenState extends State<AuthScreen> {
                       errorText: _emailError,
                       keyboardType: TextInputType.emailAddress,
                     ),
-
                     const SizedBox(height: 14),
-
                     _label('Password'),
                     _passwordField(
                       controller: _passC,
@@ -431,7 +405,6 @@ class _AuthScreenState extends State<AuthScreen> {
                       obscure: _hidePass,
                       onToggle: () => setState(() => _hidePass = !_hidePass),
                     ),
-
                     if (isLogin) ...[
                       const SizedBox(height: 8),
                       Row(
@@ -441,13 +414,15 @@ class _AuthScreenState extends State<AuthScreen> {
                             onPressed: _openForgotPassword,
                             child: const Text(
                               'Forgot password?',
-                              style: TextStyle(color: purple, fontWeight: FontWeight.w800),
+                              style: TextStyle(
+                                color: purple,
+                                fontWeight: FontWeight.w800,
+                              ),
                             ),
                           ),
                         ],
                       ),
                     ],
-
                     if (!isLogin) ...[
                       const SizedBox(height: 14),
                       _label('Repeat Password'),
@@ -459,9 +434,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         onToggle: () => setState(() => _hideConfirm = !_hideConfirm),
                       ),
                     ],
-
                     const SizedBox(height: 18),
-
                     SizedBox(
                       width: double.infinity,
                       height: 52,
@@ -471,7 +444,9 @@ class _AuthScreenState extends State<AuthScreen> {
                           backgroundColor: purple,
                           foregroundColor: Colors.white,
                           elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                         child: isLoading
                             ? const SizedBox(
@@ -484,13 +459,14 @@ class _AuthScreenState extends State<AuthScreen> {
                         )
                             : Text(
                           isLogin ? 'Log in' : 'Continue',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w800),
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                          ),
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 14),
-
                     Row(
                       children: const [
                         Expanded(child: Divider(color: Colors.black12, thickness: 1)),
@@ -501,9 +477,7 @@ class _AuthScreenState extends State<AuthScreen> {
                         Expanded(child: Divider(color: Colors.black12, thickness: 1)),
                       ],
                     ),
-
                     const SizedBox(height: 14),
-
                     _socialButton(
                       text: 'login with Apple',
                       icon: Icons.apple,
@@ -524,8 +498,6 @@ class _AuthScreenState extends State<AuthScreen> {
       ),
     );
   }
-
-  // ============== UI helpers ==============
 
   Widget _tabButton({
     required String title,
@@ -570,7 +542,10 @@ class _AuthScreenState extends State<AuthScreen> {
         padding: const EdgeInsets.only(bottom: 6),
         child: Text(
           text,
-          style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w700),
+          style: const TextStyle(
+            color: Colors.black54,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );
@@ -593,15 +568,23 @@ class _AuthScreenState extends State<AuthScreen> {
           style: const TextStyle(fontWeight: FontWeight.w700),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: Colors.black38, fontWeight: FontWeight.w600),
+            hintStyle: const TextStyle(
+              color: Colors.black38,
+              fontWeight: FontWeight.w600,
+            ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: hasError ? Colors.redAccent : Colors.black26),
+              borderSide: BorderSide(
+                color: hasError ? Colors.redAccent : Colors.black26,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: hasError ? Colors.redAccent : purple, width: 1.6),
+              borderSide: BorderSide(
+                color: hasError ? Colors.redAccent : purple,
+                width: 1.6,
+              ),
             ),
           ),
         ),
@@ -609,7 +592,11 @@ class _AuthScreenState extends State<AuthScreen> {
           const SizedBox(height: 6),
           Text(
             errorText!,
-            style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              color: Colors.redAccent,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ],
@@ -634,19 +621,30 @@ class _AuthScreenState extends State<AuthScreen> {
           style: const TextStyle(fontWeight: FontWeight.w700),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: const TextStyle(color: Colors.black38, fontWeight: FontWeight.w600),
+            hintStyle: const TextStyle(
+              color: Colors.black38,
+              fontWeight: FontWeight.w600,
+            ),
             contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: hasError ? Colors.redAccent : Colors.black26),
+              borderSide: BorderSide(
+                color: hasError ? Colors.redAccent : Colors.black26,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: hasError ? Colors.redAccent : purple, width: 1.6),
+              borderSide: BorderSide(
+                color: hasError ? Colors.redAccent : purple,
+                width: 1.6,
+              ),
             ),
             suffixIcon: IconButton(
               onPressed: onToggle,
-              icon: Icon(obscure ? Icons.visibility_off : Icons.visibility, color: Colors.black38),
+              icon: Icon(
+                obscure ? Icons.visibility_off : Icons.visibility,
+                color: Colors.black38,
+              ),
             ),
           ),
         ),
@@ -654,7 +652,11 @@ class _AuthScreenState extends State<AuthScreen> {
           const SizedBox(height: 6),
           Text(
             errorText!,
-            style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w700),
+            style: const TextStyle(
+              color: Colors.redAccent,
+              fontSize: 12,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ],
       ],
@@ -674,11 +676,16 @@ class _AuthScreenState extends State<AuthScreen> {
         icon: Icon(icon, color: Colors.black87),
         label: Text(
           text,
-          style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.w800),
+          style: const TextStyle(
+            color: Colors.black87,
+            fontWeight: FontWeight.w800,
+          ),
         ),
         style: OutlinedButton.styleFrom(
           side: const BorderSide(color: Colors.black26),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
         ),
       ),
     );

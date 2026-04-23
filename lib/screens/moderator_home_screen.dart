@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:kazakh_learning_app/screens/auth_screen.dart';
 import 'package:kazakh_learning_app/screens/moderator_users_screen.dart';
+import 'package:kazakh_learning_app/screens/moderator_games_screen.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
 
 class ModeratorHomeScreen extends StatefulWidget {
@@ -33,8 +34,10 @@ class _ModeratorHomeScreenState extends State<ModeratorHomeScreen> {
         userName: widget.userName,
         onLogout: () => _logout(context),
         onOpenUsers: () => setState(() => currentIndex = 1),
+        onOpenGames: () => setState(() => currentIndex = 2),
       ),
       const ModeratorUsersScreen(),
+      const ModeratorGamesScreen(),
     ];
 
     return Scaffold(
@@ -51,6 +54,7 @@ class _ModeratorHomeScreenState extends State<ModeratorHomeScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: ''),
           BottomNavigationBarItem(icon: Icon(Icons.people_alt_outlined), label: ''),
+          BottomNavigationBarItem(icon: Icon(Icons.sports_esports_outlined), label: ''),
         ],
       ),
     );
@@ -61,11 +65,13 @@ class _ModeratorDashboard extends StatelessWidget {
   final String userName;
   final VoidCallback onLogout;
   final VoidCallback onOpenUsers;
+  final VoidCallback onOpenGames;
 
   const _ModeratorDashboard({
     required this.userName,
     required this.onLogout,
     required this.onOpenUsers,
+    required this.onOpenGames,
   });
 
   static const Color purple = Color(0xFF8E5BFF);
@@ -95,11 +101,7 @@ class _ModeratorDashboard extends StatelessWidget {
                 children: [
                   const Text(
                     'Moderator Panel',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(color: Colors.white70, fontSize: 14, fontWeight: FontWeight.w700),
                   ),
                   InkWell(
                     onTap: onLogout,
@@ -116,11 +118,7 @@ class _ModeratorDashboard extends StatelessWidget {
                 '$userName 👋',
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w900,
-                ),
+                style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 10),
               const Text(
@@ -133,7 +131,7 @@ class _ModeratorDashboard extends StatelessWidget {
 
         const SizedBox(height: 16),
 
-        // Card -> Users (subtitle removed ✅)
+        // Card -> Users (subtitle removed)
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 18),
           child: InkWell(
@@ -142,10 +140,7 @@ class _ModeratorDashboard extends StatelessWidget {
             child: Container(
               width: double.infinity,
               padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(18),
-              ),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
               child: Stack(
                 alignment: Alignment.center,
                 children: const [
@@ -158,12 +153,49 @@ class _ModeratorDashboard extends StatelessWidget {
                     ),
                   ),
                   Padding(
-                    padding: EdgeInsets.only(left: 8), // closer to avatar
-                    child: Text(
-                      'Пользователи',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900),
+                    padding: EdgeInsets.only(left: 8),
+                    child: Text('Пользователи',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                  ),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: Icon(Icons.chevron_right, color: Colors.black45),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 12),
+
+        // Card -> Games (NEW)
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          child: InkWell(
+            onTap: onOpenGames,
+            borderRadius: BorderRadius.circular(18),
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(18),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(18)),
+              child: Stack(
+                alignment: Alignment.center,
+                children: const [
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: CircleAvatar(
+                      radius: 22,
+                      backgroundColor: Color(0xFFE9DFFF),
+                      child: Icon(Icons.sports_esports_outlined, color: purple),
                     ),
+                  ),
+                  Padding(
+                    padding: EdgeInsets.only(left: 8),
+                    child: Text('Learn by game',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
                   ),
                   Align(
                     alignment: Alignment.centerRight,
@@ -188,7 +220,7 @@ class _ModeratorDashboard extends StatelessWidget {
               ),
               child: const Center(
                 child: Text(
-                  'Moderator блоктар (кейін толтырамыз)',
+                  '',
                   style: TextStyle(fontSize: 16, color: Colors.black54),
                 ),
               ),

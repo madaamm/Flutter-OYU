@@ -2,9 +2,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
-import 'package:kazakh_learning_app/services/auth_service.dart';
-import 'package:kazakh_learning_app/screens/scenario_select_screen.dart';
 import 'package:kazakh_learning_app/screens/auth_screen.dart';
+import 'package:kazakh_learning_app/services/auth_service.dart';
 
 class ConfirmEmailScreen extends StatefulWidget {
   final String email;
@@ -26,7 +25,7 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
     final code = _codeController.text.trim();
 
     if (code.isEmpty) {
-      setState(() => errorText = "Кодты енгізіңіз");
+      setState(() => errorText = 'Кодты енгізіңіз');
       return;
     }
 
@@ -35,59 +34,51 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
       errorText = null;
     });
 
-    final url =
-    Uri.parse('https://oyu-learnkz.onrender.com/api/auth/confirm-email');
+    final url = Uri.parse('${AuthService.baseUrl}/auth/confirm-email');
 
     try {
       final response = await http.post(
         url,
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({"token": code}),
+        body: jsonEncode({'token': code}),
       );
 
-      final data = jsonDecode(response.body);
+      Map<String, dynamic> data = {};
+      try {
+        if (response.body.isNotEmpty) {
+          data = jsonDecode(response.body) as Map<String, dynamic>;
+        }
+      } catch (_) {}
 
-      if (response.statusCode == 200) {
+      if (response.statusCode >= 200 && response.statusCode < 300) {
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Email сәтті расталды 🎉")),
+          const SnackBar(
+            content: Text('Email сәтті расталды 🎉 Енді логин жасаңыз'),
+          ),
         );
 
-        // ✅ 1 рет қана көрсету логикасы
-        final auth = AuthService();
-        final wasShown = await auth.isScenarioShownForEmail(widget.email);
+        await Future.delayed(const Duration(milliseconds: 500));
 
         if (!mounted) return;
 
-        if (!wasShown) {
-          await auth.setScenarioShownForEmail(widget.email, true);
-
-          final userName = widget.email.split('@').first;
-
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(
-              builder: (_) => ScenarioSelectScreen(userName: userName),
-            ),
-          );
-        } else {
-          // Бұрын көрсетілген болса → қайта көрсетпейміз
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (_) => const AuthScreen()),
-          );
-        }
+        Navigator.of(context).pushAndRemoveUntil(
+          MaterialPageRoute(builder: (_) => const AuthScreen()),
+              (route) => false,
+        );
       } else {
         setState(() {
-          errorText = data['message'] ?? "Қате код";
+          errorText = (data['message'] ?? 'Қате код').toString();
         });
       }
-    } catch (e) {
+    } catch (_) {
       setState(() {
-        errorText = "Server error";
+        errorText = 'Server error';
       });
+    } finally {
+      if (mounted) setState(() => isLoading = false);
     }
-
-    if (mounted) setState(() => isLoading = false);
   }
 
   @override
@@ -104,7 +95,6 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // HEADER
               Container(
                 width: double.infinity,
                 height: 170,
@@ -126,10 +116,7 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 24),
-
-              // CARD
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 20),
                 padding: const EdgeInsets.all(20),
@@ -140,7 +127,7 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
                 child: Column(
                   children: [
                     const Text(
-                      "Код жіберілді:",
+                      'Код жіберілді:',
                       style: TextStyle(
                         color: Colors.black54,
                         fontWeight: FontWeight.w600,
@@ -155,15 +142,15 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
                       ),
                     ),
                     const SizedBox(height: 20),
-
-                    // INPUT
                     TextField(
                       controller: _codeController,
                       style: const TextStyle(fontWeight: FontWeight.w700),
                       decoration: InputDecoration(
-                        hintText: "Кодты енгізіңіз",
+                        hintText: 'Кодты енгізіңіз',
                         contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 14),
+                          horizontal: 14,
+                          vertical: 14,
+                        ),
                         enabledBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(12),
                           borderSide: BorderSide(
@@ -183,7 +170,6 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
                         ),
                       ),
                     ),
-
                     if (errorText != null) ...[
                       const SizedBox(height: 8),
                       Text(
@@ -195,10 +181,7 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
                         ),
                       ),
                     ],
-
                     const SizedBox(height: 24),
-
-                    // BUTTON
                     SizedBox(
                       width: double.infinity,
                       height: 52,
@@ -221,7 +204,7 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
                           ),
                         )
                             : const Text(
-                          "Confirm",
+                          'Confirm',
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 16,

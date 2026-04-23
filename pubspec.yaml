@@ -1,11 +1,11 @@
 name: kazakh_learning_app
-description: "A new Flutter project."
+description: OYU - Kazakh learning mobile app
 publish_to: "none"
 
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.10.1
+  sdk: ">=3.3.0 <4.0.0"
 
 dependencies:
   flutter:
@@ -13,19 +13,23 @@ dependencies:
 
   cupertino_icons: ^1.0.8
 
-  # ✅ backend requests
   http: ^1.2.2
+  http_parser: ^4.0.2
 
-  # ✅ token + role сақтау үшін
-  shared_preferences: ^2.2.2
+  shared_preferences: ^2.2.3
 
-  # ✅ Google login (керек болса)
   google_sign_in: ^6.2.2
+
+  file_picker: ^8.1.2
+  mime: ^1.0.5
+
+  audioplayers: ^6.1.0
+  record: ^5.1.2
+  path_provider: ^2.1.4
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
   flutter_lints: ^6.0.0
 
 flutter:

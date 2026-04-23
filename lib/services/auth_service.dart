@@ -1,11 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kazakh_learning_app/services/api_config.dart';
 
 class AuthService {
   static const String baseUrl = 'https://oyu-learnkz.onrender.com/api';
 
-  // ✅ ScenarioSelectScreen 1-ақ рет көрсету (әр email-ға бөлек)
   static String _scenarioKey(String email) =>
       'scenario_shown_${email.trim().toLowerCase()}';
 
@@ -19,7 +19,10 @@ class AuthService {
     await prefs.setBool(_scenarioKey(email), value);
   }
 
-  // ================= TOKEN / ROLE =================
+  Future<void> resetScenarioForEmail(String email) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_scenarioKey(email));
+  }
 
   Future<void> saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
@@ -41,8 +44,6 @@ class AuthService {
     return prefs.getString('role');
   }
 
-  // ================= USER ID CACHE ✅ =================
-
   Future<void> saveUserId(int id) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('user_id', id);
@@ -52,8 +53,6 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt('user_id');
   }
-
-  // ================= NICKNAME CACHE (per user) ✅ =================
 
   String _nickKey(int userId) => 'nickname_u_$userId';
 
@@ -67,8 +66,6 @@ class AuthService {
     return prefs.getString(_nickKey(userId));
   }
 
-  // ================= USERNAME CACHE (per user) ✅ NEW =================
-
   String _usernameKey(int userId) => 'username_u_$userId';
 
   Future<void> saveUsernameForUser(int userId, String username) async {
@@ -81,7 +78,6 @@ class AuthService {
     return prefs.getString(_usernameKey(userId));
   }
 
-  /// ✅ HomeScreen үшін: кештен атын алып береді
   Future<String> getCachedUsernameOrDefault() async {
     final userId = await getUserId();
     if (userId == null) return 'User';
@@ -92,10 +88,113 @@ class AuthService {
     return name.trim();
   }
 
-  // ================= ME =================
+  Future<void> saveSessionFromResponse(Map<String, dynamic> data) async {
+    final token =
+    (data['token'] ?? data['accessToken'] ?? '').toString().trim();
 
-  /// ✅ GET /user/me (Bearer token)
-  /// + username кешке автомат түседі (HomeScreen автомат оқиды)
+    if (token.isEmpty) {
+      throw Exception('Token келмеді');
+    }
+
+    await saveToken(token);
+
+    final user = (data['user'] is Map<String, dynamic>)
+        ? data['user'] as Map<String, dynamic>
+        : <String, dynamic>{};
+
+    final roleRaw = (user['role'] ?? data['role'] ?? 'USER').toString().trim();
+    await saveRole(roleRaw.toLowerCase());
+
+    final idRaw = user['id'] ?? data['userId'];
+    final userId = idRaw is int ? idRaw : int.tryParse('$idRaw') ?? 0;
+    if (userId > 0) {
+      await saveUserId(userId);
+    }
+
+    final username =
+    (user['username'] ?? user['name'] ?? data['username'] ?? '')
+        .toString()
+        .trim();
+    if (userId > 0 && username.isNotEmpty) {
+      await saveUsernameForUser(userId, username);
+    }
+
+    final nickname =
+    (user['nickname'] ?? user['nickName'] ?? user['handle'] ?? '')
+        .toString()
+        .trim();
+    if (userId > 0 && nickname.isNotEmpty) {
+      await saveNicknameForUser(userId, nickname);
+    }
+  }
+
+  Future<Map<String, dynamic>> login({
+    required String email,
+    required String password,
+  }) async {
+    final uri = Uri.parse('$baseUrl/auth/login');
+
+    final res = await http
+        .post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'email': email.trim(),
+        'password': password.trim(),
+      }),
+    )
+        .timeout(const Duration(seconds: 20));
+
+    Map<String, dynamic> data = {};
+    try {
+      if (res.body.isNotEmpty) {
+        data = jsonDecode(res.body) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      await saveSessionFromResponse(data);
+      return data;
+    }
+
+    throw Exception((data['message'] ?? 'Login failed').toString());
+  }
+
+  Future<Map<String, dynamic>> register({
+    required String username,
+    required String email,
+    required String password,
+    required String repeatPassword,
+  }) async {
+    final uri = Uri.parse('$baseUrl/auth/register');
+
+    final res = await http
+        .post(
+      uri,
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'username': username.trim(),
+        'email': email.trim(),
+        'password': password.trim(),
+        'repeatPassword': repeatPassword.trim(),
+      }),
+    )
+        .timeout(const Duration(seconds: 20));
+
+    Map<String, dynamic> data = {};
+    try {
+      if (res.body.isNotEmpty) {
+        data = jsonDecode(res.body) as Map<String, dynamic>;
+      }
+    } catch (_) {}
+
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return data;
+    }
+
+    throw Exception((data['message'] ?? 'Registration failed').toString());
+  }
+
   Future<Map<String, dynamic>> me() async {
     final token = await getToken();
     if (token == null || token.isEmpty) {
@@ -109,6 +208,11 @@ class AuthService {
       headers: {'Authorization': 'Bearer $token'},
     ).timeout(const Duration(seconds: 20));
 
+    if (res.statusCode == 401) {
+      await logout();
+      throw Exception('Session expired. Қайта кіріңіз.');
+    }
+
     if (res.statusCode != 200) {
       throw Exception('ME error ${res.statusCode}: ${res.body}');
     }
@@ -116,13 +220,14 @@ class AuthService {
     final decoded = jsonDecode(res.body);
 
     if (decoded is Map<String, dynamic>) {
-      // ✅ username кешке түсіру
       final userId = await getUserId();
       if (userId != null) {
         final username =
-        (decoded['username'] ?? decoded['user']?['username'] ?? '').toString();
-        if (username.trim().isNotEmpty) {
-          await saveUsernameForUser(userId, username.trim());
+        (decoded['username'] ?? decoded['user']?['username'] ?? '')
+            .toString()
+            .trim();
+        if (username.isNotEmpty) {
+          await saveUsernameForUser(userId, username);
         }
       }
       return decoded;
@@ -131,11 +236,6 @@ class AuthService {
     throw Exception('ME response дұрыс емес: ${res.body}');
   }
 
-  // ================= PATCH username ✅ NEW =================
-
-  /// ✅ PATCH /user/me/username
-  /// body: {"username": "NewName"}
-  /// Success болса username_u_<userId> жаңарады
   Future<Map<String, dynamic>> updateUsername(String newUsername) async {
     final token = await getToken();
     final userId = await getUserId();
@@ -183,15 +283,11 @@ class AuthService {
     };
   }
 
-  // ================= LOGOUT =================
-
   Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
     await prefs.remove('role');
-    await prefs.remove('user_id'); // ✅ current user id кетсін
-    await prefs.remove('nickname'); // ✅ ескі жалпы key болса кетсін
-    // username_u_<id> әдейі өшірмейміз (келесі login-да басқа userId болады)
-    // ❗ Scenario флагтарын өшірмейміз
+    await prefs.remove('user_id');
+    await prefs.remove('nickname');
   }
 }

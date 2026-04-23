@@ -176,7 +176,7 @@ class _AdminUsersScreenState extends State<AdminUsersScreen> {
                   style: const TextStyle(color: purple, fontWeight: FontWeight.w900),
                 ),
               ),
-              title: Text('$username  (#$id)', style: const TextStyle(fontWeight: FontWeight.w900)),
+              title: Text('$username  ($id)', style: const TextStyle(fontWeight: FontWeight.w900)),
               subtitle: Padding(
                 padding: const EdgeInsets.only(top: 4),
                 child: Text('$email\nrole: $role   level: $level   xp: $xp'),

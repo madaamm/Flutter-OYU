@@ -1,10 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:kazakh_learning_app/screens/home_screen.dart';
+import 'package:kazakh_learning_app/services/auth_service.dart';
 
 class ScenarioSelectScreen extends StatefulWidget {
   final String userName;
+  final String email;
 
-  const ScenarioSelectScreen({super.key, required this.userName});
+  const ScenarioSelectScreen({
+    super.key,
+    required this.userName,
+    required this.email,
+  });
 
   @override
   State<ScenarioSelectScreen> createState() => _ScenarioSelectScreenState();
@@ -14,7 +20,10 @@ class _ScenarioSelectScreenState extends State<ScenarioSelectScreen> {
   static const Color purple = Color(0xFF8E5BFF);
   static const Color deepPurple = Color(0xFF6D2DFF);
 
+  final _auth = AuthService();
+
   int? _selectedIndex;
+  bool _saving = false;
 
   final List<_ScenarioItem> _items = const [
     _ScenarioItem(icon: Icons.flight_takeoff, title: 'Prepare for travel'),
@@ -25,27 +34,37 @@ class _ScenarioSelectScreenState extends State<ScenarioSelectScreen> {
     _ScenarioItem(icon: Icons.support_agent, title: 'Asking for help (Emergency)'),
   ];
 
-  void _continue() {
-    if (_selectedIndex == null) return;
+  Future<void> _continue() async {
+    if (_selectedIndex == null || _saving) return;
 
-    // ✅ Continue -> HomeScreen (userName бірге өтеді)
-    Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => HomeScreen(userName: widget.userName),
-      ),
-    );
+    setState(() => _saving = true);
+
+    try {
+      await _auth.setScenarioShownForEmail(widget.email, true);
+
+      if (!mounted) return;
+
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => HomeScreen(userName: widget.userName),
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final canContinue = _selectedIndex != null;
+    final canContinue = _selectedIndex != null && !_saving;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F1FF),
       body: SafeArea(
         child: Column(
           children: [
-            // Top purple header with OYU + Qoshqar
             Container(
               width: double.infinity,
               height: 170,
@@ -79,9 +98,7 @@ class _ScenarioSelectScreenState extends State<ScenarioSelectScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 14),
-
             Expanded(
               child: Container(
                 margin: const EdgeInsets.symmetric(horizontal: 18),
@@ -93,7 +110,6 @@ class _ScenarioSelectScreenState extends State<ScenarioSelectScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // progress bar
                     ClipRRect(
                       borderRadius: BorderRadius.circular(99),
                       child: LinearProgressIndicator(
@@ -104,7 +120,6 @@ class _ScenarioSelectScreenState extends State<ScenarioSelectScreen> {
                       ),
                     ),
                     const SizedBox(height: 14),
-
                     const Text(
                       'Select one of the scenario below',
                       style: TextStyle(
@@ -114,7 +129,6 @@ class _ScenarioSelectScreenState extends State<ScenarioSelectScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-
                     Expanded(
                       child: ListView.separated(
                         itemCount: _items.length,
@@ -127,12 +141,17 @@ class _ScenarioSelectScreenState extends State<ScenarioSelectScreen> {
                             onTap: () => setState(() => _selectedIndex = i),
                             borderRadius: BorderRadius.circular(14),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 14,
+                              ),
                               decoration: BoxDecoration(
                                 color: Colors.white,
                                 borderRadius: BorderRadius.circular(14),
                                 border: Border.all(
-                                  color: selected ? deepPurple : const Color(0xFFDDDDDD),
+                                  color: selected
+                                      ? deepPurple
+                                      : const Color(0xFFDDDDDD),
                                   width: selected ? 1.6 : 1.0,
                                 ),
                                 boxShadow: const [
@@ -152,7 +171,11 @@ class _ScenarioSelectScreenState extends State<ScenarioSelectScreen> {
                                       color: const Color(0xFFEAF3FF),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
-                                    child: Icon(item.icon, color: Colors.blue, size: 22),
+                                    child: Icon(
+                                      item.icon,
+                                      color: Colors.blue,
+                                      size: 22,
+                                    ),
                                   ),
                                   const SizedBox(width: 12),
                                   Expanded(
@@ -172,9 +195,7 @@ class _ScenarioSelectScreenState extends State<ScenarioSelectScreen> {
                         },
                       ),
                     ),
-
                     const SizedBox(height: 14),
-
                     SizedBox(
                       width: double.infinity,
                       height: 54,
@@ -190,7 +211,16 @@ class _ScenarioSelectScreenState extends State<ScenarioSelectScreen> {
                             borderRadius: BorderRadius.circular(14),
                           ),
                         ),
-                        child: const Text(
+                        child: _saving
+                            ? const SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.4,
+                            color: Colors.white,
+                          ),
+                        )
+                            : const Text(
                           'Continue',
                           style: TextStyle(
                             fontSize: 16,
@@ -203,7 +233,6 @@ class _ScenarioSelectScreenState extends State<ScenarioSelectScreen> {
                 ),
               ),
             ),
-
             const SizedBox(height: 14),
           ],
         ),
@@ -216,5 +245,8 @@ class _ScenarioItem {
   final IconData icon;
   final String title;
 
-  const _ScenarioItem({required this.icon, required this.title});
+  const _ScenarioItem({
+    required this.icon,
+    required this.title,
+  });
 }

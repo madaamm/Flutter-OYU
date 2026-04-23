@@ -223,7 +223,7 @@ class _AdminUserDetailScreenState extends State<AdminUserDetailScreen> {
                       Text(email, style: const TextStyle(color: Colors.black54)),
                       const SizedBox(height: 6),
                       Text(
-                        'ID: #$id   •   Level: $level   •   XP: $xp',
+                        'ID: $id   •   Level: $level   •   XP: $xp',
                         style: const TextStyle(color: Colors.black54, fontWeight: FontWeight.w600),
                       ),
                     ],
