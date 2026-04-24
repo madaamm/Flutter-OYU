@@ -1,3 +1,6 @@
+// lib/screens/admin_alphabet_screen.dart
+// ЕГЕР ҚАЛАСАҢ, compile-ready толық дұрыс вариант:
+
 import 'package:audioplayers/audioplayers.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
@@ -29,6 +32,7 @@ class _AdminAlphabetScreenState extends State<AdminAlphabetScreen> {
   }
 
   void _errorSnack(String msg) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
@@ -115,8 +119,10 @@ class _AdminAlphabetScreenState extends State<AdminAlphabetScreen> {
   }
 
   Future<void> _openLetter(AlphabetLetterVM l) async {
-    final refreshed =
-    await Navigator.of(context, rootNavigator: true).push<bool>(
+    final bool? refreshed = await Navigator.of(
+      context,
+      rootNavigator: true,
+    ).push<bool>(
       MaterialPageRoute(
         builder: (_) => AdminAlphabetLetterDetailScreen(letterId: l.id),
       ),
@@ -125,6 +131,17 @@ class _AdminAlphabetScreenState extends State<AdminAlphabetScreen> {
     if (refreshed == true) {
       await _load();
     }
+  }
+
+  void _openFirstLetter() {
+    if (loading) return;
+
+    if (letters.isEmpty) {
+      _errorSnack('Әзірге әріптер қосылмаған');
+      return;
+    }
+
+    _openLetter(letters.first);
   }
 
   @override
@@ -175,7 +192,7 @@ class _AdminAlphabetScreenState extends State<AdminAlphabetScreen> {
                     height: 52,
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: _openFirstLetter,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white24,
                         foregroundColor: Colors.white,
@@ -366,6 +383,8 @@ class _AdminAlphabetLetterDetailScreenState
   }
 
   void _toast(String msg) {
+    if (!mounted) return;
+
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(msg),
@@ -1316,8 +1335,7 @@ class AlphabetLetterVM {
       }
     }
 
-    final id =
-    (j['id'] is int) ? j['id'] : int.tryParse('${j['id']}') ?? 0;
+    final id = (j['id'] is int) ? j['id'] : int.tryParse('${j['id']}') ?? 0;
 
     return AlphabetLetterVM(
       id: id,

@@ -45,10 +45,16 @@ class AdminTaskService {
   }
 
   Future<List<TaskModel>> getLessonTasks(int lessonId) async {
+    final url = '$baseUrl/api/lessons/$lessonId/tasks';
+    print('ADMIN TASK URL: $url');
+
     final response = await http.get(
-      Uri.parse('$baseUrl/api/lessons/$lessonId/tasks'),
+      Uri.parse(url),
       headers: await _headers(),
     );
+
+    print('ADMIN TASK STATUS: ${response.statusCode}');
+    print('ADMIN TASK BODY: ${response.body}');
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Тапсырмаларды алу қатесі: ${response.body}');
@@ -56,6 +62,12 @@ class AdminTaskService {
 
     final decoded = jsonDecode(response.body);
     final tasks = _parseTasks(decoded);
+
+    for (final task in tasks) {
+      print('TASK ${task.id}');
+      print('optionsWords = ${task.optionsWords}');
+      print('correctWords = ${task.correctWords}');
+    }
 
     final visible = tasks.where((e) => e.isArchived == false).toList()
       ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));

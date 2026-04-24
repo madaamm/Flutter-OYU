@@ -26,23 +26,29 @@ class LessonService {
 
   dynamic _extractData(dynamic decoded) {
     if (decoded is Map<String, dynamic>) {
-      if (decoded['data'] != null) return decoded['data'];
-      if (decoded['lessons'] != null) return decoded['lessons'];
-      if (decoded['tasks'] != null) return decoded['tasks'];
-      if (decoded['items'] != null) return decoded['items'];
+      return decoded['tasks'] ??
+          decoded['lessons'] ??
+          decoded['data'] ??
+          decoded['items'] ??
+          decoded['rows'] ??
+          decoded['result'] ??
+          decoded;
     }
+
     return decoded;
   }
 
   Exception _buildException(http.Response response) {
     try {
       final decoded = jsonDecode(response.body);
+
       if (decoded is Map<String, dynamic>) {
-        final message = decoded['message']?.toString() ??
-            decoded['error']?.toString() ??
-            decoded['details']?.toString() ??
-            'Request failed: ${response.statusCode}';
-        return Exception(message);
+        return Exception(
+          decoded['message']?.toString() ??
+              decoded['error']?.toString() ??
+              decoded['details']?.toString() ??
+              'Request failed: ${response.statusCode}',
+        );
       }
     } catch (_) {}
 
@@ -52,19 +58,19 @@ class LessonService {
   }
 
   bool _isTaskUsable(TaskModel task) {
-    final hasCorrect = task.correctWords
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .isNotEmpty;
+    final hasPrompt = task.promptText.trim().isNotEmpty;
 
     final hasOptions = task.optionsWords
         .map((e) => e.trim())
         .where((e) => e.isNotEmpty)
         .isNotEmpty;
 
-    final hasPrompt = task.promptText.trim().isNotEmpty;
+    final hasCorrect = task.correctWords
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .isNotEmpty;
 
-    return hasCorrect && hasOptions && hasPrompt && !task.isArchived;
+    return hasPrompt && hasOptions && hasCorrect && task.isArchived == false;
   }
 
   Future<List<LessonModel>> getUserLessons() async {
@@ -80,9 +86,7 @@ class LessonService {
     final decoded = jsonDecode(response.body);
     final raw = _extractData(decoded);
 
-    if (raw is! List) {
-      return <LessonModel>[];
-    }
+    if (raw is! List) return <LessonModel>[];
 
     final lessons = raw
         .whereType<Map<String, dynamic>>()
@@ -107,28 +111,11 @@ class LessonService {
     final decoded = jsonDecode(response.body);
     final raw = _extractData(decoded);
 
-    if (raw is! List) {
-      return <TaskModel>[];
-    }
+    if (raw is! List) return <TaskModel>[];
 
-    final rawMaps = raw.whereType<Map<String, dynamic>>().toList();
-
-    final parsedTasks = rawMaps.map(TaskModel.fromJson).toList();
-
-    for (int i = 0; i < parsedTasks.length; i++) {
-      final task = parsedTasks[i];
-      if (!_isTaskUsable(task)) {
-        print('INVALID TASK DETECTED');
-        print('task.id = ${task.id}');
-        print('task.promptText = ${task.promptText}');
-        print('task.optionsWords = ${task.optionsWords}');
-        print('task.correctWords = ${task.correctWords}');
-        print('raw task json = ${rawMaps[i]}');
-        print('---------------------------');
-      }
-    }
-
-    final tasks = parsedTasks
+    final tasks = raw
+        .whereType<Map<String, dynamic>>()
+        .map(TaskModel.fromJson)
         .where(_isTaskUsable)
         .toList()
       ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));

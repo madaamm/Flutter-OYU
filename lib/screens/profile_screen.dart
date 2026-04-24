@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:kazakh_learning_app/services/auth_service.dart';
+import 'package:kazakh_learning_app/screens/shop_screen.dart';
 import 'package:kazakh_learning_app/services/follow_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -522,9 +523,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                         const SizedBox(width: 10),
                         _roundAction(
-                          icon: Icons.settings_outlined,
+                          icon: Icons.store,
                           onTap: () {
-                            _errorSnack('Settings кейін қосамыз');
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const ShopScreen(),
+                              ),
+                            );
                           },
                         ),
                       ],

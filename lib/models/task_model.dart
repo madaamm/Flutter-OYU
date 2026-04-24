@@ -51,42 +51,7 @@ class TaskModel {
       result = result.substring(0, result.length - 1).trim();
     }
 
-    return result;
-  }
-
-  static List<String> _splitPostgresArray(String raw) {
-    final inner = raw.substring(1, raw.length - 1).trim();
-    if (inner.isEmpty) return <String>[];
-
-    final parts = <String>[];
-    final buffer = StringBuffer();
-    bool inQuotes = false;
-
-    for (int i = 0; i < inner.length; i++) {
-      final char = inner[i];
-
-      if (char == '"') {
-        inQuotes = !inQuotes;
-        continue;
-      }
-
-      if (char == ',' && !inQuotes) {
-        parts.add(buffer.toString());
-        buffer.clear();
-        continue;
-      }
-
-      buffer.write(char);
-    }
-
-    if (buffer.isNotEmpty) {
-      parts.add(buffer.toString());
-    }
-
-    return parts
-        .map(_cleanWord)
-        .where((e) => e.isNotEmpty)
-        .toList();
+    return result.trim();
   }
 
   static List<String> _parseStringList(dynamic value) {
@@ -99,42 +64,39 @@ class TaskModel {
           .toList();
     }
 
-    if (value is String) {
-      final raw = value.trim();
-      if (raw.isEmpty || raw.toLowerCase() == 'null') return <String>[];
+    String raw = value.toString().trim();
 
-      try {
-        final decoded = jsonDecode(raw);
-        if (decoded is List) {
-          return decoded
-              .map((e) => _cleanWord(e.toString()))
-              .where((e) => e.isNotEmpty)
-              .toList();
-        }
-      } catch (_) {}
+    if (raw.isEmpty || raw.toLowerCase() == 'null') {
+      return <String>[];
+    }
 
-      if (raw.startsWith('{') && raw.endsWith('}')) {
-        return _splitPostgresArray(raw);
-      }
-
-      if (raw.contains(',') || raw.contains('\n')) {
-        return raw
-            .split(RegExp(r'[,\n]'))
-            .map(_cleanWord)
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is List) {
+        return decoded
+            .map((e) => _cleanWord(e.toString()))
             .where((e) => e.isNotEmpty)
             .toList();
       }
+    } catch (_) {}
 
-      final cleaned = _cleanWord(raw);
-      return cleaned.isEmpty ? <String>[] : <String>[cleaned];
+    if (raw.startsWith('{') && raw.endsWith('}')) {
+      raw = raw.substring(1, raw.length - 1);
     }
 
-    return <String>[];
+    return raw
+        .split(',')
+        .map(_cleanWord)
+        .where((e) => e.isNotEmpty)
+        .toList();
   }
 
   factory TaskModel.fromJson(Map<String, dynamic> json) {
-    final rawOptions = json['optionsWords'] ?? json['options_words'] ?? json['words'];
-    final rawCorrect = json['correctWords'] ?? json['correct_words'] ?? json['answer_words'];
+    final rawOptions =
+        json['optionsWords'] ?? json['options_words'] ?? json['words'];
+
+    final rawCorrect =
+        json['correctWords'] ?? json['correct_words'] ?? json['answer_words'];
 
     return TaskModel(
       id: _toInt(json['id']),

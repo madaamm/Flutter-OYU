@@ -209,11 +209,6 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  String get _safeUserName {
-    final name = widget.userName.trim();
-    return name.isEmpty ? 'User' : name;
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -351,38 +346,29 @@ class _HomePageState extends State<HomePage> {
           end: Alignment.bottomCenter,
         ),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
-          Text(
-            'Welcome, $_safeUserName 👋',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-              height: 1.1,
-            ),
+          const _HeaderStat(
+            icon: Icons.bolt_rounded,
+            iconColor: Color(0xFFFFD54F),
+            value: '3',
           ),
-          const SizedBox(height: 14),
-          Row(
-            children: [
-              const _HeaderStat(
-                icon: Icons.bolt_rounded,
-                iconColor: Color(0xFFFFD54F),
-                value: '3',
+          const Spacer(),
+          TextButton.icon(
+            onPressed: () => _logout(context),
+            icon: const Icon(
+              Icons.logout_rounded,
+              color: Colors.white,
+              size: 26,
+            ),
+            label: const Text(
+              'Выйти',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.w800,
               ),
-              const Spacer(),
-              IconButton(
-                onPressed: () => _logout(context),
-                icon: const Icon(
-                  Icons.settings_rounded,
-                  color: Colors.white,
-                  size: 32,
-                ),
-              ),
-            ],
+            ),
           ),
         ],
       ),
@@ -442,12 +428,12 @@ class _LessonCircleGroup extends StatelessWidget {
       VoidCallback onTap,
       ) {
     const positions = [
-      Offset(0, 2.0),
-      Offset(0, -1.95),
-      Offset(-1.55, -0.75),
-      Offset(1.55, -0.75),
-      Offset(-1.55, 0.95),
-      Offset(1.55, 0.95),
+      Offset(0, -1.95),      // 1 - жоғары
+      Offset(-1.55, -0.75),  // 2 - сол жақ
+      Offset(1.55, -0.75),   // 3 - оң жақ
+      Offset(-1.55, 0.95),   // 4
+      Offset(1.55, 0.95),    // 5
+      Offset(0, 2.0),        // 6 - төмен
     ];
 
     final pos = positions[index];
@@ -888,14 +874,19 @@ class ExerciseWordOrderScreen extends StatefulWidget {
       _ExerciseWordOrderScreenState();
 }
 
-enum _ExerciseStage { building, checkedCorrect, finished }
+enum _ExerciseStage { building, correct, wrong, finished }
 
 class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
   static const Color purple = Color(0xFF6A00FF);
-  static const Color green = Color(0xFF35C96C);
-
-  static const String kOyuHappy = 'assets/images/Oyu.png';
-  static const String kOyuSleep = 'assets/images/Oyu_uyktauda.png';
+  static const Color green = Color(0xFF58CC02);
+  static const Color greenDark = Color(0xFF46A800);
+  static const Color red = Color(0xFFFF4B4B);
+  static const Color blue = Color(0xFF1899D6);
+  static const Color bg = Color(0xFFF7F7F7);
+  static const Color cardBg = Colors.white;
+  static const Color border = Color(0xFFE2E2E2);
+  static const Color textPrimary = Color(0xFF2B2238);
+  static const Color textSecondary = Color(0xFF7D7D7D);
 
   final LessonService _lessonService = LessonService();
 
@@ -904,7 +895,8 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
 
   List<TaskModel> _tasks = <TaskModel>[];
   int _currentTaskIndex = 0;
-  List<String?> _slots = <String?>[];
+  List<String> _slots = <String>[];
+  List<String> _bank = <String>[];
   _ExerciseStage _stage = _ExerciseStage.building;
   int _lives = 3;
   int _earnedXp = 0;
@@ -923,24 +915,24 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
 
     try {
       final tasks = await _lessonService.getLessonTasks(widget.lessonId);
-
       if (!mounted) return;
 
       setState(() {
-        _tasks = tasks;
+        _tasks = tasks.where((t) => t.correctWords.isNotEmpty).toList();
         _currentTaskIndex = 0;
         _earnedXp = 0;
-        _stage = _ExerciseStage.building;
+        _lives = 3;
+        _loading = false;
         if (_tasks.isNotEmpty) {
           _setupTask(_tasks.first);
         } else {
-          _slots = [];
+          _slots = <String>[];
+          _bank = <String>[];
+          _stage = _ExerciseStage.building;
         }
-        _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
-
       setState(() {
         _error = e.toString();
         _loading = false;
@@ -948,96 +940,103 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
     }
   }
 
-  void _setupTask(TaskModel task) {
-    final correctWords = task.correctWords
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .toList();
+  TaskModel get _currentTask => _tasks[_currentTaskIndex];
 
-    _slots = List<String?>.filled(correctWords.length, null);
+  void _setupTask(TaskModel task) {
+    final correctWords = _cleanWords(task.correctWords);
+    final options = _cleanWords(
+      task.optionsWords.isNotEmpty ? task.optionsWords : task.correctWords,
+    );
+
+    _slots = <String>[];
+    _bank = options.isNotEmpty ? [...options] : [...correctWords];
     _stage = _ExerciseStage.building;
   }
 
-  TaskModel get _currentTask => _tasks[_currentTaskIndex];
-
-  bool get _allFilled => _slots.isNotEmpty && _slots.every((e) => e != null);
-
-  bool _isPlaced(String word) => _slots.contains(word);
-
-  List<String> get _availableWords {
-    final source = _currentTask.optionsWords.isNotEmpty
-        ? _currentTask.optionsWords
-        : [..._currentTask.correctWords];
-
-    return source
+  List<String> _cleanWords(List<String> words) {
+    return words
+        .expand((item) => item
+        .replaceAll(',', ' ')
+        .split(RegExp(r'\s+')))
         .map((e) => e.trim())
         .where((e) => e.isNotEmpty)
-        .where((word) => !_isPlaced(word))
         .toList();
   }
 
-  void _placeWord(String word) {
-    if (_stage != _ExerciseStage.building) return;
+  bool get _canCheck {
+    if (_tasks.isEmpty || _stage != _ExerciseStage.building) return false;
+    return _slots.length == _cleanWords(_currentTask.correctWords).length;
+  }
 
-    final index = _slots.indexWhere((e) => e == null);
-    if (index == -1) return;
+  double get _progress {
+    if (_tasks.isEmpty) return 0;
+    return _currentTaskIndex / _tasks.length;
+  }
+
+  void _placeWord(int bankIndex) {
+    if (_stage != _ExerciseStage.building) return;
+    if (bankIndex < 0 || bankIndex >= _bank.length) return;
 
     setState(() {
-      _slots[index] = word;
+      final word = _bank.removeAt(bankIndex);
+      _slots.add(word);
     });
   }
 
-  void _removeFromSlot(int index) {
+  void _removeWord(int slotIndex) {
     if (_stage != _ExerciseStage.building) return;
-    if (index < 0 || index >= _slots.length) return;
+    if (slotIndex < 0 || slotIndex >= _slots.length) return;
 
     setState(() {
-      _slots[index] = null;
+      final word = _slots.removeAt(slotIndex);
+      _bank.add(word);
     });
   }
 
-  bool _listEquals(List<String> a, List<String> b) {
-    if (a.length != b.length) return false;
+  bool _isCorrectAnswer() {
+    final correct = _cleanWords(_currentTask.correctWords);
+    if (_slots.length != correct.length) return false;
 
-    for (int i = 0; i < a.length; i++) {
-      if (a[i].trim() != b[i].trim()) return false;
+    for (int i = 0; i < correct.length; i++) {
+      if (_slots[i].trim() != correct[i].trim()) return false;
     }
-
     return true;
   }
 
-  void _checkAnswer() {
-    if (!_allFilled) return;
+  Future<void> _handleCheck() async {
+    if (_stage == _ExerciseStage.correct || _stage == _ExerciseStage.wrong) {
+      _goNext();
+      return;
+    }
 
-    final answer = _slots.cast<String>();
-    final correct = _listEquals(answer, _currentTask.correctWords);
+    if (!_canCheck) return;
 
-    if (correct) {
+    if (_isCorrectAnswer()) {
       setState(() {
         _earnedXp += _currentTask.xpReward;
-        _stage = _ExerciseStage.checkedCorrect;
+        _stage = _ExerciseStage.correct;
       });
       return;
     }
 
-    final nextLives = (_lives - 1).clamp(0, 3);
-
     setState(() {
-      _lives = nextLives;
-      _slots = List<String?>.filled(_currentTask.correctWords.length, null);
+      _lives = math.max(0, _lives - 1);
+      _stage = _ExerciseStage.wrong;
     });
 
-    if (_lives == 0) {
-      _showOutOfLivesDialog();
-      return;
+    if (_lives > 0) {
+      await Future<void>.delayed(const Duration(milliseconds: 900));
+      if (!mounted) return;
+      setState(() {
+        _slots = <String>[];
+        _bank = _cleanWords(
+          _currentTask.optionsWords.isNotEmpty
+              ? _currentTask.optionsWords
+              : _currentTask.correctWords,
+        );
+        _stage = _ExerciseStage.building;
+      });
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Қате жауап. Қайта көріңіз.'),
-        behavior: SnackBarBehavior.floating,
-      ),
-    );
   }
 
   void _goNext() {
@@ -1052,375 +1051,596 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
     setState(() {
       _stage = _ExerciseStage.finished;
     });
-
-    _showFinishDialog();
   }
 
-  Future<void> _showOutOfLivesDialog() async {
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          title: const Text(
-            'Жүрек бітті',
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
-          content: const Text(
-            'Қайталап көріңіз.',
-            style: TextStyle(fontWeight: FontWeight.w500),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pop(context);
-              },
-              child: const Text('Жабу'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                setState(() {
-                  _lives = 3;
-                  _currentTaskIndex = 0;
-                  _earnedXp = 0;
-                  if (_tasks.isNotEmpty) {
-                    _setupTask(_tasks.first);
-                  }
-                });
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: green,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: const Text('Қайта бастау'),
-            ),
-          ],
-        );
-      },
-    );
+  void _restartAll() {
+    setState(() {
+      _currentTaskIndex = 0;
+      _lives = 3;
+      _earnedXp = 0;
+      if (_tasks.isNotEmpty) _setupTask(_tasks.first);
+    });
   }
 
+  String _buttonText() {
+    if (_stage == _ExerciseStage.correct) {
+      return _currentTaskIndex < _tasks.length - 1 ? 'Продолжить' : 'Завершить';
+    }
+    if (_stage == _ExerciseStage.wrong && _lives == 0) return 'Продолжить';
+    return 'Проверитьььь';
+  }
 
-  Future<void> _showFinishDialog() async {
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-          title: const Text(
-            'Керемет!',
-            style: TextStyle(fontWeight: FontWeight.w800),
-          ),
-          content: Text(
-            'Сіз ${_tasks.length} тапсырманы аяқтадыңыз.\nЖиналған XP: $_earnedXp',
-            style: const TextStyle(fontWeight: FontWeight.w500, height: 1.5),
-          ),
-          actions: [
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.pop(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: green,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
-                ),
-              ),
-              child: const Text('Жалғастыру'),
-            ),
-          ],
-        );
-      },
-    );
+  Color _buttonColor() {
+    if (_stage == _ExerciseStage.wrong && _lives == 0) return red;
+    if (_stage == _ExerciseStage.correct || _canCheck) return green;
+    return const Color(0xFFE8E8E8);
+  }
+
+  Color _buttonTextColor() {
+    if (_stage == _ExerciseStage.correct || _canCheck || _stage == _ExerciseStage.wrong) {
+      return Colors.white;
+    }
+    return textSecondary;
+  }
+
+  VoidCallback? _buttonAction() {
+    if (_stage == _ExerciseStage.correct) return _handleCheck;
+    if (_stage == _ExerciseStage.wrong && _lives == 0) return _handleCheck;
+    if (_canCheck) return _handleCheck;
+    return null;
   }
 
   @override
   Widget build(BuildContext context) {
     if (_loading) {
       return const Scaffold(
-        backgroundColor: purple,
+        backgroundColor: bg,
         body: SafeArea(
-          child: Center(
-            child: CircularProgressIndicator(color: Colors.white),
-          ),
+          child: Center(child: CircularProgressIndicator(color: green)),
         ),
       );
     }
 
     if (_error != null) {
-      return Scaffold(
-        backgroundColor: purple,
-        body: SafeArea(
-          child: Column(
-            children: [
-              _ExerciseTopBar(
-                lives: _lives,
-                onClose: () => Navigator.pop(context),
-              ),
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF4F4F4),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(34),
-                      topRight: Radius.circular(34),
-                    ),
-                  ),
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.all(24),
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(
-                            Icons.cloud_off_rounded,
-                            size: 64,
-                            color: Colors.grey,
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'Тапсырмалар жүктелмеді',
-                            style: TextStyle(
-                              fontSize: 22,
-                              fontWeight: FontWeight.w800,
-                              color: purple,
-                            ),
-                            textAlign: TextAlign.center,
-                          ),
-                          const SizedBox(height: 10),
-                          Text(
-                            _error!,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              color: Colors.grey,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          ElevatedButton(
-                            onPressed: _loadTasks,
-                            child: const Text('Қайта жүктеу'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+      return _ExerciseMessageScaffold(
+        lives: _lives,
+        progress: 0,
+        onClose: () => Navigator.pop(context),
+        icon: Icons.cloud_off_rounded,
+        title: 'Тапсырмалар жүктелмеді',
+        message: _error!,
+        buttonText: 'Қайта жүктеу',
+        onButtonTap: _loadTasks,
       );
     }
 
     if (_tasks.isEmpty) {
+      return _ExerciseMessageScaffold(
+        lives: _lives,
+        progress: 0,
+        onClose: () => Navigator.pop(context),
+        icon: Icons.assignment_outlined,
+        title: 'Exercise жоқ',
+        message: 'Бұл сабаққа әзірге exercise қосылмаған',
+        buttonText: 'Жабу',
+        onButtonTap: () => Navigator.pop(context),
+      );
+    }
+
+    if (_stage == _ExerciseStage.finished) {
       return Scaffold(
-        backgroundColor: purple,
+        backgroundColor: bg,
         body: SafeArea(
-          child: Column(
-            children: [
-              _ExerciseTopBar(
-                lives: _lives,
-                onClose: () => Navigator.pop(context),
-              ),
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF4F4F4),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(34),
-                      topRight: Radius.circular(34),
-                    ),
-                  ),
-                  child: const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text(
-                        'Бұл сабаққа әзірге exercise қосылмаған',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF5B21B6),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          child: _FinishedExerciseView(
+            total: _tasks.length,
+            xp: _earnedXp,
+            onRestart: _restartAll,
+            onClose: () => Navigator.pop(context),
           ),
         ),
       );
     }
 
-    if (_slots.isEmpty) {
-      return Scaffold(
-        backgroundColor: purple,
-        body: SafeArea(
-          child: Column(
-            children: [
-              _ExerciseTopBar(
-                lives: _lives,
-                onClose: () => Navigator.pop(context),
-              ),
-              Expanded(
-                child: Container(
-                  width: double.infinity,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFF4F4F4),
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(34),
-                      topRight: Radius.circular(34),
-                    ),
-                  ),
-                  child: const Center(
-                    child: Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Text(
-                        'Жарамды тапсырмалар табылмады',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF5B21B6),
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    final task = _currentTask;
-    final isCorrect = _stage == _ExerciseStage.checkedCorrect;
+    final correctWords = _cleanWords(_currentTask.correctWords);
+    final prompt = _currentTask.promptText.trim().isNotEmpty
+        ? _currentTask.promptText.trim()
+        : 'Сөздерді дұрыс ретпен орналастыр';
+    final bool isCorrect = _stage == _ExerciseStage.correct;
+    final bool isWrong = _stage == _ExerciseStage.wrong;
 
     return Scaffold(
-      backgroundColor: purple,
+      backgroundColor: bg,
       body: SafeArea(
-        top: false,
         child: Column(
           children: [
-            _ExerciseTopBar(
+            _HtmlLikeExerciseHeader(
               lives: _lives,
+              progress: _progress,
               onClose: () => Navigator.pop(context),
             ),
             Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF4F4F4),
-                  borderRadius: BorderRadius.only(
-                    topLeft: Radius.circular(34),
-                    topRight: Radius.circular(34),
+              child: ListView(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
+                children: [
+                  const Text(
+                    'ПЕРЕВЕДИТЕ ЭТО ПРЕДЛОЖЕНИЕ',
+                    style: TextStyle(
+                      fontSize: 12,
+                      color: textSecondary,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                    ),
                   ),
-                ),
-                child: Stack(
-                  children: [
-                    ListView(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 120),
-                      children: [
-                        _ExerciseProgressCard(
-                          lessonTitle: widget.lessonTitle,
-                          lessonLevel: widget.level,
-                          current: _currentTaskIndex + 1,
-                          total: _tasks.length,
-                          xp: _earnedXp,
-                        ),
-                        const SizedBox(height: 18),
-                        _SpeechTop(text: task.promptText),
-                        const SizedBox(height: 22),
-                        _AnswerLine(
-                          words: _slots,
-                          correctWords: task.correctWords,
-                          showCorrectStyle: isCorrect,
-                          onTapSlot: _removeFromSlot,
-                        ),
-                        const SizedBox(height: 26),
-                        Wrap(
-                          spacing: 14,
-                          runSpacing: 14,
-                          alignment: WrapAlignment.center,
-                          children: _availableWords
-                              .map(
-                                (word) => _WordChip(
-                              text: word,
-                              isCorrectMode: isCorrect,
-                              onTap: () => _placeWord(word),
-                            ),
-                          )
-                              .toList(),
-                        ),
-                        const SizedBox(height: 34),
-                        Row(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Image.asset(
-                              isCorrect ? kOyuHappy : kOyuSleep,
-                              width: 96,
-                              height: 96,
-                              fit: BoxFit.contain,
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _SpeechBottom(
-                                text: isCorrect
-                                    ? 'Тамаша! Келесі тапсырмаға өт.'
-                                    : 'Сөздерді дұрыс ретпен орналастыр.',
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
+                  const SizedBox(height: 8),
+                  _PromptBox(text: prompt),
+                  const SizedBox(height: 28),
+                  _AnswerArea(
+                    words: _slots,
+                    stage: _stage,
+                    correctWords: correctWords,
+                    onTapWord: _removeWord,
+                  ),
+                  const SizedBox(height: 24),
+                  const Divider(height: 1.5, thickness: 1.5, color: border),
+                  const SizedBox(height: 24),
+                  _WordBank(words: _bank, onTapWord: _placeWord),
+                  const SizedBox(height: 18),
+                  if (isCorrect)
+                    const _FeedbackBox(
+                      isCorrect: true,
+                      title: 'Дұрыс жауап!',
+                      subtitle: 'Отличная работа!',
                     ),
-                    Positioned(
-                      left: 20,
-                      right: 20,
-                      bottom: 20,
-                      child: SizedBox(
-                        height: 58,
-                        child: ElevatedButton(
-                          onPressed: isCorrect
-                              ? _goNext
-                              : (_allFilled ? _checkAnswer : null),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: green,
-                            disabledBackgroundColor: Colors.grey.shade400,
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(18),
-                            ),
-                          ),
-                          child: Text(
-                            isCorrect ? 'Continue' : 'Check',
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.w900,
-                            ),
-                          ),
-                        ),
-                      ),
+                  if (isWrong)
+                    _FeedbackBox(
+                      isCorrect: false,
+                      title: 'Жауап қате',
+                      subtitle: _lives == 0
+                          ? 'Правильно: ${correctWords.join(' ')}'
+                          : 'Попробуй ещё раз',
                     ),
-                  ],
+                ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _buttonAction(),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _buttonColor(),
+                    foregroundColor: _buttonTextColor(),
+                    disabledBackgroundColor: const Color(0xFFE8E8E8),
+                    disabledForegroundColor: textSecondary,
+                    elevation: 0,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: Text(
+                    _buttonText(),
+                    style: const TextStyle(
+                      fontSize: 17,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.2,
+                    ),
+                  ),
                 ),
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+
+class _HtmlLikeExerciseHeader extends StatelessWidget {
+  final int lives;
+  final double progress;
+  final VoidCallback onClose;
+
+  const _HtmlLikeExerciseHeader({
+    required this.lives,
+    required this.progress,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+      child: Row(
+        children: [
+          Row(
+            children: List.generate(3, (i) {
+              return Padding(
+                padding: const EdgeInsets.only(right: 3),
+                child: Text(
+                  i < lives ? '♥' : '♡',
+                  style: const TextStyle(
+                    color: Color(0xFFFF4B4B),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              );
+            }),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: LinearProgressIndicator(
+                value: progress.clamp(0, 1),
+                minHeight: 16,
+                backgroundColor: const Color(0xFFE8E8E8),
+                valueColor: const AlwaysStoppedAnimation(Color(0xFF58CC02)),
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          IconButton(
+            onPressed: onClose,
+            icon: const Icon(Icons.close_rounded, color: Color(0xFF7D7D7D)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PromptBox extends StatelessWidget {
+  final String text;
+
+  const _PromptBox({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFEFEF),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE2E2E2), width: 0.5),
+      ),
+      child: Text(
+        text,
+        style: const TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w600,
+          color: Color(0xFF2B2238),
+          height: 1.3,
+        ),
+      ),
+    );
+  }
+}
+
+class _AnswerArea extends StatelessWidget {
+  final List<String> words;
+  final List<String> correctWords;
+  final _ExerciseStage stage;
+  final void Function(int index) onTapWord;
+
+  const _AnswerArea({
+    required this.words,
+    required this.correctWords,
+    required this.stage,
+    required this.onTapWord,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final isCorrect = stage == _ExerciseStage.correct;
+    final isWrong = stage == _ExerciseStage.wrong;
+
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 180),
+      width: double.infinity,
+      constraints: const BoxConstraints(minHeight: 86),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: isCorrect
+            ? const Color(0xFFF0FFF0)
+            : isWrong
+            ? const Color(0xFFFFF0F0)
+            : Colors.transparent,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(
+          color: isCorrect
+              ? const Color(0xFF58CC02)
+              : isWrong
+              ? const Color(0xFFFF4B4B)
+              : const Color(0xFFD2D2D2),
+          width: 2,
+        ),
+      ),
+      child: words.isEmpty
+          ? const Align(
+        alignment: Alignment.centerLeft,
+        child: Text(
+          'Выберите слова ниже',
+          style: TextStyle(color: Color(0xFF7D7D7D), fontSize: 14),
+        ),
+      )
+          : Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: List.generate(words.length, (i) {
+          final word = words[i];
+          final correctChip = isCorrect && i < correctWords.length && word == correctWords[i];
+          return _ExerciseChip(
+            text: word,
+            borderColor: correctChip
+                ? const Color(0xFF58CC02)
+                : const Color(0xFFD2D2D2),
+            textColor: correctChip
+                ? const Color(0xFF58CC02)
+                : const Color(0xFF2B2238),
+            onTap: stage == _ExerciseStage.building ? () => onTapWord(i) : null,
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class _WordBank extends StatelessWidget {
+  final List<String> words;
+  final void Function(int index) onTapWord;
+
+  const _WordBank({required this.words, required this.onTapWord});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: List.generate(words.length, (i) {
+        return _ExerciseChip(
+          text: words[i],
+          borderColor: const Color(0xFF1899D6),
+          textColor: const Color(0xFF1899D6),
+          onTap: () => onTapWord(i),
+        );
+      }),
+    );
+  }
+}
+
+class _ExerciseChip extends StatelessWidget {
+  final String text;
+  final Color borderColor;
+  final Color textColor;
+  final VoidCallback? onTap;
+
+  const _ExerciseChip({
+    required this.text,
+    required this.borderColor,
+    required this.textColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(10),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: borderColor, width: 2),
+          ),
+          child: Text(
+            text,
+            style: TextStyle(
+              color: textColor,
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              height: 1,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _FeedbackBox extends StatelessWidget {
+  final bool isCorrect;
+  final String title;
+  final String subtitle;
+
+  const _FeedbackBox({
+    required this.isCorrect,
+    required this.title,
+    required this.subtitle,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final color = isCorrect ? const Color(0xFF58CC02) : const Color(0xFFFF4B4B);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: isCorrect ? const Color(0xFFF0FFF0) : const Color(0xFFFFF0F0),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: color),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(isCorrect ? '🎉' : '😅', style: const TextStyle(fontSize: 24)),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xFF2B2238),
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: const TextStyle(fontSize: 13, color: Color(0xFF7D7D7D)),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExerciseMessageScaffold extends StatelessWidget {
+  final int lives;
+  final double progress;
+  final VoidCallback onClose;
+  final IconData icon;
+  final String title;
+  final String message;
+  final String buttonText;
+  final VoidCallback onButtonTap;
+
+  const _ExerciseMessageScaffold({
+    required this.lives,
+    required this.progress,
+    required this.onClose,
+    required this.icon,
+    required this.title,
+    required this.message,
+    required this.buttonText,
+    required this.onButtonTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFFF7F7F7),
+      body: SafeArea(
+        child: Column(
+          children: [
+            _HtmlLikeExerciseHeader(lives: lives, progress: progress, onClose: onClose),
+            Expanded(
+              child: Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(icon, size: 64, color: const Color(0xFF7D7D7D)),
+                      const SizedBox(height: 16),
+                      Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w800,
+                          color: Color(0xFF6A00FF),
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                      Text(
+                        message,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Color(0xFF7D7D7D),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      ElevatedButton(onPressed: onButtonTap, child: Text(buttonText)),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FinishedExerciseView extends StatelessWidget {
+  final int total;
+  final int xp;
+  final VoidCallback onRestart;
+  final VoidCallback onClose;
+
+  const _FinishedExerciseView({
+    required this.total,
+    required this.xp,
+    required this.onRestart,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        children: [
+          Align(
+            alignment: Alignment.centerRight,
+            child: IconButton(
+              onPressed: onClose,
+              icon: const Icon(Icons.close_rounded, color: Color(0xFF7D7D7D)),
+            ),
+          ),
+          const Spacer(),
+          const Text('🏆', style: TextStyle(fontSize: 56)),
+          const SizedBox(height: 16),
+          const Text(
+            'Урок завершён!',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 24,
+              fontWeight: FontWeight.w700,
+              color: Color(0xFF2B2238),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Жарайсың! $total тапсырма аяқталды. XP: $xp',
+            textAlign: TextAlign.center,
+            style: const TextStyle(fontSize: 15, color: Color(0xFF7D7D7D)),
+          ),
+          const SizedBox(height: 32),
+          SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: ElevatedButton(
+              onPressed: onRestart,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF58CC02),
+                foregroundColor: Colors.white,
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              ),
+              child: const Text(
+                'Ещё раз',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+          const Spacer(),
+        ],
       ),
     );
   }

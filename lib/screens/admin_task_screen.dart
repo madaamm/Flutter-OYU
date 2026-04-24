@@ -4,6 +4,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:kazakh_learning_app/screens/admin_lesson_tasks_screen.dart';
+import 'package:kazakh_learning_app/models/lesson_model.dart';
 
 class AdminTaskScreen extends StatefulWidget {
   const AdminTaskScreen({super.key});
@@ -46,6 +48,7 @@ class _AdminTaskScreenState extends State<AdminTaskScreen> {
     if (createdLesson != null) {
       await _reload();
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Урок backend-ке сәтті сақталды')),
       );
@@ -58,13 +61,34 @@ class _AdminTaskScreenState extends State<AdminTaskScreen> {
       await _reload();
 
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Урок архивке жіберілді: ${lesson.title}')),
       );
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Қате: $e')),
+        SnackBar(content: Text('Archive қатесі: $e')),
+      );
+    }
+  }
+
+  Future<void> _deleteLessonForever(_LessonItem lesson) async {
+    try {
+      await _lessonApi.deleteLesson(lesson.id);
+      await _reload();
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Урок толық өшірілді: ${lesson.title}')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Delete қатесі: $e')),
       );
     }
   }
@@ -78,26 +102,42 @@ class _AdminTaskScreenState extends State<AdminTaskScreen> {
     if (updatedLesson != null) {
       await _reload();
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Урок жаңартылды')),
       );
     }
   }
 
-  void _openTaskSheet({required _LessonItem lesson, required int globalIndex}) {
+  void _openArchiveScreen() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const ArchivedLessonsScreen(),
+      ),
+    ).then((_) => _reload());
+  }
+
+  void _openTaskSheet({
+    required _LessonItem lesson,
+    required int globalIndex,
+  }) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) {
         return _TaskActionSheet(
-          subtitle:
-          lesson.title.isEmpty ? "Say where people are from" : lesson.title,
+          subtitle: lesson.title.isEmpty ? "Lesson" : lesson.title,
           lessonNumber: globalIndex + 1,
           level: lesson.level.isEmpty ? "A0" : lesson.level,
-          onDelete: () async {
+          onArchive: () async {
             Navigator.pop(context);
             await _archiveLesson(lesson);
+          },
+          onDelete: () async {
+            Navigator.pop(context);
+            await _deleteLessonForever(lesson);
           },
           onEdit: () async {
             Navigator.pop(context);
@@ -120,12 +160,20 @@ class _AdminTaskScreenState extends State<AdminTaskScreen> {
           },
           onOpenExercise: (level) {
             Navigator.pop(context);
+
             Navigator.push(
               context,
               MaterialPageRoute(
-                builder: (_) => ExerciseWordOrderScreen(
-                  lessonNumber: globalIndex + 1,
-                  level: level,
+                builder: (_) => AdminLessonTasksScreen(
+                  lesson: LessonModel(
+                    id: lesson.id,
+                    title: lesson.title,
+                    description: lesson.description,
+                    lectureText: lesson.lectureText,
+                    level: lesson.level,
+                    orderIndex: lesson.orderIndex,
+                    isArchived: lesson.isArchived,
+                  ),
                 ),
               ),
             );
@@ -156,24 +204,48 @@ class _AdminTaskScreenState extends State<AdminTaskScreen> {
                       Positioned(
                         right: 14,
                         top: 12,
-                        child: ElevatedButton.icon(
-                          onPressed: _openAddDialog,
-                          icon: const Icon(Icons.add, size: 18),
-                          label: const Text("Добавить"),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF3A0CA3),
-                            foregroundColor: Colors.white,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 14,
-                              vertical: 10,
+                        child: Row(
+                          children: [
+                            ElevatedButton.icon(
+                              onPressed: _openArchiveScreen,
+                              icon: const Icon(Icons.archive_outlined, size: 18),
+                              label: const Text("Архив"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFFEDE6FF),
+                                foregroundColor: const Color(0xFF3A0CA3),
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
+                                minimumSize: const Size(0, 38),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
                             ),
-                            minimumSize: const Size(0, 38),
-                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16),
+                            const SizedBox(width: 10),
+                            ElevatedButton.icon(
+                              onPressed: _openAddDialog,
+                              icon: const Icon(Icons.add, size: 18),
+                              label: const Text("Добавить"),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: const Color(0xFF3A0CA3),
+                                foregroundColor: Colors.white,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 14,
+                                  vertical: 10,
+                                ),
+                                minimumSize: const Size(0, 38),
+                                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
+                                ),
+                              ),
                             ),
-                          ),
+                          ],
                         ),
                       ),
                       Positioned.fill(
@@ -181,8 +253,7 @@ class _AdminTaskScreenState extends State<AdminTaskScreen> {
                         child: FutureBuilder<List<_LessonItem>>(
                           future: _futureLessons,
                           builder: (context, snapshot) {
-                            if (snapshot.connectionState ==
-                                ConnectionState.waiting) {
+                            if (snapshot.connectionState == ConnectionState.waiting) {
                               return const Center(
                                 child: CircularProgressIndicator(
                                   color: Color(0xFF3A0CA3),
@@ -194,8 +265,7 @@ class _AdminTaskScreenState extends State<AdminTaskScreen> {
                               return RefreshIndicator(
                                 onRefresh: _reload,
                                 child: ListView(
-                                  physics:
-                                  const AlwaysScrollableScrollPhysics(),
+                                  physics: const AlwaysScrollableScrollPhysics(),
                                   children: [
                                     SizedBox(
                                       height: c.maxHeight * 0.65,
@@ -203,8 +273,7 @@ class _AdminTaskScreenState extends State<AdminTaskScreen> {
                                         child: Padding(
                                           padding: const EdgeInsets.all(24),
                                           child: Column(
-                                            mainAxisAlignment:
-                                            MainAxisAlignment.center,
+                                            mainAxisAlignment: MainAxisAlignment.center,
                                             children: [
                                               const Icon(
                                                 Icons.cloud_off_rounded,
@@ -231,8 +300,7 @@ class _AdminTaskScreenState extends State<AdminTaskScreen> {
                                               const SizedBox(height: 18),
                                               ElevatedButton(
                                                 onPressed: _reload,
-                                                child:
-                                                const Text('Қайта көру'),
+                                                child: const Text('Қайта көру'),
                                               ),
                                             ],
                                           ),
@@ -250,20 +318,16 @@ class _AdminTaskScreenState extends State<AdminTaskScreen> {
                               return RefreshIndicator(
                                 onRefresh: _reload,
                                 child: ListView(
-                                  physics:
-                                  const AlwaysScrollableScrollPhysics(),
+                                  physics: const AlwaysScrollableScrollPhysics(),
                                   children: const [
                                     SizedBox(
                                       height: 650,
                                       child: Center(
                                         child: Column(
-                                          mainAxisAlignment:
-                                          MainAxisAlignment.center,
+                                          mainAxisAlignment: MainAxisAlignment.center,
                                           children: [
                                             Image(
-                                              image: AssetImage(
-                                                kOyuSleepAsset,
-                                              ),
+                                              image: AssetImage(kOyuSleepAsset),
                                               width: 120,
                                             ),
                                             SizedBox(height: 16),
@@ -292,8 +356,8 @@ class _AdminTaskScreenState extends State<AdminTaskScreen> {
                             }
 
                             final totalTasks = lessons.length;
-                            final circles = ((totalTasks + kTasksPerCircle - 1) ~/
-                                kTasksPerCircle)
+                            final circles =
+                            ((totalTasks + kTasksPerCircle - 1) ~/ kTasksPerCircle)
                                 .clamp(1, kMaxCircles);
 
                             return RefreshIndicator(
@@ -317,11 +381,13 @@ class _AdminTaskScreenState extends State<AdminTaskScreen> {
                                     eggAsset: kEggAsset,
                                     oyuAsset: kOyuAsset,
                                     boxAsset: kBoxAsset,
+                                    startNumber: start + 1,
                                     onTapTask: (taskIndexInCircle) {
-                                      final globalIndex =
-                                          start + taskIndexInCircle;
+                                      final globalIndex = start + taskIndexInCircle;
                                       if (globalIndex >= totalTasks) return;
+
                                       final lesson = lessons[globalIndex];
+
                                       _openTaskSheet(
                                         lesson: lesson,
                                         globalIndex: globalIndex,
@@ -353,6 +419,7 @@ class _CircleBlock extends StatelessWidget {
   final String eggAsset;
   final String oyuAsset;
   final String boxAsset;
+  final int startNumber;
   final void Function(int taskIndex) onTapTask;
 
   const _CircleBlock({
@@ -362,6 +429,7 @@ class _CircleBlock extends StatelessWidget {
     required this.eggAsset,
     required this.oyuAsset,
     required this.boxAsset,
+    required this.startNumber,
     required this.onTapTask,
   });
 
@@ -385,7 +453,12 @@ class _CircleBlock extends StatelessWidget {
                 width: oyuSize,
                 fit: BoxFit.contain,
               ),
-              for (int i = 0; i < filledTasks; i++) _buildEggPosition(i, eggSize),
+              for (int i = 0; i < filledTasks; i++)
+                _buildEggPosition(
+                  index: i,
+                  size: eggSize,
+                  number: startNumber + i,
+                ),
               if (showBox)
                 Positioned(
                   bottom: size * 0.05,
@@ -403,7 +476,11 @@ class _CircleBlock extends StatelessWidget {
     );
   }
 
-  Widget _buildEggPosition(int index, double size) {
+  Widget _buildEggPosition({
+    required int index,
+    required double size,
+    required int number,
+  }) {
     const positions = [
       Offset(0, -1.95),
       Offset(-1.6, -0.75),
@@ -421,11 +498,36 @@ class _CircleBlock extends StatelessWidget {
           offset: Offset(pos.dx * size * 0.95, pos.dy * size * 0.95),
           child: GestureDetector(
             onTap: () => onTapTask(index),
-            child: Image.asset(
-              eggAsset,
+            child: SizedBox(
               width: size,
               height: size,
-              fit: BoxFit.contain,
+              child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Image.asset(
+                    eggAsset,
+                    width: size,
+                    height: size,
+                    fit: BoxFit.contain,
+                  ),
+                  Text(
+                    '$number',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w900,
+                      fontSize: 18,
+                      shadows: [
+                        Shadow(
+                          color: Colors.black45,
+                          blurRadius: 4,
+                          offset: Offset(0, 1),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -438,6 +540,7 @@ class _TaskActionSheet extends StatelessWidget {
   final String subtitle;
   final int lessonNumber;
   final String level;
+  final VoidCallback onArchive;
   final VoidCallback onDelete;
   final VoidCallback onEdit;
   final void Function(String level) onOpenTheory;
@@ -447,6 +550,7 @@ class _TaskActionSheet extends StatelessWidget {
     required this.subtitle,
     required this.lessonNumber,
     required this.level,
+    required this.onArchive,
     required this.onDelete,
     required this.onEdit,
     required this.onOpenTheory,
@@ -475,14 +579,14 @@ class _TaskActionSheet extends StatelessWidget {
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  subtitle,
+                  '$lessonNumber. $subtitle',
+                  textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Colors.white,
-                    fontSize: 18,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 6),
@@ -490,11 +594,10 @@ class _TaskActionSheet extends StatelessWidget {
                   'Level: $level',
                   style: const TextStyle(
                     color: Color(0xFFE9D8FF),
-                    fontSize: 13,
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: 14),
+                const SizedBox(height: 16),
                 _whiteButton(
                   text: "Theory",
                   textColor: sheetPurple,
@@ -513,21 +616,27 @@ class _TaskActionSheet extends StatelessWidget {
                   onTap: onEdit,
                 ),
                 const SizedBox(height: 12),
+                _whiteButton(
+                  text: "Archive",
+                  textColor: Colors.orange,
+                  onTap: onArchive,
+                ),
+                const SizedBox(height: 12),
                 Material(
-                  color: Colors.white.withOpacity(0.16),
+                  color: Colors.red.withOpacity(0.20),
                   borderRadius: BorderRadius.circular(14),
                   child: InkWell(
                     onTap: onDelete,
                     borderRadius: BorderRadius.circular(14),
                     child: Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      padding: const EdgeInsets.symmetric(vertical: 15),
                       alignment: Alignment.center,
                       child: const Text(
-                        "Delete",
+                        "Delete forever",
                         style: TextStyle(
                           color: Colors.white,
-                          fontWeight: FontWeight.w800,
+                          fontWeight: FontWeight.w900,
                           fontSize: 16,
                         ),
                       ),
@@ -561,7 +670,7 @@ class _TaskActionSheet extends StatelessWidget {
             text,
             style: TextStyle(
               color: textColor,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w900,
               fontSize: 16,
             ),
           ),
@@ -673,7 +782,8 @@ class ExerciseWordOrderScreen extends StatefulWidget {
   });
 
   @override
-  State<ExerciseWordOrderScreen> createState() => _ExerciseWordOrderScreenState();
+  State<ExerciseWordOrderScreen> createState() =>
+      _ExerciseWordOrderScreenState();
 }
 
 enum _Stage { building, checkedCorrect }
@@ -704,12 +814,16 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
 
   bool _isPlaced(String w) => slots.contains(w);
 
-  List<String> get _availableWords => pool.where((w) => !_isPlaced(w)).toList();
+  List<String> get _availableWords {
+    return pool.where((w) => !_isPlaced(w)).toList();
+  }
 
   void _placeWord(String w) {
     if (stage != _Stage.building) return;
+
     final i = slots.indexWhere((e) => e == null);
     if (i == -1) return;
+
     setState(() => slots[i] = w);
   }
 
@@ -738,9 +852,11 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
 
   bool _listEquals(List<String> a, List<String> b) {
     if (a.length != b.length) return false;
+
     for (int i = 0; i < a.length; i++) {
       if (a[i] != b[i]) return false;
     }
+
     return true;
   }
 
@@ -808,10 +924,12 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
                           runSpacing: 14,
                           alignment: WrapAlignment.center,
                           children: _availableWords
-                              .map((w) => _WordChip(
-                            text: w,
-                            onTap: () => _placeWord(w),
-                          ))
+                              .map(
+                                (w) => _WordChip(
+                              text: w,
+                              onTap: () => _placeWord(w),
+                            ),
+                          )
                               .toList(),
                         ),
                         const SizedBox(height: 34),
@@ -843,7 +961,8 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
                       child: SizedBox(
                         height: 54,
                         child: ElevatedButton(
-                          onPressed: isCorrect ? _continue : (_allFilled ? _check : null),
+                          onPressed:
+                          isCorrect ? _continue : (_allFilled ? _check : null),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: isCorrect
                                 ? green
@@ -879,7 +998,10 @@ class _WordChip extends StatelessWidget {
   final String text;
   final VoidCallback onTap;
 
-  const _WordChip({required this.text, required this.onTap});
+  const _WordChip({
+    required this.text,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -893,7 +1015,10 @@ class _WordChip extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-          child: Text(text, style: const TextStyle(fontWeight: FontWeight.w800)),
+          child: Text(
+            text,
+            style: const TextStyle(fontWeight: FontWeight.w800),
+          ),
         ),
       ),
     );
@@ -924,7 +1049,8 @@ class _AnswerLine extends StatelessWidget {
           children: List.generate(words.length, (i) {
             final w = words[i];
             final isFilled = w != null;
-            final isCorrectChip = showCorrectStyle && isFilled && w == correctWords[i];
+            final isCorrectChip =
+                showCorrectStyle && isFilled && w == correctWords[i];
 
             return Material(
               color: Colors.white,
@@ -936,7 +1062,8 @@ class _AnswerLine extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 child: Container(
                   constraints: const BoxConstraints(minWidth: 74),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
@@ -951,7 +1078,9 @@ class _AnswerLine extends StatelessWidget {
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontWeight: FontWeight.w900,
-                      color: isCorrectChip ? const Color(0xFF2ECC71) : Colors.black87,
+                      color: isCorrectChip
+                          ? const Color(0xFF2ECC71)
+                          : Colors.black87,
                     ),
                   ),
                 ),
@@ -972,6 +1101,7 @@ class _AnswerLine extends StatelessWidget {
 
 class _SpeechTop extends StatelessWidget {
   final String text;
+
   const _SpeechTop({required this.text});
 
   @override
@@ -989,10 +1119,13 @@ class _SpeechTop extends StatelessWidget {
               blurRadius: 10,
               offset: const Offset(0, 4),
               color: Colors.black.withOpacity(0.08),
-            )
+            ),
           ],
         ),
-        child: Text(text, style: const TextStyle(fontWeight: FontWeight.w900)),
+        child: Text(
+          text,
+          style: const TextStyle(fontWeight: FontWeight.w900),
+        ),
       ),
     );
   }
@@ -1000,6 +1133,7 @@ class _SpeechTop extends StatelessWidget {
 
 class _SpeechBottom extends StatelessWidget {
   final String text;
+
   const _SpeechBottom({required this.text});
 
   @override
@@ -1015,10 +1149,13 @@ class _SpeechBottom extends StatelessWidget {
             blurRadius: 10,
             offset: const Offset(0, 4),
             color: Colors.black.withOpacity(0.08),
-          )
+          ),
         ],
       ),
-      child: Text(text, style: const TextStyle(fontWeight: FontWeight.w900)),
+      child: Text(
+        text,
+        style: const TextStyle(fontWeight: FontWeight.w900),
+      ),
     );
   }
 }
@@ -1049,6 +1186,7 @@ class _AddLessonDialogState extends State<_AddLessonDialog> {
   @override
   void initState() {
     super.initState();
+
     _titleController = TextEditingController(text: widget.lesson?.title ?? '');
     _descriptionController =
         TextEditingController(text: widget.lesson?.description ?? '');
@@ -1057,6 +1195,7 @@ class _AddLessonDialogState extends State<_AddLessonDialog> {
     _orderController = TextEditingController(
       text: (widget.lesson?.orderIndex ?? 0).toString(),
     );
+
     _level = widget.lesson?.level ?? 'A0';
   }
 
@@ -1103,6 +1242,7 @@ class _AddLessonDialogState extends State<_AddLessonDialog> {
       }
     } catch (e) {
       if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Қосу қатесі: $e')),
       );
@@ -1111,6 +1251,18 @@ class _AddLessonDialogState extends State<_AddLessonDialog> {
         setState(() => _saving = false);
       }
     }
+  }
+
+  InputDecoration _decoration(String label) {
+    return InputDecoration(
+      labelText: label,
+      filled: true,
+      fillColor: const Color(0xFFF6F1FF),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+    );
   }
 
   @override
@@ -1137,26 +1289,30 @@ class _AddLessonDialogState extends State<_AddLessonDialog> {
                 TextFormField(
                   controller: _titleController,
                   decoration: _decoration('Title'),
-                  validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Title енгіз' : null,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Title енгіз';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _descriptionController,
                   maxLines: 3,
                   decoration: _decoration('Description'),
-                  validator: (v) => v == null || v.trim().isEmpty
-                      ? 'Description енгіз'
-                      : null,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Description енгіз';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _lectureTextController,
                   maxLines: 8,
                   decoration: _decoration('Theory / Lecture text'),
-                  validator: (v) => v == null || v.trim().isEmpty
-                      ? 'Theory text енгіз'
-                      : null,
+                  validator: (v) {
+                    if (v == null || v.trim().isEmpty) return 'Theory text енгіз';
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
@@ -1172,9 +1328,7 @@ class _AddLessonDialogState extends State<_AddLessonDialog> {
                     DropdownMenuItem(value: 'C2', child: Text('C2')),
                   ],
                   onChanged: (v) {
-                    if (v != null) {
-                      setState(() => _level = v);
-                    }
+                    if (v != null) setState(() => _level = v);
                   },
                 ),
                 const SizedBox(height: 12),
@@ -1220,18 +1374,6 @@ class _AddLessonDialogState extends State<_AddLessonDialog> {
       ),
     );
   }
-
-  InputDecoration _decoration(String label) {
-    return InputDecoration(
-      labelText: label,
-      filled: true,
-      fillColor: const Color(0xFFF6F1FF),
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide.none,
-      ),
-    );
-  }
 }
 
 class _LessonItem {
@@ -1269,7 +1411,7 @@ class _LessonItem {
 }
 
 class _LessonAdminApi {
-  static const String _baseUrl = 'https://oyu-learnkz.onrender.com';
+  static const String _baseUrl = 'https://learnkz.kazi.rocks';
 
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -1278,6 +1420,7 @@ class _LessonAdminApi {
 
   Future<Map<String, String>> _headers() async {
     final token = await _getToken();
+
     return {
       'Content-Type': 'application/json',
       if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
@@ -1326,6 +1469,26 @@ class _LessonAdminApi {
 
     lessons.removeWhere((e) => e.isArchived);
     lessons.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+
+    return lessons;
+  }
+
+  Future<List<_LessonItem>> fetchArchivedLessons() async {
+    final response = await http.get(
+      Uri.parse('$_baseUrl/api/admin/lessons'),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(response.body);
+    }
+
+    final decoded = jsonDecode(response.body);
+    final lessons = _parseLessons(decoded);
+
+    lessons.removeWhere((e) => !e.isArchived);
+    lessons.sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+
     return lessons;
   }
 
@@ -1412,5 +1575,256 @@ class _LessonAdminApi {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(response.body);
     }
+  }
+
+  Future<void> deleteLesson(int lessonId) async {
+    final response = await http.delete(
+      Uri.parse('$_baseUrl/api/admin/lessons/$lessonId'),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception(response.body);
+    }
+  }
+}
+
+class ArchivedLessonsScreen extends StatefulWidget {
+  const ArchivedLessonsScreen({super.key});
+
+  @override
+  State<ArchivedLessonsScreen> createState() => _ArchivedLessonsScreenState();
+}
+
+class _ArchivedLessonsScreenState extends State<ArchivedLessonsScreen> {
+  static const Color purple = Color(0xFF3A0CA3);
+
+  final _api = _LessonAdminApi();
+  late Future<List<_LessonItem>> _future;
+
+  @override
+  void initState() {
+    super.initState();
+    _future = _api.fetchArchivedLessons();
+  }
+
+  Future<void> _reload() async {
+    setState(() {
+      _future = _api.fetchArchivedLessons();
+    });
+    await _future;
+  }
+
+  Future<void> _restore(_LessonItem lesson) async {
+    await _api.archiveLesson(lesson.id, false);
+    await _reload();
+  }
+
+  Future<void> _delete(_LessonItem lesson) async {
+    await _api.deleteLesson(lesson.id);
+    await _reload();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: purple,
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(28),
+            child: Container(
+              color: const Color(0xFFF7F3FB),
+              child: Column(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+                    color: Colors.white,
+                    child: Row(
+                      children: [
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                        ),
+                        const Expanded(
+                          child: Text(
+                            'Archived Lessons',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              color: purple,
+                            ),
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: _reload,
+                          icon: const Icon(Icons.refresh_rounded),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Expanded(
+                    child: FutureBuilder<List<_LessonItem>>(
+                      future: _future,
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const Center(
+                            child: CircularProgressIndicator(color: purple),
+                          );
+                        }
+
+                        if (snapshot.hasError) {
+                          return Center(
+                            child: Padding(
+                              padding: const EdgeInsets.all(24),
+                              child: Text(
+                                '${snapshot.error}',
+                                textAlign: TextAlign.center,
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          );
+                        }
+
+                        final lessons = snapshot.data ?? [];
+
+                        if (lessons.isEmpty) {
+                          return const Center(
+                            child: Text(
+                              'Архив бос',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 22,
+                                fontWeight: FontWeight.w900,
+                              ),
+                            ),
+                          );
+                        }
+
+                        return RefreshIndicator(
+                          onRefresh: _reload,
+                          child: ListView.separated(
+                            padding: const EdgeInsets.all(16),
+                            itemCount: lessons.length,
+                            separatorBuilder: (_, __) => const SizedBox(height: 12),
+                            itemBuilder: (context, i) {
+                              final lesson = lessons[i];
+
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x12000000),
+                                      blurRadius: 10,
+                                      offset: Offset(0, 6),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Container(
+                                          width: 42,
+                                          height: 42,
+                                          decoration: BoxDecoration(
+                                            color: const Color(0xFFEDE6FF),
+                                            borderRadius: BorderRadius.circular(14),
+                                          ),
+                                          child: const Icon(
+                                            Icons.archive_outlined,
+                                            color: purple,
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                lesson.title.isEmpty
+                                                    ? 'Lesson ${lesson.orderIndex}'
+                                                    : lesson.title,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w900,
+                                                  fontSize: 16,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Text(
+                                                'Level ${lesson.level} • Order ${lesson.orderIndex}',
+                                                style: const TextStyle(
+                                                  color: Colors.black45,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 14),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: ElevatedButton.icon(
+                                            onPressed: () => _restore(lesson),
+                                            icon: const Icon(Icons.restore_rounded),
+                                            label: const Text('Restore'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: purple,
+                                              foregroundColor: Colors.white,
+                                              elevation: 0,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(14),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: ElevatedButton.icon(
+                                            onPressed: () => _delete(lesson),
+                                            icon: const Icon(Icons.delete_forever),
+                                            label: const Text('Delete'),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: Colors.red,
+                                              foregroundColor: Colors.white,
+                                              elevation: 0,
+                                              shape: RoundedRectangleBorder(
+                                                borderRadius: BorderRadius.circular(14),
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              );
+                            },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

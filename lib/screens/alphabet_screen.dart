@@ -92,6 +92,22 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
     );
   }
 
+  void _openFirstLetter() {
+    if (loading) return;
+
+    if (letters.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Әзірге әріптер қосылмаған'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    _openLetter(letters.first);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -133,7 +149,7 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
                     height: 52,
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: () {},
+                      onPressed: _openFirstLetter,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white24,
                         foregroundColor: Colors.white,

@@ -41,6 +41,31 @@ class AlphabetService {
     throw Exception('Ошибка загрузки буквы: ${res.statusCode} ${res.body}');
   }
 
+  Future<Map<String, dynamic>> adminGetById(int id) async {
+    final token = await AuthService().getToken();
+    if (token == null || token.isEmpty) {
+      throw Exception('Token жоқ. Қайта login жаса.');
+    }
+
+    final res = await http.get(
+      Uri.parse('$baseUrl/admin/alphabet/$id'),
+      headers: {
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+    );
+
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      final decoded = jsonDecode(res.body);
+      if (decoded is Map<String, dynamic>) return decoded;
+      throw Exception('Admin letter response is not an object');
+    }
+
+    throw Exception(
+      'Ошибка загрузки admin буквы: ${res.statusCode} ${res.body}',
+    );
+  }
+
   Future<void> delete(int id) async {
     final token = await AuthService().getToken();
     if (token == null || token.isEmpty) {

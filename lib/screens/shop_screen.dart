@@ -3,99 +3,65 @@ import 'package:flutter/material.dart';
 class ShopScreen extends StatelessWidget {
   const ShopScreen({super.key});
 
-  static const purple = Color(0xFF8E5BFF);
+  static const Color purple = Color(0xFF6F159E);
+  static const Color gold = Color(0xFFFFC400);
+  static const Color silver = Color(0xFFC8D8DD);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F1FF),
-      appBar: AppBar(
-        backgroundColor: purple,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.pop(context),
-        ),
-        title: const Text('Shop'),
-        centerTitle: true,
-      ),
+      backgroundColor: Colors.white,
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(18),
-          children: const [
-            _HeaderCard(),
-            SizedBox(height: 16),
-
-            _ShopItemCard(
-              bg: Color(0xFFEAF3FF),
-              border: Color(0xFFB9D6FF),
-              iconBg: Color(0xFF2F80FF),
-              icon: Icons.menu_book,
-              title: 'Bonus Lesson',
-              subtitle: 'Unlock a special advanced lesson',
-              xp: '100 XP',
-              buttonColor: Color(0xFF2F80FF),
+          padding: const EdgeInsets.fromLTRB(28, 24, 28, 28),
+          children: [
+            Row(
+              children: [
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                ),
+                const Expanded(
+                  child: Text(
+                    'Shop',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 48),
+              ],
             ),
-            SizedBox(height: 14),
-
-            _ShopItemCard(
-              bg: Color(0xFFFFEEF3),
-              border: Color(0xFFFFC1D3),
-              iconBg: Color(0xFFFF4D87),
-              icon: Icons.card_giftcard,
-              title: 'Exclusive Content',
-              subtitle: 'Cultural stories and songs',
-              xp: '150 XP',
-              buttonColor: Color(0xFFFF4D87),
+            const SizedBox(height: 28),
+            const Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Redeem your points for rewards',
+                    style: TextStyle(fontSize: 16),
+                  ),
+                ),
+                _Coin(color: gold),
+                SizedBox(width: 6),
+                Text('12', style: TextStyle(fontWeight: FontWeight.w800)),
+                SizedBox(width: 12),
+                _Coin(color: silver),
+                SizedBox(width: 6),
+                Text('6', style: TextStyle(fontWeight: FontWeight.w800)),
+              ],
             ),
-            SizedBox(height: 14),
-
-            _ShopItemCard(
-              bg: Color(0xFFFFF9E6),
-              border: Color(0xFFFFE19C),
-              iconBg: Color(0xFFFFB300),
-              icon: Icons.flash_on,
-              title: 'Learning Booster',
-              subtitle: 'Double XP for 24 hours',
-              xp: '80 XP',
-              buttonColor: Color(0xFFFFB300),
-            ),
-            SizedBox(height: 14),
-
-            _ShopItemCard(
-              bg: Color(0xFFF2E9FF),
-              border: Color(0xFFD8C2FF),
-              iconBg: Color(0xFF8E5BFF),
-              icon: Icons.emoji_events,
-              title: 'Premium Badge',
-              subtitle: 'Exclusive profile badge',
-              xp: '200 XP',
-              buttonColor: Color(0xFF8E5BFF),
-            ),
-            SizedBox(height: 14),
-
-            _ShopItemCard(
-              bg: Color(0xFFEAF3FF),
-              border: Color(0xFFB9D6FF),
-              iconBg: Color(0xFF5D6BFF),
-              icon: Icons.auto_stories,
-              title: 'Cultural Pack',
-              subtitle: 'Kazakh proverbs & traditions',
-              xp: '120 XP',
-              buttonColor: Color(0xFF5D6BFF),
-            ),
-            SizedBox(height: 14),
-
-            _ShopItemCard(
-              bg: Color(0xFFE6FBFF),
-              border: Color(0xFFB6F1FF),
-              iconBg: Color(0xFF00B8D9),
-              icon: Icons.ac_unit,
-              title: 'Streak Freeze',
-              subtitle: 'Protect your streak for 3 days',
-              xp: '90 XP',
-              buttonColor: Color(0xFF00B8D9),
-            ),
+            const SizedBox(height: 42),
+            const _ShopRewardCard(price: '12', coinColor: gold),
+            SizedBox(height: 18),
+            const _ShopRewardCard(price: '6', coinColor: silver),
+            SizedBox(height: 18),
+            const _ShopRewardCard(price: '12', coinColor: gold),
+            SizedBox(height: 18),
+            const _ShopRewardCard(price: '6', coinColor: silver),
+            SizedBox(height: 18),
+            const _ShopRewardCard(price: '12', coinColor: gold),
           ],
         ),
       ),
@@ -103,49 +69,88 @@ class ShopScreen extends StatelessWidget {
   }
 }
 
-class _HeaderCard extends StatelessWidget {
-  const _HeaderCard();
+class _ShopRewardCard extends StatelessWidget {
+  final String price;
+  final Color coinColor;
 
-  static const purple = Color(0xFF8E5BFF);
+  const _ShopRewardCard({
+    required this.price,
+    required this.coinColor,
+  });
+
+  static const Color purple = Color(0xFF6F159E);
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
-      decoration: const BoxDecoration(
+      height: 150,
+      padding: const EdgeInsets.fromLTRB(24, 20, 20, 18),
+      decoration: BoxDecoration(
         color: purple,
-        borderRadius: BorderRadius.all(Radius.circular(22)),
+        borderRadius: BorderRadius.circular(24),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
-          Row(
-            children: [
-              Icon(Icons.store, color: Colors.white),
-              SizedBox(width: 10),
-              Text(
-                'Shop',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w900,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Bonus Book',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                const Text(
+                  'Unlock a special advanced lesson',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    height: 1.25,
+                  ),
+                ),
+                const Spacer(),
+                Row(
+                  children: [
+                    _Coin(color: coinColor, size: 22),
+                    const SizedBox(width: 8),
+                    Text(
+                      price,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+         SizedBox(
+            width: 12,
+            height: 42,
+            child: ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => const BonusBookScreen(),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                elevation: 0,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999),
                 ),
               ),
-            ],
-          ),
-          SizedBox(height: 6),
-          Text(
-            'Redeem your points for rewards',
-            style: TextStyle(color: Colors.white70),
-          ),
-          SizedBox(height: 10),
-          Text(
-            '0 ⭐',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 18,
-              fontWeight: FontWeight.w900,
+              child: const Text('Redeem'),
             ),
           ),
         ],
@@ -154,88 +159,153 @@ class _HeaderCard extends StatelessWidget {
   }
 }
 
-class _ShopItemCard extends StatelessWidget {
-  final Color bg;
-  final Color border;
-  final Color iconBg;
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final String xp;
-  final Color buttonColor;
+class BonusBookScreen extends StatelessWidget {
+  const BonusBookScreen({super.key});
 
-  const _ShopItemCard({
-    required this.bg,
-    required this.border,
-    required this.iconBg,
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.xp,
-    required this.buttonColor,
-  });
+  static const Color purple = Color(0xFF6F159E);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: border),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(icon, color: Colors.white, size: 28),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
+    return Scaffold(
+      backgroundColor: purple,
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
+                const Text(
+                  'Bonus Book',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 36,
+                    fontWeight: FontWeight.w400,
                   ),
                 ),
-                const SizedBox(height: 4),
-                Text(subtitle, style: const TextStyle(color: Colors.black54)),
-                const SizedBox(height: 8),
-                Row(
-                  children: [
-                    const Icon(Icons.auto_awesome, size: 16, color: Colors.orange),
-                    const SizedBox(width: 6),
-                    Text(xp, style: const TextStyle(fontWeight: FontWeight.w700)),
-                  ],
+
+                const SizedBox(height: 28),
+
+                const Text(
+                  'Unlock a special advanced lesson',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 16,
+                  ),
+                ),
+
+                const SizedBox(height: 55),
+
+                Container(
+                  width: 170,
+                  height: 260,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF6F0D8),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    children: [
+                      Container(
+                        height: 110,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF051D3A),
+                          borderRadius: BorderRadius.vertical(
+                            top: Radius.circular(12),
+                          ),
+                        ),
+                        child: const Center(
+                          child: Icon(
+                            Icons.auto_stories,
+                            color: Color(0xFFE0B94A),
+                            size: 58,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 18),
+                      const Text(
+                        'АБАЙ ЖОЛЫ',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w900,
+                          fontSize: 16,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'I кітап',
+                        style: TextStyle(fontSize: 11),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Мұхтар Әуезов',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 12,
+                        ),
+                      ),
+                      const Spacer(),
+                      Container(
+                        height: 10,
+                        margin: const EdgeInsets.symmetric(horizontal: 18),
+                        color: const Color(0xFF051D3A),
+                      ),
+                      const SizedBox(height: 18),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 36),
+
+                SizedBox(
+                  width: 150,
+                  height: 48,
+                  child: ElevatedButton(
+                    onPressed: () {},
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: Colors.black,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                    child: const Text(
+                      'Start',
+                      style: TextStyle(fontSize: 22),
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
-          const SizedBox(width: 10),
-          ElevatedButton(
-            onPressed: () {},
-            style: ElevatedButton.styleFrom(
-              backgroundColor: buttonColor,
-              foregroundColor: Colors.white,
-              elevation: 0,
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-            ),
-            child: const Text('Redeem', style: TextStyle(fontWeight: FontWeight.w900)),
-          ),
-        ],
+        ),
       ),
+    );
+  }
+}
+
+class _Coin extends StatelessWidget {
+  final Color color;
+  final double size;
+
+  const _Coin({
+    required this.color,
+    this.size = 22,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Icon(
+      Icons.pentagon_rounded,
+      color: color,
+      size: size,
+      shadows: const [
+        Shadow(
+          color: Colors.black38,
+          blurRadius: 1,
+        ),
+      ],
     );
   }
 }
