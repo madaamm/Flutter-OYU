@@ -54,12 +54,21 @@ class TaskModel {
     return result.trim();
   }
 
+  static List<String> _splitWords(String raw) {
+    return raw
+        .replaceAll(',', ' ')
+        .split(RegExp(r'\s+'))
+        .map(_cleanWord)
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+
   static List<String> _parseStringList(dynamic value) {
     if (value == null) return <String>[];
 
     if (value is List) {
       return value
-          .map((e) => _cleanWord(e.toString()))
+          .expand((e) => _splitWords(e.toString()))
           .where((e) => e.isNotEmpty)
           .toList();
     }
@@ -72,9 +81,10 @@ class TaskModel {
 
     try {
       final decoded = jsonDecode(raw);
+
       if (decoded is List) {
         return decoded
-            .map((e) => _cleanWord(e.toString()))
+            .expand((e) => _splitWords(e.toString()))
             .where((e) => e.isNotEmpty)
             .toList();
       }
@@ -84,11 +94,7 @@ class TaskModel {
       raw = raw.substring(1, raw.length - 1);
     }
 
-    return raw
-        .split(',')
-        .map(_cleanWord)
-        .where((e) => e.isNotEmpty)
-        .toList();
+    return _splitWords(raw);
   }
 
   factory TaskModel.fromJson(Map<String, dynamic> json) {

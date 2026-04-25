@@ -965,7 +965,7 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
 
   bool get _canCheck {
     if (_tasks.isEmpty || _stage != _ExerciseStage.building) return false;
-    return _slots.length == _cleanWords(_currentTask.correctWords).length;
+    return _slots.isNotEmpty; // 🔥 кем болса да тексеруге болады
   }
 
   double get _progress {

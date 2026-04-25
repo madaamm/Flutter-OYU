@@ -90,11 +90,9 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
   }
 
   TaskModel get currentTask => tasks[currentIndex];
-
-  bool get canCheck =>
-      stage == _Stage.building &&
-          correctAnswer.isNotEmpty &&
-          slots.length == correctAnswer.length;
+  bool get canCheck {
+    return stage == _Stage.building && slots.length >= 1 && slots.length <= 5;
+  }
 
   double get progress => tasks.isEmpty ? 0 : currentIndex / tasks.length;
 
