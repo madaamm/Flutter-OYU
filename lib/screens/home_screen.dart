@@ -10,6 +10,7 @@ import 'package:kazakh_learning_app/screens/game_zone_screen.dart';
 import 'package:kazakh_learning_app/screens/profile_screen.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:kazakh_learning_app/services/lesson_service.dart';
+import 'package:kazakh_learning_app/screens/exercise_word_order_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userName;
@@ -1196,20 +1197,9 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
                   const Divider(height: 1.5, thickness: 1.5, color: border),
                   const SizedBox(height: 24),
                   _WordBank(words: _bank, onTapWord: _placeWord),
-                  Column(
-                    children: [
-                      Image.asset(
-                        'assets/images/Oyu.png',
-                        height: 80,
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Put the words in correct order',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
+                  const SizedBox(height: 34),
+                  _MascotHint(
+                    isCorrect: _stage == _ExerciseStage.correct,
                   ),
                   const SizedBox(height: 20),
                   if (isCorrect)
@@ -1250,7 +1240,7 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
                         ? 'CONTINUE'
                         : _stage == _ExerciseStage.wrong && _lives == 0
                         ? 'CONTINUE'
-                        : 'CHECK',
+                        : 'CHECKKKKK',
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.w800,
@@ -1446,6 +1436,110 @@ class _WordBank extends StatelessWidget {
       }),
     );
   }
+}
+
+
+class _MascotHint extends StatelessWidget {
+  final bool isCorrect;
+
+  const _MascotHint({
+    required this.isCorrect,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 190,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            left: 14,
+            bottom: 0,
+            child: Image.asset(
+              isCorrect
+                  ? 'assets/images/Oyu.png'
+                  : 'assets/images/Oyu_uyktauda.png',
+              height: 145,
+              fit: BoxFit.contain,
+            ),
+          ),
+          Positioned(
+            left: 145,
+            right: 10,
+            top: 18,
+            child: CustomPaint(
+              painter: _SpeechTailPainter(),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 14,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(
+                    color: const Color(0xFFCFCFCF),
+                    width: 1.2,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.18),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Text(
+                  isCorrect
+                      ? 'You did great job'
+                      : 'Put the words in\\ncorrect order',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w900,
+                    color: Color(0xFF333333),
+                    height: 1.15,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SpeechTailPainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final shadowPaint = Paint()
+      ..color = Colors.black.withOpacity(0.12)
+      ..style = PaintingStyle.fill;
+
+    final paint = Paint()
+      ..color = Colors.white
+      ..style = PaintingStyle.fill;
+
+    final borderPaint = Paint()
+      ..color = const Color(0xFFCFCFCF)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.2;
+
+    final path = Path()
+      ..moveTo(18, size.height - 10)
+      ..quadraticBezierTo(-12, size.height + 22, -42, size.height + 28)
+      ..quadraticBezierTo(-12, size.height + 4, 8, size.height - 28)
+      ..close();
+
+    canvas.drawPath(path.shift(const Offset(2, 3)), shadowPaint);
+    canvas.drawPath(path, paint);
+    canvas.drawPath(path, borderPaint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
 class _ExerciseChip extends StatelessWidget {
