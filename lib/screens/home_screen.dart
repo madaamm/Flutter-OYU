@@ -1011,6 +1011,18 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
 
     if (!_canCheck) return;
 
+    debugPrint('CURRENT TASK ID: ${_currentTask.id}');
+    debugPrint('ANSWER: $_slots');
+
+    try {
+      await _lessonService.submitTaskAnswer(
+        taskId: _currentTask.id,
+        answerWords: _slots,
+      );
+    } catch (e) {
+      debugPrint('Submit answer error: $e');
+    }
+
     if (_isCorrectAnswer()) {
       setState(() {
         _earnedXp += _currentTask.xpReward;
@@ -1067,7 +1079,7 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
       return _currentTaskIndex < _tasks.length - 1 ? 'Продолжить' : 'Завершить';
     }
     if (_stage == _ExerciseStage.wrong && _lives == 0) return 'Продолжить';
-    return 'Проверитьььь';
+    return 'Проверить';
   }
 
   Color _buttonColor() {
@@ -1163,12 +1175,12 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 18),
                 children: [
                   const Text(
-                    'ПЕРЕВЕДИТЕ ЭТО ПРЕДЛОЖЕНИЕ',
+                    'TRANSLATE THIS SENTENCE',
                     style: TextStyle(
                       fontSize: 12,
-                      color: textSecondary,
+                      color: Colors.grey,
                       fontWeight: FontWeight.w700,
-                      letterSpacing: 0.8,
+                      letterSpacing: 1,
                     ),
                   ),
                   const SizedBox(height: 8),
@@ -1184,7 +1196,22 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
                   const Divider(height: 1.5, thickness: 1.5, color: border),
                   const SizedBox(height: 24),
                   _WordBank(words: _bank, onTapWord: _placeWord),
-                  const SizedBox(height: 18),
+                  Column(
+                    children: [
+                      Image.asset(
+                        'assets/images/Oyu.png',
+                        height: 80,
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Put the words in correct order',
+                        style: TextStyle(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
                   if (isCorrect)
                     const _FeedbackBox(
                       isCorrect: true,
@@ -1206,25 +1233,30 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
               padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
               child: SizedBox(
                 width: double.infinity,
-                height: 56,
+                height: 55,
                 child: ElevatedButton(
                   onPressed: _buttonAction(),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: _buttonColor(),
-                    foregroundColor: _buttonTextColor(),
-                    disabledBackgroundColor: const Color(0xFFE8E8E8),
-                    disabledForegroundColor: textSecondary,
+                    backgroundColor: _canCheck
+                        ? const Color(0xFF58CC02)
+                        : const Color(0xFFE5E5E5),
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(14),
                     ),
                   ),
                   child: Text(
-                    _buttonText(),
-                    style: const TextStyle(
-                      fontSize: 17,
+                    _stage == _ExerciseStage.correct
+                        ? 'CONTINUE'
+                        : _stage == _ExerciseStage.wrong && _lives == 0
+                        ? 'CONTINUE'
+                        : 'CHECK',
+                    style: TextStyle(
+                      fontSize: 16,
                       fontWeight: FontWeight.w800,
-                      letterSpacing: 0.2,
+                      color: _canCheck || _stage != _ExerciseStage.building
+                          ? Colors.white
+                          : Colors.grey,
                     ),
                   ),
                 ),
@@ -1301,20 +1333,22 @@ class _PromptBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFEFEF),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE2E2E2), width: 0.5),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.05),
+            blurRadius: 8,
+          )
+        ],
       ),
       child: Text(
         text,
         style: const TextStyle(
-          fontSize: 22,
+          fontSize: 18,
           fontWeight: FontWeight.w600,
-          color: Color(0xFF2B2238),
-          height: 1.3,
         ),
       ),
     );
@@ -1336,77 +1370,78 @@ class _AnswerArea extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isCorrect = stage == _ExerciseStage.correct;
-    final isWrong = stage == _ExerciseStage.wrong;
-
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 180),
+    return Container(
       width: double.infinity,
-      constraints: const BoxConstraints(minHeight: 86),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: isCorrect
-            ? const Color(0xFFF0FFF0)
-            : isWrong
-            ? const Color(0xFFFFF0F0)
-            : Colors.transparent,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: isCorrect
-              ? const Color(0xFF58CC02)
-              : isWrong
-              ? const Color(0xFFFF4B4B)
-              : const Color(0xFFD2D2D2),
-          width: 2,
-        ),
+        color: const Color(0xFFF2F2F2),
+        borderRadius: BorderRadius.circular(16),
       ),
       child: words.isEmpty
-          ? const Align(
-        alignment: Alignment.centerLeft,
-        child: Text(
-          'Выберите слова ниже',
-          style: TextStyle(color: Color(0xFF7D7D7D), fontSize: 14),
-        ),
+          ? const Text(
+        'Tap words below',
+        style: TextStyle(color: Colors.grey),
       )
           : Wrap(
         spacing: 8,
         runSpacing: 8,
         children: List.generate(words.length, (i) {
-          final word = words[i];
-          final correctChip = isCorrect && i < correctWords.length && word == correctWords[i];
-          return _ExerciseChip(
-            text: word,
-            borderColor: correctChip
-                ? const Color(0xFF58CC02)
-                : const Color(0xFFD2D2D2),
-            textColor: correctChip
-                ? const Color(0xFF58CC02)
-                : const Color(0xFF2B2238),
-            onTap: stage == _ExerciseStage.building ? () => onTapWord(i) : null,
+          return GestureDetector(
+            onTap: () => onTapWord(i),
+            child: Chip(
+              label: Text(words[i]),
+              backgroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+                side: const BorderSide(color: Colors.grey),
+              ),
+            ),
           );
         }),
       ),
     );
   }
 }
-
 class _WordBank extends StatelessWidget {
   final List<String> words;
   final void Function(int index) onTapWord;
 
-  const _WordBank({required this.words, required this.onTapWord});
+  const _WordBank({
+    required this.words,
+    required this.onTapWord,
+  });
 
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: 8,
-      runSpacing: 8,
+      spacing: 10,
+      runSpacing: 10,
       children: List.generate(words.length, (i) {
-        return _ExerciseChip(
-          text: words[i],
-          borderColor: const Color(0xFF1899D6),
-          textColor: const Color(0xFF1899D6),
+        final word = words[i];
+
+        return GestureDetector(
           onTap: () => onTapWord(i),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF6A00FF)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 6,
+                ),
+              ],
+            ),
+            child: Text(
+              word,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 15,
+              ),
+            ),
+          ),
         );
       }),
     );

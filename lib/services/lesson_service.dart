@@ -3,11 +3,11 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:kazakh_learning_app/models/lesson_model.dart';
 import 'package:kazakh_learning_app/models/task_model.dart';
-import 'package:kazakh_learning_app/services/api_config.dart';
+import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LessonService {
-  String get _baseUrl => ApiConfig.baseUrl;
+  static const String baseUrl = 'https://learnkz.kazi.rocks/api';
 
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -34,7 +34,6 @@ class LessonService {
           decoded['result'] ??
           decoded;
     }
-
     return decoded;
   }
 
@@ -75,7 +74,7 @@ class LessonService {
 
   Future<List<LessonModel>> getUserLessons() async {
     final response = await http.get(
-      Uri.parse('$_baseUrl/api/lessons'),
+      Uri.parse('$baseUrl/lessons'),
       headers: await _headers(),
     );
 
@@ -100,7 +99,7 @@ class LessonService {
 
   Future<List<TaskModel>> getLessonTasks(int lessonId) async {
     final response = await http.get(
-      Uri.parse('$_baseUrl/api/lessons/$lessonId/tasks'),
+      Uri.parse('$baseUrl/lessons/$lessonId/tasks'),
       headers: await _headers(),
     );
 
@@ -121,5 +120,108 @@ class LessonService {
       ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
 
     return tasks;
+  }
+
+  // 10) Отправить ответ на задание
+  Future<void> submitTaskAnswer({
+    required int taskId,
+    required List<String> answerWords,
+  }) async {
+    final token = await AuthService().getToken();
+
+    if (token == null || token.isEmpty) {
+      throw Exception('Token жоқ. Қайта login жасаңыз.');
+    }
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/tasks/$taskId/submit'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'answerWords': answerWords,
+      }),
+    );
+
+    print('Submit status: ${response.statusCode}');
+    print('Submit body: ${response.body}');
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Submit error ${response.statusCode}: ${response.body}');
+    }
+  }
+
+  // 11) Получить прогресс конкретного урока
+  Future<Map<String, dynamic>> getLessonProgress(int lessonId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/progress/lessons/$lessonId'),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw _buildException(response);
+    }
+
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+  }
+
+  // 12) Получить весь прогресс пользователя
+  Future<dynamic> getMyProgress() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/progress/me'),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw _buildException(response);
+    }
+
+    return _extractData(jsonDecode(response.body));
+  }
+
+  // 13) Получить пройденные уровни
+  Future<dynamic> getCompletedLevels() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/progress/levels'),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw _buildException(response);
+    }
+
+    return _extractData(jsonDecode(response.body));
+  }
+
+  // 14) Получить серию дней streak
+  Future<Map<String, dynamic>> getMyStreak() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/users/me/streak'),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw _buildException(response);
+    }
+
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+  }
+
+  // 15) Лидерборд
+  Future<dynamic> getLeaderboard() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/leaderboard'),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw _buildException(response);
+    }
+
+    return _extractData(jsonDecode(response.body));
   }
 }
