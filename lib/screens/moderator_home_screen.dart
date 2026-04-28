@@ -121,10 +121,7 @@ class _ModeratorDashboard extends StatelessWidget {
                 style: const TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 10),
-              const Text(
-                'Модератор: тек қолданушыларды көреді',
-                style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
-              ),
+
             ],
           ),
         ),

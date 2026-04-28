@@ -296,29 +296,30 @@ class _HomePageState extends State<HomePage> {
                     return LayoutBuilder(
                       builder: (context, c) {
                         final base = math.min(c.maxWidth, c.maxHeight);
+                        final groupCount = (lessons.length / 6).ceil();
 
-                        return ListView(
+                        return ListView.builder(
                           physics: const BouncingScrollPhysics(),
                           padding: const EdgeInsets.fromLTRB(18, 20, 18, 28),
-                          children: [
-                            _LessonCircleGroup(
+                          itemCount: groupCount,
+                          itemBuilder: (context, groupIndex) {
+                            final start = groupIndex * 6;
+                            final end = math.min(start + 6, lessons.length);
+                            final groupLessons = lessons.sublist(start, end);
+
+                            return _LessonCircleGroup(
                               base: base,
-                              lessons: firstGroup,
-                              onTapLesson: (lesson, index) {
-                                _openLessonSheet(lesson, index + 1);
+                              lessons: groupLessons,
+                              startNumber: start + 1,
+                              showBox: groupLessons.length == 6,
+                              mascotAsset: groupIndex.isOdd
+                                  ? 'assets/images/Oyu_uyktauda.png'
+                                  : 'assets/images/Oyu.png',
+                              onTapLesson: (lesson, number) {
+                                _openLessonSheet(lesson, number);
                               },
-                            ),
-                            if (lessons.length > 6) ...[
-                              const SizedBox(height: 12),
-                              _LessonsVerticalList(
-                                lessons: lessons.skip(6).toList(),
-                                startNumber: 7,
-                                onTapLesson: (lesson, number) {
-                                  _openLessonSheet(lesson, number);
-                                },
-                              ),
-                            ],
-                          ],
+                            );
+                          },
                         );
                       },
                     );
@@ -380,11 +381,17 @@ class _HomePageState extends State<HomePage> {
 class _LessonCircleGroup extends StatelessWidget {
   final double base;
   final List<LessonModel> lessons;
-  final void Function(LessonModel lesson, int index) onTapLesson;
+  final int startNumber;
+  final bool showBox;
+  final String mascotAsset;
+  final void Function(LessonModel lesson, int number) onTapLesson;
 
   const _LessonCircleGroup({
     required this.base,
     required this.lessons,
+    required this.startNumber,
+    required this.showBox,
+    required this.mascotAsset,
     required this.onTapLesson,
   });
 
@@ -393,27 +400,56 @@ class _LessonCircleGroup extends StatelessWidget {
     final double size = base * 0.95;
     final double eggSize = base * 0.15;
     final double oyuSize = base * 0.34;
+    final double blockHeight = showBox ? size + eggSize * 0.9 : size;
 
     return SizedBox(
-      height: size,
+      height: blockHeight,
       child: Center(
         child: SizedBox(
           width: size,
-          height: size,
+          height: blockHeight,
           child: Stack(
-            alignment: Alignment.center,
+            alignment: Alignment.topCenter,
+            clipBehavior: Clip.none,
             children: [
-              Image.asset(
-                'assets/images/Oyu.png',
-                width: oyuSize,
-                fit: BoxFit.contain,
+              Positioned(
+                top: 0,
+                child: SizedBox(
+                  width: size,
+                  height: size,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Image.asset(
+                        mascotAsset,
+                        width: oyuSize,
+                        fit: BoxFit.contain,
+                      ),
+                      for (int i = 0; i < lessons.length && i < 6; i++)
+                        _buildEggPosition(
+                          lesson: lessons[i],
+                          index: i,
+                          size: eggSize,
+                          number: startNumber + i,
+                          onTap: () => onTapLesson(
+                            lessons[i],
+                            startNumber + i,
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
               ),
-              for (int i = 0; i < lessons.length && i < 6; i++)
-                _buildEggPosition(
-                  lessons[i],
-                  i,
-                  eggSize,
-                      () => onTapLesson(lessons[i], i),
+
+              if (showBox)
+                Positioned(
+                  top: size - eggSize * 0.2,
+                  child: Image.asset(
+                    'assets/images/Qorap.png',
+                    width: eggSize,
+                    height: eggSize,
+                    fit: BoxFit.contain,
+                  ),
                 ),
             ],
           ),
@@ -422,19 +458,20 @@ class _LessonCircleGroup extends StatelessWidget {
     );
   }
 
-  Widget _buildEggPosition(
-      LessonModel lesson,
-      int index,
-      double size,
-      VoidCallback onTap,
-      ) {
+  Widget _buildEggPosition({
+    required LessonModel lesson,
+    required int index,
+    required double size,
+    required int number,
+    required VoidCallback onTap,
+  }) {
     const positions = [
-      Offset(0, -1.95),      // 1 - жоғары
-      Offset(-1.55, -0.75),  // 2 - сол жақ
-      Offset(1.55, -0.75),   // 3 - оң жақ
-      Offset(-1.55, 0.95),   // 4
-      Offset(1.55, 0.95),    // 5
-      Offset(0, 2.0),        // 6 - төмен
+      Offset(0, -1.95),
+      Offset(-1.55, -0.75),
+      Offset(1.55, -0.75),
+      Offset(-1.55, 0.95),
+      Offset(1.55, 0.95),
+      Offset(0, 2.0),
     ];
 
     final pos = positions[index];
@@ -460,16 +497,20 @@ class _LessonCircleGroup extends StatelessWidget {
                       height: size,
                       fit: BoxFit.contain,
                     ),
-                    SizedBox(
-                      width: size * 0.62,
-                      child: Text(
-                        '${index + 1}',
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 18,
-                        ),
+                    Text(
+                      '$number',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 18,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black45,
+                            blurRadius: 4,
+                            offset: Offset(0, 1),
+                          ),
+                        ],
                       ),
                     ),
                   ],
@@ -856,24 +897,12 @@ class TheoryLessonScreen extends StatelessWidget {
   }
 }
 
-class ExerciseWordOrderScreen extends StatefulWidget {
-  final int lessonId;
-  final int lessonNumber;
-  final String lessonTitle;
-  final String level;
 
-  const ExerciseWordOrderScreen({
-    super.key,
-    required this.lessonId,
-    required this.lessonNumber,
-    required this.lessonTitle,
-    required this.level,
-  });
 
   @override
   State<ExerciseWordOrderScreen> createState() =>
       _ExerciseWordOrderScreenState();
-}
+
 
 enum _ExerciseStage { building, correct, wrong, finished }
 

@@ -411,7 +411,6 @@ class _AdminTaskScreenState extends State<AdminTaskScreen> {
     );
   }
 }
-
 class _CircleBlock extends StatelessWidget {
   final double base;
   final int filledTasks;
@@ -439,39 +438,71 @@ class _CircleBlock extends StatelessWidget {
     final double eggSize = base * 0.16;
     final double oyuSize = base * 0.40;
 
+    final double blockHeight = showBox ? size + eggSize + 28 : size + 10;
+
     return SizedBox(
-      height: size,
-      child: Center(
-        child: SizedBox(
-          width: size,
-          height: size,
-          child: Stack(
-            alignment: Alignment.center,
+      height: blockHeight,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final left = (constraints.maxWidth - size) / 2;
+
+          return Stack(
+            clipBehavior: Clip.none,
             children: [
-              Image.asset(
-                oyuAsset,
-                width: oyuSize,
-                fit: BoxFit.contain,
-              ),
-              for (int i = 0; i < filledTasks; i++)
-                _buildEggPosition(
-                  index: i,
-                  size: eggSize,
-                  number: startNumber + i,
+              Positioned(
+                top: 0,
+                left: left,
+                child: SizedBox(
+                  width: size,
+                  height: size,
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      Image.asset(
+                        oyuAsset,
+                        width: oyuSize,
+                        fit: BoxFit.contain,
+                      ),
+                      for (int i = 0; i < filledTasks; i++)
+                        _buildEggPosition(
+                          index: i,
+                          size: eggSize,
+                          number: startNumber + i,
+                        ),
+                    ],
+                  ),
                 ),
+              ),
+
               if (showBox)
                 Positioned(
-                  bottom: size * 0.05,
-                  child: Image.asset(
-                    boxAsset,
-                    width: eggSize * 0.95,
-                    height: eggSize * 0.95,
-                    fit: BoxFit.contain,
+                  top: size + 6,
+                  left: (constraints.maxWidth - eggSize) / 2,
+                  child: GestureDetector(
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => _FinishedScreen(
+                            xp: 10,
+                            onClose: () {
+                              Navigator.pop(context);
+                            },
+                          ),
+                        ),
+                      );
+                    },
+                    child: Image.asset(
+                      boxAsset,
+                      width: eggSize,
+                      height: eggSize,
+                      fit: BoxFit.contain,
+                    ),
                   ),
                 ),
             ],
-          ),
-        ),
+          );
+        },
       ),
     );
   }
@@ -1367,6 +1398,28 @@ class _AddLessonDialogState extends State<_AddLessonDialog> {
                         : Text(_isEdit ? 'Сақтау' : 'Қосу'),
                   ),
                 ),
+                const SizedBox(height: 10),
+
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: OutlinedButton(
+                    onPressed: _saving ? null : () => Navigator.pop(context),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: const Color(0xFF3A0CA3),
+                      side: const BorderSide(color: Color(0xFF3A0CA3), width: 1.5),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                    ),
+                    child: const Text(
+                      'Артқа қайту',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -1824,6 +1877,24 @@ class _ArchivedLessonsScreenState extends State<ArchivedLessonsScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+class _FinishedScreen extends StatelessWidget {
+  final int xp;
+  final VoidCallback onClose;
+
+  const _FinishedScreen({
+    required this.xp,
+    required this.onClose,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Text('Reward: +$xp'),
       ),
     );
   }

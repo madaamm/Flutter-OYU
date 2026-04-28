@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:kazakh_learning_app/models/lesson_model.dart';
 import 'package:kazakh_learning_app/services/admin_lesson_service.dart';
@@ -11,7 +12,7 @@ class AdminLessonsScreen extends StatefulWidget {
 
 class _AdminLessonsScreenState extends State<AdminLessonsScreen> {
   static const Color purple = Color(0xFF5B18D6);
-  static const Color lightBg = Color(0xFFF1F1F1);
+  static const Color lightBg = Color(0xFFFFFFFF);
 
   final AdminLessonService _service = AdminLessonService();
   late Future<List<LessonModel>> _futureLessons;
@@ -86,6 +87,28 @@ class _AdminLessonsScreenState extends State<AdminLessonsScreen> {
     }
   }
 
+  void _openLessonSheet(LessonModel lesson) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) {
+        return _AdminLessonActionSheet(
+          title: lesson.title,
+          level: lesson.level,
+          isArchived: lesson.isArchived,
+          onEditTap: () {
+            Navigator.pop(context);
+            _openEditDialog(lesson);
+          },
+          onArchiveTap: () {
+            Navigator.pop(context);
+            _toggleArchive(lesson);
+          },
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -97,43 +120,62 @@ class _AdminLessonsScreenState extends State<AdminLessonsScreen> {
               padding: const EdgeInsets.fromLTRB(18, 14, 18, 14),
               child: Row(
                 children: [
-                  const Expanded(
-                    child: Text(
-                      'Уроктар',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                  ),
+                  const Spacer(),
                   ElevatedButton.icon(
-                    onPressed: _openAddDialog,
+                    onPressed: () {},
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
+                      backgroundColor: const Color(0xFFEDE2FF),
                       foregroundColor: purple,
                       elevation: 0,
                       padding: const EdgeInsets.symmetric(
                         horizontal: 18,
-                        vertical: 14,
+                        vertical: 12,
                       ),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
+                        borderRadius: BorderRadius.circular(999),
                       ),
                     ),
-                    icon: const Icon(Icons.add_rounded),
+                    icon: const Icon(Icons.archive_outlined, size: 22),
+                    label: const Text(
+                      'Архив',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: _openAddDialog,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF3F00A8),
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 12,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ),
+                    icon: const Icon(Icons.add_rounded, size: 26),
                     label: const Text(
                       'Добавить',
-                      style: TextStyle(fontWeight: FontWeight.w700),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 16,
+                      ),
                     ),
                   ),
                 ],
               ),
             ),
+
             Expanded(
               child: Container(
                 width: double.infinity,
-                margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+                margin: const EdgeInsets.fromLTRB(26, 0, 26, 0),
                 decoration: BoxDecoration(
                   color: lightBg,
                   borderRadius: BorderRadius.circular(34),
@@ -179,7 +221,8 @@ class _AdminLessonsScreenState extends State<AdminLessonsScreen> {
                                       Text(
                                         '${snapshot.error}',
                                         textAlign: TextAlign.center,
-                                        style: const TextStyle(color: Colors.grey),
+                                        style:
+                                        const TextStyle(color: Colors.grey),
                                       ),
                                       const SizedBox(height: 18),
                                       ElevatedButton(
@@ -218,17 +261,20 @@ class _AdminLessonsScreenState extends State<AdminLessonsScreen> {
                         );
                       }
 
-                      return ListView.separated(
+                      return ListView.builder(
                         physics: const BouncingScrollPhysics(),
-                        padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-                        itemCount: lessons.length,
-                        separatorBuilder: (_, __) => const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final lesson = lessons[index];
-                          return _AdminLessonCard(
-                            lesson: lesson,
-                            onEdit: () => _openEditDialog(lesson),
-                            onArchive: () => _toggleArchive(lesson),
+                        padding: const EdgeInsets.fromLTRB(16, 30, 16, 50),
+                        itemCount: (lessons.length / 6).ceil(),
+                        itemBuilder: (context, groupIndex) {
+                          final start = groupIndex * 6;
+                          final end = math.min(start + 6, lessons.length);
+                          final groupLessons = lessons.sublist(start, end);
+
+                          return _AdminLessonCircleGroup(
+                            lessons: groupLessons,
+                            startNumber: start + 1,
+                            mascotSleeping: groupIndex.isOdd,
+                            onTapLesson: _openLessonSheet,
                           );
                         },
                       );
@@ -244,144 +290,329 @@ class _AdminLessonsScreenState extends State<AdminLessonsScreen> {
   }
 }
 
-class _AdminLessonCard extends StatelessWidget {
-  final LessonModel lesson;
-  final VoidCallback onEdit;
-  final VoidCallback onArchive;
+class _AdminLessonCircleGroup extends StatelessWidget {
+  final List<LessonModel> lessons;
+  final int startNumber;
+  final bool mascotSleeping;
+  final void Function(LessonModel lesson) onTapLesson;
 
-  const _AdminLessonCard({
-    required this.lesson,
-    required this.onEdit,
-    required this.onArchive,
+  const _AdminLessonCircleGroup({
+    required this.lessons,
+    required this.startNumber,
+    required this.mascotSleeping,
+    required this.onTapLesson,
   });
-
-  static const Color purple = Color(0xFF5B18D6);
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: lesson.isArchived
-              ? const Color(0xFFD3D3D3)
-              : const Color(0xFFE7D8FF),
-        ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: lesson.isArchived
-                  ? const LinearGradient(
-                colors: [Color(0xFFDADADA), Color(0xFFBEBEBE)],
-              )
-                  : const LinearGradient(
-                colors: [Color(0xFF8E2BFF), Color(0xFF4E0497)],
-              ),
-            ),
-            child: const Padding(
-              padding: EdgeInsets.all(12),
-              child: Image(
-                image: AssetImage('assets/images/Pink_egg.png'),
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  lesson.title,
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w800,
-                    color: lesson.isArchived ? Colors.grey : purple,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  lesson.description,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Color(0xFF666666),
-                  ),
-                ),
-                if (lesson.lectureText.trim().isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    lesson.lectureText,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 13,
-                      color: Color(0xFF7A7A7A),
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _Tag(text: lesson.level.isEmpty ? '—' : lesson.level),
-                    _Tag(text: 'Order: ${lesson.orderIndex}'),
-                    _Tag(text: lesson.isArchived ? 'Archived' : 'Active'),
-                  ],
-                ),
-              ],
-            ),
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'edit') onEdit();
-              if (value == 'archive') onArchive();
-            },
-            itemBuilder: (_) => [
-              const PopupMenuItem(
-                value: 'edit',
-                child: Text('Өзгерту'),
-              ),
-              PopupMenuItem(
-                value: 'archive',
-                child: Text(
-                  lesson.isArchived ? 'Разархивировать' : 'Архивировать',
+    return SizedBox(
+      height: lessons.length == 6 ? 610 : 535,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          final centerX = width / 2;
+
+          return Stack(
+            clipBehavior: Clip.none,
+            children: [
+              Positioned(
+                top: 118,
+                left: centerX - 110,
+                child: Image.asset(
+                  mascotSleeping
+                      ? 'assets/images/Oyu_uyktauda.png'
+                      : 'assets/images/Oyu.png',
+                  width: 220,
+                  fit: BoxFit.contain,
                 ),
               ),
+
+              for (int i = 0; i < lessons.length && i < 6; i++)
+                _lessonPosition(
+                  lesson: lessons[i],
+                  number: startNumber + i,
+                  index: i,
+                  centerX: centerX,
+                ),
+
+              if (lessons.length == 6)
+                Positioned(
+                  top: 455,
+                  left: centerX - 43,
+                  child: const _ChestButton(),
+                ),
             ],
-          ),
-        ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _lessonPosition({
+    required LessonModel lesson,
+    required int number,
+    required int index,
+    required double centerX,
+  }) {
+    final positions = [
+      Offset(centerX - 38, 10),   // 1
+      Offset(centerX - 180, 120), // 2
+      Offset(centerX + 104, 120), // 3
+      Offset(centerX - 180, 285), // 4
+      Offset(centerX + 104, 285), // 5
+      Offset(centerX - 38, 395),  // 6
+    ];
+
+    final pos = positions[index];
+
+    return Positioned(
+      left: pos.dx,
+      top: pos.dy,
+      child: GestureDetector(
+        onTap: () => onTapLesson(lesson),
+        child: _LessonCircle(
+          number: number,
+          isArchived: lesson.isArchived,
+        ),
       ),
     );
   }
 }
 
-class _Tag extends StatelessWidget {
-  final String text;
+class _LessonCircle extends StatelessWidget {
+  final int number;
+  final bool isArchived;
 
-  const _Tag({required this.text});
+  const _LessonCircle({
+    required this.number,
+    required this.isArchived,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: isArchived ? 0.45 : 1,
+      child: Container(
+        width: 76,
+        height: 76,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          gradient: isArchived
+              ? const LinearGradient(
+            colors: [
+              Color(0xFFE8E8E8),
+              Color(0xFFBEBEBE),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          )
+              : const LinearGradient(
+            colors: [
+              Color(0xFF9B19E6),
+              Color(0xFF4B008C),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x55000000),
+              blurRadius: 6,
+              offset: Offset(0, 5),
+            ),
+          ],
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            Positioned(
+              top: 10,
+              left: 13,
+              child: Container(
+                width: 27,
+                height: 16,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.45),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+            ),
+            Text(
+              '$number',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.w900,
+                shadows: [
+                  Shadow(
+                    color: Color(0xFFFF8BFF),
+                    blurRadius: 5,
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ChestButton extends StatelessWidget {
+  const _ChestButton();
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF3EDFF),
-        borderRadius: BorderRadius.circular(999),
+      width: 86,
+      height: 86,
+      decoration: const BoxDecoration(
+        shape: BoxShape.circle,
+        gradient: LinearGradient(
+          colors: [
+            Color(0xFF8C12D9),
+            Color(0xFF39006E),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: Color(0x55000000),
+            blurRadius: 7,
+            offset: Offset(0, 5),
+          ),
+        ],
       ),
-      child: Text(
-        text,
-        style: const TextStyle(
-          color: Color(0xFF5B18D6),
-          fontWeight: FontWeight.w700,
-          fontSize: 12,
+      child: Center(
+        child: Image.asset(
+          'assets/images/Sandyk.png',
+          width: 48,
+          height: 48,
+          fit: BoxFit.contain,
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminLessonActionSheet extends StatelessWidget {
+  final String title;
+  final String level;
+  final bool isArchived;
+  final VoidCallback onEditTap;
+  final VoidCallback onArchiveTap;
+
+  const _AdminLessonActionSheet({
+    required this.title,
+    required this.level,
+    required this.isArchived,
+    required this.onEditTap,
+    required this.onArchiveTap,
+  });
+
+  static const Color purple = Color(0xFF7B1FE0);
+  static const Color darkPurple = Color(0xFF5A0FAE);
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.all(14),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(18, 20, 18, 18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            gradient: const LinearGradient(
+              colors: [purple, darkPurple],
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: purple.withOpacity(0.25),
+                blurRadius: 16,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              if (level.isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  level,
+                  style: const TextStyle(
+                    color: Color(0xFFEBD9FF),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 14,
+                  ),
+                ),
+              ],
+              const SizedBox(height: 18),
+              _PopupButton(
+                text: 'Өзгерту',
+                textColor: purple,
+                onTap: onEditTap,
+              ),
+              const SizedBox(height: 14),
+              _PopupButton(
+                text: isArchived ? 'Разархивировать' : 'Архивировать',
+                textColor: const Color(0xFFFFC400),
+                onTap: onArchiveTap,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PopupButton extends StatelessWidget {
+  final String text;
+  final Color textColor;
+  final VoidCallback onTap;
+
+  const _PopupButton({
+    required this.text,
+    required this.textColor,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 54,
+      child: ElevatedButton(
+        onPressed: onTap,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.white,
+          foregroundColor: textColor,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        child: Text(
+          text,
+          style: TextStyle(
+            color: textColor,
+            fontSize: 17,
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );

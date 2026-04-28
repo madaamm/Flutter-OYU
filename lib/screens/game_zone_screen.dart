@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'speaking_screen.dart';
+import 'reading_screen.dart';
 
 class GameZoneScreen extends StatelessWidget {
   const GameZoneScreen({super.key});
@@ -12,7 +14,6 @@ class GameZoneScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-
             // HEADER
             Container(
               width: double.infinity,
@@ -24,12 +25,10 @@ class GameZoneScreen extends StatelessWidget {
                   bottomRight: Radius.circular(22),
                 ),
               ),
-              child: Column(
+              child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
-                children: const [
-
+                children: [
                   SizedBox(height: 12),
-
                   Text(
                     'Learn by practice',
                     style: TextStyle(
@@ -49,27 +48,27 @@ class GameZoneScreen extends StatelessWidget {
               child: PageView(
                 controller: PageController(viewportFraction: 0.85),
                 children: const [
-
                   _GameCard(
                     title: 'Speaking',
+                    subtitle: 'improve your speaking skills',
                     color1: Color(0xFFC96BFF),
                     color2: Color(0xFFB85CFF),
                   ),
-
                   _GameCard(
                     title: 'Reading',
+                    subtitle: 'improve your reading skills',
                     color1: Color(0xFF6A00A8),
                     color2: Color(0xFF4B007A),
                   ),
-
                   _GameCard(
                     title: 'Listening',
+                    subtitle: 'improve your listening skills',
                     color1: Color(0xFF4B007A),
                     color2: Color(0xFF26003D),
                   ),
-
                   _GameCard(
                     title: 'Writing',
+                    subtitle: 'improve your writing skills',
                     color1: Color(0xFFFFC400),
                     color2: Color(0xFFFFB300),
                   ),
@@ -87,14 +86,35 @@ class GameZoneScreen extends StatelessWidget {
 
 class _GameCard extends StatelessWidget {
   final String title;
+  final String subtitle;
   final Color color1;
   final Color color2;
 
   const _GameCard({
     required this.title,
+    required this.subtitle,
     required this.color1,
     required this.color2,
   });
+
+  void _openScreen(BuildContext context) {
+    if (title == 'Speaking') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const SpeakingScreen(),
+        ),
+      );
+    }
+    else if (title == 'Reading') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const ReadingScreen(),
+        ),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -113,13 +133,12 @@ class _GameCard extends StatelessWidget {
               blurRadius: 10,
               color: Colors.black.withOpacity(0.2),
               offset: const Offset(0, 6),
-            )
+            ),
           ],
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-
             Text(
               title,
               style: const TextStyle(
@@ -131,10 +150,10 @@ class _GameCard extends StatelessWidget {
 
             const SizedBox(height: 12),
 
-            const Text(
-              'improve your speaking skills',
+            Text(
+              subtitle,
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 color: Colors.white70,
                 fontSize: 16,
               ),
@@ -143,7 +162,7 @@ class _GameCard extends StatelessWidget {
             const SizedBox(height: 30),
 
             ElevatedButton(
-              onPressed: () {},
+              onPressed: () => _openScreen(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black,
@@ -152,7 +171,7 @@ class _GameCard extends StatelessWidget {
                 ),
               ),
               child: const Text('Start'),
-            )
+            ),
           ],
         ),
       ),
