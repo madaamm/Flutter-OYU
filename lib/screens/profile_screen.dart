@@ -454,13 +454,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: _topStat(
                             title: 'Following',
                             value: followingCount,
-                            onTap: () {
+                            onTap: () async {
                               if (userId <= 0) return;
-                              Navigator.of(context, rootNavigator: true).push(
+
+                              await Navigator.of(context, rootNavigator: true).push(
                                 MaterialPageRoute(
                                   builder: (_) => FollowingListScreen(userId: userId),
                                 ),
                               );
+
+                              if (mounted) {
+                                await _loadMe();
+                              }
                             },
                           ),
                         ),
@@ -469,13 +474,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: _topStat(
                             title: 'Followers',
                             value: followersCount,
-                            onTap: () {
+                            onTap: () async {
                               if (userId <= 0) return;
-                              Navigator.of(context, rootNavigator: true).push(
+
+                              await Navigator.of(context, rootNavigator: true).push(
                                 MaterialPageRoute(
                                   builder: (_) => FollowersListScreen(userId: userId),
                                 ),
                               );
+
+                              if (mounted) {
+                                await _loadMe();
+                              }
                             },
                           ),
                         ),
@@ -1716,12 +1726,16 @@ class _FollowListBaseState extends State<_FollowListBase> {
 
           return InkWell(
             borderRadius: BorderRadius.circular(18),
-            onTap: () {
-              Navigator.of(context, rootNavigator: true).push(
+            onTap: () async {
+              await Navigator.of(context, rootNavigator: true).push(
                 MaterialPageRoute(
                   builder: (_) => PublicUserProfileScreen(userId: u.id),
                 ),
               );
+
+              if (mounted) {
+                await _load(first: true);
+              }
             },
             child: Container(
               padding: const EdgeInsets.all(16),
