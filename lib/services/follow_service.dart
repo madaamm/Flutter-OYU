@@ -39,12 +39,28 @@ class FollowUser {
   });
 
   factory FollowUser.fromJson(Map<String, dynamic> json) {
+    final nested = json['following'] ??
+        json['followed'] ??
+        json['follower'] ??
+        json['user'] ??
+        json['profile'] ??
+        json['member'] ??
+        json['account'] ??
+        json['data'] ??
+        json;
+
+    final data = nested is Map
+        ? Map<String, dynamic>.from(nested)
+        : Map<String, dynamic>.from(json);
+
+    final merged = Map<String, dynamic>.from(json)..addAll(data);
+
     return FollowUser(
-      id: _toInt(json['id']),
-      username: (json['username'] ?? '').toString(),
-      nickname: (json['nickname'] ?? '').toString(),
-      level: (json['level'] ?? 'A0').toString(),
-      xp: _toInt(json['xp']),
+      id: _readUserId(merged),
+      username: (merged['username'] ?? '').toString().trim(),
+      nickname: (merged['nickname'] ?? '').toString().trim(),
+      level: (merged['level'] ?? 'A0').toString().trim(),
+      xp: _toInt(merged['xp']),
     );
   }
 }
@@ -78,19 +94,64 @@ class SearchUserResult {
 
   factory SearchUserResult.fromJson(Map<String, dynamic> json) {
     return SearchUserResult(
-      id: _toInt(json['id']),
-      username: (json['username'] ?? '').toString(),
-      nickname: (json['nickname'] ?? '').toString(),
-      level: (json['level'] ?? 'A0').toString(),
+      id: _readUserId(json),
+      username: (json['username'] ?? '').toString().trim(),
+      nickname: (json['nickname'] ?? '').toString().trim(),
+      level: (json['level'] ?? 'A0').toString().trim(),
       xp: _toInt(json['xp']),
-      email: (json['email'] ?? '').toString(),
+      email: (json['email'] ?? '').toString().trim(),
     );
   }
 }
 
 int _toInt(dynamic value) {
   if (value is int) return value;
+  if (value is num) return value.toInt();
   return int.tryParse('${value ?? 0}') ?? 0;
+}
+
+int _readUserId(Map<String, dynamic> json) {
+  const keys = [
+    'id',
+    'userId',
+    'user_id',
+    'targetUserId',
+    'target_user_id',
+    'followedUserId',
+    'followed_user_id',
+    'profileId',
+    'profile_id',
+    'memberId',
+    'member_id',
+    'accountId',
+    'account_id',
+  ];
+
+  for (final key in keys) {
+    final value = _toInt(json[key]);
+    if (value > 0) return value;
+  }
+
+  const nestedKeys = ['user', 'profile', 'member', 'account', 'data'];
+  for (final key in nestedKeys) {
+    final nested = json[key];
+    if (nested is Map) {
+      final value = _readUserId(Map<String, dynamic>.from(nested));
+      if (value > 0) return value;
+    }
+  }
+
+  return 0;
+}
+
+Map<String, dynamic> _safeJsonMap(String body) {
+  try {
+    if (body.trim().isEmpty) return {};
+    final decoded = jsonDecode(body);
+    if (decoded is Map<String, dynamic>) return decoded;
+    if (decoded is Map) return Map<String, dynamic>.from(decoded);
+  } catch (_) {}
+  return {};
 }
 
 class FollowService {
@@ -107,20 +168,10 @@ class FollowService {
 
     final res = await http.get(
       Uri.parse(url),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
+      headers: {'Authorization': 'Bearer $token'},
     );
 
-    Map<String, dynamic> data = {};
-    try {
-      if (res.body.isNotEmpty) {
-        final decoded = jsonDecode(res.body);
-        if (decoded is Map<String, dynamic>) {
-          data = decoded;
-        }
-      }
-    } catch (_) {}
+    final data = _safeJsonMap(res.body);
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
       return data;
@@ -139,30 +190,18 @@ class FollowService {
     if (method == 'POST') {
       res = await http.post(
         Uri.parse(url),
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
+        headers: {'Authorization': 'Bearer $token'},
       );
     } else if (method == 'DELETE') {
       res = await http.delete(
         Uri.parse(url),
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
+        headers: {'Authorization': 'Bearer $token'},
       );
     } else {
       throw Exception('Unsupported method');
     }
 
-    Map<String, dynamic> data = {};
-    try {
-      if (res.body.isNotEmpty) {
-        final decoded = jsonDecode(res.body);
-        if (decoded is Map<String, dynamic>) {
-          data = decoded;
-        }
-      }
-    } catch (_) {}
+    final data = _safeJsonMap(res.body);
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
       return;
@@ -179,34 +218,54 @@ class FollowService {
     final safeNickname = nickname.trim();
     if (safeNickname.isEmpty) return null;
 
-    final res = await http.get(
-      Uri.parse('${AuthService.baseUrl}/user/by-nickname/$safeNickname'),
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
+    final uri = Uri.parse('${AuthService.baseUrl}/user/search').replace(
+      queryParameters: {'nickname': safeNickname},
     );
 
-    if (res.statusCode == 404) {
-      return null;
-    }
+    final res = await http.get(
+      uri,
+      headers: {'Authorization': 'Bearer $token'},
+    );
 
-    Map<String, dynamic> data = {};
-    try {
-      if (res.body.isNotEmpty) {
-        final decoded = jsonDecode(res.body);
-        if (decoded is Map<String, dynamic>) {
-          data = decoded;
-        }
-      }
-    } catch (_) {}
+    if (res.statusCode == 404) return null;
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
-      final userMap = (data['user'] is Map<String, dynamic>)
-          ? data['user'] as Map<String, dynamic>
-          : data;
+      final decoded = jsonDecode(res.body);
 
-      return SearchUserResult.fromJson(userMap);
+      dynamic rawUser;
+
+      if (decoded is List) {
+        if (decoded.isEmpty) return null;
+        rawUser = decoded.first;
+      } else if (decoded is Map) {
+        rawUser = decoded['user'] ??
+            decoded['data'] ??
+            decoded['items'] ??
+            decoded['results'] ??
+            decoded;
+
+        if (rawUser is List) {
+          if (rawUser.isEmpty) return null;
+          rawUser = rawUser.first;
+        }
+      }
+
+      if (rawUser is! Map) {
+        throw Exception('User response format is wrong');
+      }
+
+      final user = SearchUserResult.fromJson(
+        Map<String, dynamic>.from(rawUser),
+      );
+
+      if (user.id <= 0) {
+        throw Exception('Backend user id келген жоқ');
+      }
+
+      return user;
     }
+
+    final data = _safeJsonMap(res.body);
 
     throw Exception(
       (data['message'] ?? 'User search failed (${res.statusCode})').toString(),
@@ -214,14 +273,22 @@ class FollowService {
   }
 
   Future<void> follow(int userId) async {
+    if (userId <= 0) {
+      throw Exception('User id дұрыс емес');
+    }
     await _sendNoBody('POST', '${AuthService.baseUrl}/user/$userId/follow');
   }
 
   Future<void> unfollow(int userId) async {
+    if (userId <= 0) {
+      throw Exception('User id дұрыс емес');
+    }
     await _sendNoBody('DELETE', '${AuthService.baseUrl}/user/$userId/follow');
   }
 
   Future<bool> isFollowing(int userId) async {
+    if (userId <= 0) return false;
+
     final data = await _getJson(
       '${AuthService.baseUrl}/user/$userId/follow/status',
     );
@@ -233,6 +300,10 @@ class FollowService {
   }
 
   Future<FollowCounts> getCounts(int userId) async {
+    if (userId <= 0) {
+      return FollowCounts(followersCount: 0, followingCount: 0);
+    }
+
     final data = await _getJson(
       '${AuthService.baseUrl}/user/$userId/follow/counts',
     );
@@ -255,20 +326,10 @@ class FollowService {
 
     final res = await http.get(
       uri,
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
+      headers: {'Authorization': 'Bearer $token'},
     );
 
-    Map<String, dynamic> data = {};
-    try {
-      if (res.body.isNotEmpty) {
-        final decoded = jsonDecode(res.body);
-        if (decoded is Map<String, dynamic>) {
-          data = decoded;
-        }
-      }
-    } catch (_) {}
+    final data = _safeJsonMap(res.body);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw Exception(
@@ -277,19 +338,16 @@ class FollowService {
       );
     }
 
-    final rawItems = (data['items'] ??
-        data['followers'] ??
-        data['data'] ??
-        <dynamic>[]) as List<dynamic>;
+    final rawItems = data['items'] ?? data['followers'] ?? data['data'] ?? [];
+    final items = rawItems is List ? rawItems : <dynamic>[];
 
     return FollowPage(
-      items: rawItems
+      items: items
           .whereType<Map>()
           .map((e) => FollowUser.fromJson(Map<String, dynamic>.from(e)))
+          .where((u) => u.id > 0)
           .toList(),
-      nextCursor: data['nextCursor'] == null
-          ? null
-          : _toInt(data['nextCursor']),
+      nextCursor: data['nextCursor'] == null ? null : _toInt(data['nextCursor']),
     );
   }
 
@@ -309,20 +367,10 @@ class FollowService {
 
     final res = await http.get(
       uri,
-      headers: {
-        'Authorization': 'Bearer $token',
-      },
+      headers: {'Authorization': 'Bearer $token'},
     );
 
-    Map<String, dynamic> data = {};
-    try {
-      if (res.body.isNotEmpty) {
-        final decoded = jsonDecode(res.body);
-        if (decoded is Map<String, dynamic>) {
-          data = decoded;
-        }
-      }
-    } catch (_) {}
+    final data = _safeJsonMap(res.body);
 
     if (res.statusCode < 200 || res.statusCode >= 300) {
       throw Exception(
@@ -331,19 +379,16 @@ class FollowService {
       );
     }
 
-    final rawItems = (data['items'] ??
-        data['following'] ??
-        data['data'] ??
-        <dynamic>[]) as List<dynamic>;
+    final rawItems = data['items'] ?? data['following'] ?? data['data'] ?? [];
+    final items = rawItems is List ? rawItems : <dynamic>[];
 
     return FollowPage(
-      items: rawItems
+      items: items
           .whereType<Map>()
           .map((e) => FollowUser.fromJson(Map<String, dynamic>.from(e)))
+          .where((u) => u.id > 0)
           .toList(),
-      nextCursor: data['nextCursor'] == null
-          ? null
-          : _toInt(data['nextCursor']),
+      nextCursor: data['nextCursor'] == null ? null : _toInt(data['nextCursor']),
     );
   }
 }

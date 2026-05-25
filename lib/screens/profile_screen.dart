@@ -953,8 +953,35 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
     super.dispose();
   }
 
+  String _clean(String? value) => (value ?? '').trim();
+
+  String _displayName(SearchUserResult user) {
+    final nick = _clean(user.nickname);
+    final username = _clean(user.username);
+
+    if (nick.isNotEmpty) return nick;
+    if (username.isNotEmpty) return username;
+    return 'Unknown user';
+  }
+
+  String _secondLine(SearchUserResult user) {
+    final username = _clean(user.username);
+    final nickname = _clean(user.nickname);
+
+    if (username.isNotEmpty) return '@$username';
+    if (nickname.isNotEmpty) return '@$nickname';
+    return 'ID: ${user.id}';
+  }
+
+  String _initial(SearchUserResult user) {
+    final name = _displayName(user).trim();
+    if (name.isEmpty || name == 'Unknown user') return '?';
+    return name.characters.first.toUpperCase();
+  }
+
   Future<void> _search() async {
     final nick = _searchC.text.trim();
+
     if (nick.isEmpty) {
       setState(() {
         error = 'Nickname енгіз';
@@ -974,6 +1001,8 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
     try {
       final user = await widget.followService.findByNickname(nick);
 
+      if (!mounted) return;
+
       if (user == null) {
         setState(() {
           error = 'User табылмады';
@@ -982,10 +1011,27 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
         return;
       }
 
-      bool? followStatus;
-      if (user.id != widget.myUserId) {
-        followStatus = await widget.followService.isFollowing(user.id);
+      if (user.id <= 0) {
+        setState(() {
+          error = 'Backend user id жібермеді';
+          foundUser = null;
+          isFollowing = null;
+          searching = false;
+        });
+        return;
       }
+
+      bool followStatus = false;
+      if (user.id != widget.myUserId) {
+        try {
+          followStatus = await widget.followService.isFollowing(user.id);
+        } catch (e) {
+          debugPrint('isFollowing error: $e');
+          followStatus = false;
+        }
+      }
+
+      if (!mounted) return;
 
       setState(() {
         foundUser = user;
@@ -993,8 +1039,12 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
         searching = false;
       });
     } catch (e) {
+      if (!mounted) return;
+
       setState(() {
         error = e.toString().replaceFirst('Exception: ', '');
+        foundUser = null;
+        isFollowing = null;
         searching = false;
       });
     }
@@ -1005,6 +1055,15 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
     if (user == null) return;
     if (user.id == widget.myUserId) return;
 
+    if (user.id <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('User id табылмады')),
+      );
+      return;
+    }
+
+    final nextStatus = isFollowing != true;
+
     setState(() => actionLoading = true);
 
     try {
@@ -1014,24 +1073,30 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
         await widget.followService.follow(user.id);
       }
 
-      final status = await widget.followService.isFollowing(user.id);
+      bool status = nextStatus;
+      try {
+        status = await widget.followService.isFollowing(user.id);
+      } catch (e) {
+        debugPrint('isFollowing after follow error: $e');
+      }
+
+      if (!mounted) return;
 
       setState(() {
         isFollowing = status;
         actionLoading = false;
       });
 
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            status ? 'Follow жасалды' : 'Unfollow жасалды',
-          ),
+          content: Text(status ? 'Follow жасалды' : 'Unfollow жасалды'),
         ),
       );
     } catch (e) {
-      setState(() => actionLoading = false);
       if (!mounted) return;
+
+      setState(() => actionLoading = false);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.toString().replaceFirst('Exception: ', '')),
@@ -1145,66 +1210,71 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
                     ),
                   ),
                 if (foundUser != null) ...[
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFF8F4FF),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 26,
-                          backgroundColor: purple.withOpacity(0.14),
-                          child: Text(
-                            (foundUser!.nickname.isNotEmpty
-                                ? foundUser!.nickname
-                                : foundUser!.username)
-                                .characters
-                                .first
-                                .toUpperCase(),
-                            style: const TextStyle(
-                              color: purple,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 22,
-                            ),
-                          ),
+                  Builder(
+                    builder: (_) {
+                      final user = foundUser!;
+                      final displayName = _displayName(user);
+                      final secondLine = _secondLine(user);
+
+                      return Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F4FF),
+                          borderRadius: BorderRadius.circular(20),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                foundUser!.nickname.isNotEmpty
-                                    ? foundUser!.nickname
-                                    : foundUser!.username,
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 26,
+                              backgroundColor: purple.withOpacity(0.14),
+                              child: Text(
+                                _initial(user),
                                 style: const TextStyle(
-                                  fontSize: 17,
+                                  color: purple,
                                   fontWeight: FontWeight.w900,
+                                  fontSize: 22,
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                foundUser!.username,
-                                style: const TextStyle(
-                                  color: Colors.black54,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    displayName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontSize: 17,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    secondLine,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      color: Colors.black54,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    'Level ${user.level} • XP ${user.xp}',
+                                    style: const TextStyle(
+                                      color: Colors.black45,
+                                    ),
+                                  ),
+                                ],
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Level ${foundUser!.level} • XP ${foundUser!.xp}',
-                                style: const TextStyle(
-                                  color: Colors.black45,
-                                ),
-                              ),
-                            ],
-                          ),
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
                   const SizedBox(height: 14),
                   if (foundUser!.id == widget.myUserId)
@@ -1232,8 +1302,9 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
                         style: ElevatedButton.styleFrom(
                           backgroundColor:
                           isFollowing == true ? Colors.white : purple,
-                          foregroundColor:
-                          isFollowing == true ? const Color(0xFF232323) : Colors.white,
+                          foregroundColor: isFollowing == true
+                              ? const Color(0xFF232323)
+                              : Colors.white,
                           elevation: 0,
                           side: isFollowing == true
                               ? const BorderSide(color: Colors.black12)
@@ -1638,6 +1709,11 @@ class _FollowListBaseState extends State<_FollowListBase> {
           }
 
           final u = items[i];
+          final displayName = u.nickname.isNotEmpty
+              ? u.nickname
+              : (u.username.isNotEmpty ? u.username : 'User ${u.id}');
+          final initial = displayName.characters.first.toUpperCase();
+
           return InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: () {
@@ -1659,7 +1735,7 @@ class _FollowListBaseState extends State<_FollowListBase> {
                     radius: 22,
                     backgroundColor: const Color(0xFFE9DFFF),
                     child: Text(
-                      u.username.isNotEmpty ? u.username[0].toUpperCase() : '?',
+                      initial,
                       style: const TextStyle(
                         color: purple,
                         fontWeight: FontWeight.w900,
@@ -1672,7 +1748,7 @@ class _FollowListBaseState extends State<_FollowListBase> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          u.nickname.isNotEmpty ? u.nickname : u.username,
+                          displayName,
                           style: const TextStyle(
                             fontWeight: FontWeight.w900,
                             fontSize: 16,
