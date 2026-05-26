@@ -72,10 +72,21 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _onTabChanged(int index) async {
-    setState(() => currentIndex = index);
+    setState(() {
+      currentIndex = index;
+
+      if (index == 0) {
+        pages[0] = HomePage(userName: _name);
+      }
+
+      if (index == 4) {
+        pages[4] = ProfileScreen(userName: _name);
+      }
+    });
+
     await _loadNameFromCache();
 
-    if (index == 4) {
+    if (index == 0 || index == 4) {
       await _refreshMeSilently();
     }
   }
@@ -191,9 +202,10 @@ class _HomePageState extends State<HomePage> {
               ),
             );
           },
-          onExerciseTap: () {
+          onExerciseTap: () async {
             Navigator.pop(context);
-            Navigator.push(
+
+            final updated = await Navigator.push<bool>(
               context,
               MaterialPageRoute(
                 builder: (_) => ExerciseWordOrderScreen(
@@ -204,6 +216,14 @@ class _HomePageState extends State<HomePage> {
                 ),
               ),
             );
+
+            if (!mounted) return;
+
+            if (updated == true) {
+              setState(() {
+                _futureLessons = _lessonService.getUserLessons();
+              });
+            }
           },
         );
       },
@@ -350,10 +370,18 @@ class _HomePageState extends State<HomePage> {
       ),
       child: Row(
         children: [
-          const _HeaderStat(
-            icon: Icons.bolt_rounded,
-            iconColor: Color(0xFFFFD54F),
-            value: '3',
+          FutureBuilder<Map<String, dynamic>>(
+            future: AuthService().me(),
+            builder: (context, snapshot) {
+              final rawXp = snapshot.data?['xp'] ?? 0;
+              final xp = rawXp is int ? rawXp : int.tryParse('$rawXp') ?? 0;
+
+              return _HeaderStat(
+                icon: Icons.stars_rounded,
+                iconColor: Colors.orange,
+                value: '$xp XP',
+              );
+            },
           ),
           const Spacer(),
           TextButton.icon(
@@ -899,9 +927,9 @@ class TheoryLessonScreen extends StatelessWidget {
 
 
 
-  @override
-  State<ExerciseWordOrderScreen> createState() =>
-      _ExerciseWordOrderScreenState();
+@override
+State<ExerciseWordOrderScreen> createState() =>
+    _ExerciseWordOrderScreenState();
 
 
 enum _ExerciseStage { building, correct, wrong, finished }

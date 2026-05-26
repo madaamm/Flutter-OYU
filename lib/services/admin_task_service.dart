@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kazakh_learning_app/models/task_model.dart';
-import 'package:kazakh_learning_app/services/api_config.dart';
 
 class AdminTaskService {
   static const String baseUrl = 'https://learnkz.kazi.rocks';
@@ -63,40 +62,112 @@ class AdminTaskService {
     final decoded = jsonDecode(response.body);
     final tasks = _parseTasks(decoded);
 
-    for (final task in tasks) {
-      print('TASK ${task.id}');
-      print('optionsWords = ${task.optionsWords}');
-      print('correctWords = ${task.correctWords}');
-    }
-
     final visible = tasks.where((e) => e.isArchived == false).toList()
       ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
 
     return visible;
   }
 
-  Future<TaskModel> createTask({
-    required int lessonId,
+  List<Map<String, dynamic>> _pairsToJson(List<MatchingPair>? matchingPairs) {
+    if (matchingPairs == null) return <Map<String, dynamic>>[];
+
+    return matchingPairs
+        .asMap()
+        .entries
+        .map(
+          (entry) => {
+        'id': entry.value.id > 0 ? entry.value.id : entry.key + 1,
+        'left': entry.value.left,
+        'right': entry.value.right,
+      },
+    )
+        .toList();
+  }
+
+  Map<String, dynamic> _buildTaskPayload({
+    required String type,
     required String promptLang,
     required String targetLang,
-    required String promptText,
-    required List<String> optionsWords,
-    required List<String> correctWords,
+    String? promptText,
+    List<String>? optionsWords,
+    List<String>? correctWords,
+    String? audioUrl,
+    String? audioText,
+    String? translateText,
+    List<MatchingPair>? matchingPairs,
+    required int xpReward,
+    required int orderIndex,
+  }) {
+    final Map<String, dynamic> body = {
+      'type': type,
+      'promptLang': promptLang,
+      'targetLang': targetLang,
+      'xpReward': xpReward,
+      'orderIndex': orderIndex,
+    };
+
+    switch (type) {
+      case 'SENTENCE_BUILD':
+        body['promptText'] = promptText;
+        body['optionsWords'] = optionsWords ?? <String>[];
+        body['correctWords'] = correctWords ?? <String>[];
+        break;
+
+      case 'AUDIO_DICTATION':
+        body['audioUrl'] = audioUrl;
+        body['audioText'] = audioText;
+        break;
+
+      case 'AUDIO_TRANSLATE':
+        body['audioUrl'] = audioUrl;
+        body['translateText'] = translateText;
+        break;
+
+      case 'WORD_MATCH':
+        body['matchingPairs'] = _pairsToJson(matchingPairs);
+        break;
+    }
+
+    body.removeWhere((key, value) => value == null);
+    return body;
+  }
+
+  Future<TaskModel> createTask({
+    required int lessonId,
+    required String type,
+    required String promptLang,
+    required String targetLang,
+    String? promptText,
+    List<String>? optionsWords,
+    List<String>? correctWords,
+    String? audioUrl,
+    String? audioText,
+    String? translateText,
+    List<MatchingPair>? matchingPairs,
     required int xpReward,
     required int orderIndex,
   }) async {
+    final body = _buildTaskPayload(
+      type: type,
+      promptLang: promptLang,
+      targetLang: targetLang,
+      promptText: promptText,
+      optionsWords: optionsWords,
+      correctWords: correctWords,
+      audioUrl: audioUrl,
+      audioText: audioText,
+      translateText: translateText,
+      matchingPairs: matchingPairs,
+      xpReward: xpReward,
+      orderIndex: orderIndex,
+    );
+
+    print('CREATE TASK BODY: ${jsonEncode(body)}');
+
     final response = await http.post(
       Uri.parse('$baseUrl/api/admin/lessons/$lessonId/tasks'),
       headers: await _headers(),
-      body: jsonEncode({
-        'promptLang': promptLang,
-        'targetLang': targetLang,
-        'promptText': promptText,
-        'optionsWords': optionsWords,
-        'correctWords': correctWords,
-        'xpReward': xpReward,
-        'orderIndex': orderIndex,
-      }),
+      body: jsonEncode(body),
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
@@ -105,28 +176,41 @@ class AdminTaskService {
 
     final decoded = jsonDecode(response.body);
     final data = decoded['task'] ?? decoded['data'] ?? decoded;
+
     return TaskModel.fromJson(Map<String, dynamic>.from(data));
   }
 
   Future<TaskModel> updateTask({
     required int taskId,
-    String? promptLang,
-    String? targetLang,
+    required String type,
+    required String promptLang,
+    required String targetLang,
     String? promptText,
     List<String>? optionsWords,
     List<String>? correctWords,
-    int? xpReward,
-    int? orderIndex,
+    String? audioUrl,
+    String? audioText,
+    String? translateText,
+    List<MatchingPair>? matchingPairs,
+    required int xpReward,
+    required int orderIndex,
   }) async {
-    final Map<String, dynamic> body = {};
+    final body = _buildTaskPayload(
+      type: type,
+      promptLang: promptLang,
+      targetLang: targetLang,
+      promptText: promptText,
+      optionsWords: optionsWords,
+      correctWords: correctWords,
+      audioUrl: audioUrl,
+      audioText: audioText,
+      translateText: translateText,
+      matchingPairs: matchingPairs,
+      xpReward: xpReward,
+      orderIndex: orderIndex,
+    );
 
-    if (promptLang != null) body['promptLang'] = promptLang;
-    if (targetLang != null) body['targetLang'] = targetLang;
-    if (promptText != null) body['promptText'] = promptText;
-    if (optionsWords != null) body['optionsWords'] = optionsWords;
-    if (correctWords != null) body['correctWords'] = correctWords;
-    if (xpReward != null) body['xpReward'] = xpReward;
-    if (orderIndex != null) body['orderIndex'] = orderIndex;
+    print('UPDATE TASK BODY: ${jsonEncode(body)}');
 
     final response = await http.patch(
       Uri.parse('$baseUrl/api/admin/tasks/$taskId'),
@@ -140,6 +224,7 @@ class AdminTaskService {
 
     final decoded = jsonDecode(response.body);
     final data = decoded['task'] ?? decoded['data'] ?? decoded;
+
     return TaskModel.fromJson(Map<String, dynamic>.from(data));
   }
 

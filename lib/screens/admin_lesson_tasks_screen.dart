@@ -194,7 +194,8 @@ class _AdminLessonTasksScreenState extends State<AdminLessonTasksScreen> {
                                       Text(
                                         '${snapshot.error}',
                                         textAlign: TextAlign.center,
-                                        style: const TextStyle(color: Colors.grey),
+                                        style:
+                                        const TextStyle(color: Colors.grey),
                                       ),
                                     ],
                                   ),
@@ -267,88 +268,145 @@ class _TaskCard extends StatelessWidget {
 
   static const Color purple = Color(0xFF5B18D6);
 
+  String get _title {
+    switch (task.type) {
+      case 'AUDIO_DICTATION':
+        return task.audioText.isNotEmpty ? task.audioText : 'Audio dictation';
+      case 'AUDIO_TRANSLATE':
+        return task.translateText.isNotEmpty
+            ? task.translateText
+            : 'Audio translate';
+      case 'WORD_MATCH':
+        return task.matchingPairs.isNotEmpty
+            ? '${task.matchingPairs.length} matching pairs'
+            : 'Word match';
+      case 'SENTENCE_BUILD':
+      default:
+        return task.promptText.isNotEmpty ? task.promptText : 'Sentence build';
+    }
+  }
+
+  IconData get _icon {
+    switch (task.type) {
+      case 'AUDIO_DICTATION':
+        return Icons.hearing_rounded;
+      case 'AUDIO_TRANSLATE':
+        return Icons.record_voice_over_rounded;
+      case 'WORD_MATCH':
+        return Icons.compare_arrows_rounded;
+      case 'SENTENCE_BUILD':
+      default:
+        return Icons.extension_rounded;
+    }
+  }
+
+  String get _typeLabel {
+    switch (task.type) {
+      case 'AUDIO_DICTATION':
+        return 'Audio dictation';
+      case 'AUDIO_TRANSLATE':
+        return 'Audio translate';
+      case 'WORD_MATCH':
+        return 'Word match';
+      case 'SENTENCE_BUILD':
+      default:
+        return 'Sentence build';
+    }
+  }
+
+  int get _itemsCount {
+    if (task.type == 'WORD_MATCH') return task.matchingPairs.length;
+    return task.optionsWords.length;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: task.isArchived
-              ? const Color(0xFFD3D3D3)
-              : const Color(0xFFE7D8FF),
+    return Opacity(
+      opacity: task.isArchived ? 0.55 : 1,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: task.isArchived
+                ? const Color(0xFFD3D3D3)
+                : const Color(0xFFE7D8FF),
+          ),
         ),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 58,
-            height: 58,
-            decoration: const BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [Color(0xFF8E2BFF), Color(0xFF4E0497)],
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              width: 58,
+              height: 58,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: LinearGradient(
+                  colors: [Color(0xFF8E2BFF), Color(0xFF4E0497)],
+                ),
+              ),
+              child: Icon(
+                _icon,
+                color: Colors.white,
+                size: 30,
               ),
             ),
-            child: const Icon(
-              Icons.extension_rounded,
-              color: Colors.white,
-              size: 30,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w800,
+                      color: purple,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${task.promptLang} → ${task.targetLang}',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _Tag(text: _typeLabel),
+                      _Tag(text: 'XP: ${task.xpReward}'),
+                      _Tag(text: 'Order: ${task.orderIndex}'),
+                      if (_itemsCount > 0) _Tag(text: 'Items: $_itemsCount'),
+                    ],
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  task.promptText,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
-                    color: purple,
-                  ),
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'edit') onEdit();
+                if (value == 'archive') onArchive();
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'edit',
+                  child: Text('Өзгерту'),
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  '${task.promptLang} → ${task.targetLang}',
-                  style: const TextStyle(
-                    fontSize: 14,
-                    color: Colors.grey,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _Tag(text: 'XP: ${task.xpReward}'),
-                    _Tag(text: 'Order: ${task.orderIndex}'),
-                    _Tag(text: 'Words: ${task.optionsWords.length}'),
-                  ],
+                PopupMenuItem(
+                  value: 'archive',
+                  child: Text('Архивировать'),
                 ),
               ],
             ),
-          ),
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              if (value == 'edit') onEdit();
-              if (value == 'archive') onArchive();
-            },
-            itemBuilder: (_) => const [
-              PopupMenuItem(
-                value: 'edit',
-                child: Text('Өзгерту'),
-              ),
-              PopupMenuItem(
-                value: 'archive',
-                child: Text('Архивировать'),
-              ),
-            ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -395,15 +453,25 @@ class _TaskDialog extends StatefulWidget {
 class _TaskDialogState extends State<_TaskDialog> {
   static const Color purple = Color(0xFF5B18D6);
 
+  static const String sentenceBuild = 'SENTENCE_BUILD';
+  static const String audioDictation = 'AUDIO_DICTATION';
+  static const String audioTranslate = 'AUDIO_TRANSLATE';
+  static const String wordMatch = 'WORD_MATCH';
+
   final _formKey = GlobalKey<FormState>();
   final _service = AdminTaskService();
 
   late final TextEditingController _promptTextController;
   late final TextEditingController _optionsWordsController;
   late final TextEditingController _correctWordsController;
+  late final TextEditingController _audioUrlController;
+  late final TextEditingController _audioTextController;
+  late final TextEditingController _translateTextController;
+  late final TextEditingController _matchingPairsController;
   late final TextEditingController _xpRewardController;
   late final TextEditingController _orderIndexController;
 
+  String _type = sentenceBuild;
   String _promptLang = 'RU';
   String _targetLang = 'KZ';
   bool _saving = false;
@@ -413,26 +481,36 @@ class _TaskDialogState extends State<_TaskDialog> {
   @override
   void initState() {
     super.initState();
-    _promptTextController =
-        TextEditingController(text: widget.task?.promptText ?? '');
+
+    final task = widget.task;
+
+    _type = task?.type.isNotEmpty == true ? task!.type : sentenceBuild;
+    _promptLang = task?.promptLang.isNotEmpty == true ? task!.promptLang : 'RU';
+    _targetLang = task?.targetLang.isNotEmpty == true ? task!.targetLang : 'KZ';
+
+    _promptTextController = TextEditingController(text: task?.promptText ?? '');
     _optionsWordsController = TextEditingController(
-      text: widget.task?.optionsWords.join(', ') ?? '',
+      text: task?.optionsWords.join(', ') ?? '',
     );
     _correctWordsController = TextEditingController(
-      text: widget.task?.correctWords.join(', ') ?? '',
+      text: task?.correctWords.join(', ') ?? '',
+    );
+    _audioUrlController = TextEditingController(text: task?.audioUrl ?? '');
+    _audioTextController = TextEditingController(text: task?.audioText ?? '');
+    _translateTextController = TextEditingController(
+      text: task?.translateText ?? '',
+    );
+    _matchingPairsController = TextEditingController(
+      text: task == null
+          ? ''
+          : task.matchingPairs.map((e) => '${e.left}|${e.right}').join('\n'),
     );
     _xpRewardController = TextEditingController(
-      text: (widget.task?.xpReward ?? 10).toString(),
+      text: (task?.xpReward ?? 10).toString(),
     );
     _orderIndexController = TextEditingController(
-      text: (widget.task?.orderIndex ?? 1).toString(),
+      text: (task?.orderIndex ?? 1).toString(),
     );
-    _promptLang = widget.task?.promptLang.isNotEmpty == true
-        ? widget.task!.promptLang
-        : 'RU';
-    _targetLang = widget.task?.targetLang.isNotEmpty == true
-        ? widget.task!.targetLang
-        : 'KZ';
   }
 
   @override
@@ -440,6 +518,10 @@ class _TaskDialogState extends State<_TaskDialog> {
     _promptTextController.dispose();
     _optionsWordsController.dispose();
     _correctWordsController.dispose();
+    _audioUrlController.dispose();
+    _audioTextController.dispose();
+    _translateTextController.dispose();
+    _matchingPairsController.dispose();
     _xpRewardController.dispose();
     _orderIndexController.dispose();
     super.dispose();
@@ -453,37 +535,129 @@ class _TaskDialogState extends State<_TaskDialog> {
         .toList();
   }
 
+  List<MatchingPair> _parseMatchingPairs(String value) {
+    final lines = value
+        .split(RegExp(r'[\n,]+'))
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+
+    final pairs = <MatchingPair>[];
+
+    for (final line in lines) {
+      final separator = line.contains('|')
+          ? '|'
+          : line.contains('=')
+          ? '='
+          : line.contains(':')
+          ? ':'
+          : null;
+
+      if (separator == null) continue;
+
+      final parts = line.split(separator);
+      if (parts.length < 2) continue;
+
+      final left = parts.first.trim();
+      final right = parts.sublist(1).join(separator).trim();
+
+      if (left.isEmpty || right.isEmpty) continue;
+
+      pairs.add(
+        MatchingPair(
+          id: pairs.length + 1,
+          left: left,
+          right: right,
+        ),
+      );
+    }
+
+    return pairs;
+  }
+
+  String? _requiredTextValidator(String? value, String message) {
+    if (value == null || value.trim().isEmpty) return message;
+    return null;
+  }
+
+  String? _wordsValidator(String? value, String message) {
+    if (_splitWords(value ?? '').isEmpty) return message;
+    return null;
+  }
+
+  String? _matchingPairsValidator(String? value) {
+    final pairs = _parseMatchingPairs(value ?? '');
+    if (pairs.isEmpty) {
+      return 'Matching pairs енгіз: кот|мысық';
+    }
+    return null;
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
     setState(() => _saving = true);
 
     try {
-      final promptText = _promptTextController.text.trim();
-      final optionsWords = _splitWords(_optionsWordsController.text);
-      final correctWords = _splitWords(_correctWordsController.text);
       final xpReward = int.parse(_xpRewardController.text.trim());
       final orderIndex = int.parse(_orderIndexController.text.trim());
+
+      String? promptText;
+      List<String>? optionsWords;
+      List<String>? correctWords;
+      String? audioUrl;
+      String? audioText;
+      String? translateText;
+      List<MatchingPair>? matchingPairs;
+
+      switch (_type) {
+        case sentenceBuild:
+          promptText = _promptTextController.text.trim();
+          optionsWords = _splitWords(_optionsWordsController.text);
+          correctWords = _splitWords(_correctWordsController.text);
+          break;
+        case audioDictation:
+          audioUrl = _audioUrlController.text.trim();
+          audioText = _audioTextController.text.trim();
+          break;
+        case audioTranslate:
+          audioUrl = _audioUrlController.text.trim();
+          translateText = _translateTextController.text.trim();
+          break;
+        case wordMatch:
+          matchingPairs = _parseMatchingPairs(_matchingPairsController.text);
+          break;
+      }
 
       if (isEdit) {
         await _service.updateTask(
           taskId: widget.task!.id,
+          type: _type,
           promptLang: _promptLang,
           targetLang: _targetLang,
           promptText: promptText,
           optionsWords: optionsWords,
           correctWords: correctWords,
+          audioUrl: audioUrl,
+          audioText: audioText,
+          translateText: translateText,
+          matchingPairs: matchingPairs,
           xpReward: xpReward,
           orderIndex: orderIndex,
         );
       } else {
         await _service.createTask(
           lessonId: widget.lessonId,
+          type: _type,
           promptLang: _promptLang,
           targetLang: _targetLang,
           promptText: promptText,
           optionsWords: optionsWords,
           correctWords: correctWords,
+          audioUrl: audioUrl,
+          audioText: audioText,
+          translateText: translateText,
+          matchingPairs: matchingPairs,
           xpReward: xpReward,
           orderIndex: orderIndex,
         );
@@ -525,6 +699,32 @@ class _TaskDialogState extends State<_TaskDialog> {
                 ),
                 const SizedBox(height: 18),
                 DropdownButtonFormField<String>(
+                  value: _type,
+                  decoration: _decoration('Task type'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: sentenceBuild,
+                      child: Text('Sentence build'),
+                    ),
+                    DropdownMenuItem(
+                      value: audioDictation,
+                      child: Text('Audio dictation'),
+                    ),
+                    DropdownMenuItem(
+                      value: audioTranslate,
+                      child: Text('Audio translate'),
+                    ),
+                    DropdownMenuItem(
+                      value: wordMatch,
+                      child: Text('Word match'),
+                    ),
+                  ],
+                  onChanged: (v) {
+                    if (v != null) setState(() => _type = v);
+                  },
+                ),
+                const SizedBox(height: 12),
+                DropdownButtonFormField<String>(
                   value: _promptLang,
                   decoration: _decoration('Prompt language'),
                   items: const [
@@ -550,31 +750,91 @@ class _TaskDialogState extends State<_TaskDialog> {
                   },
                 ),
                 const SizedBox(height: 12),
-                TextFormField(
-                  controller: _promptTextController,
-                  decoration: _decoration('Prompt text'),
-                  validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Prompt text енгіз' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _optionsWordsController,
-                  maxLines: 3,
-                  decoration:
-                  _decoration('Options words (comma арқылы)'),
-                  validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Options енгіз' : null,
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _correctWordsController,
-                  maxLines: 2,
-                  decoration:
-                  _decoration('Correct words (comma арқылы)'),
-                  validator: (v) =>
-                  v == null || v.trim().isEmpty ? 'Correct words енгіз' : null,
-                ),
-                const SizedBox(height: 12),
+
+                if (_type == sentenceBuild) ...[
+                  TextFormField(
+                    controller: _promptTextController,
+                    decoration: _decoration('Prompt text'),
+                    validator: (v) =>
+                        _requiredTextValidator(v, 'Prompt text енгіз'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _optionsWordsController,
+                    maxLines: 3,
+                    decoration: _decoration('Options words (comma арқылы)'),
+                    validator: (v) => _wordsValidator(v, 'Options енгіз'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _correctWordsController,
+                    maxLines: 2,
+                    decoration: _decoration('Correct words (comma арқылы)'),
+                    validator: (v) => _wordsValidator(v, 'Correct words енгіз'),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                if (_type == audioDictation) ...[
+                  TextFormField(
+                    controller: _audioUrlController,
+                    decoration: _decoration('Audio URL'),
+                    validator: (v) =>
+                        _requiredTextValidator(v, 'Audio URL енгіз'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _audioTextController,
+                    maxLines: 3,
+                    decoration: _decoration('Audio text'),
+                    validator: (v) =>
+                        _requiredTextValidator(v, 'Audio text енгіз'),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                if (_type == audioTranslate) ...[
+                  TextFormField(
+                    controller: _audioUrlController,
+                    decoration: _decoration('Audio URL'),
+                    validator: (v) =>
+                        _requiredTextValidator(v, 'Audio URL енгіз'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _translateTextController,
+                    maxLines: 3,
+                    decoration: _decoration('Translate text'),
+                    validator: (v) =>
+                        _requiredTextValidator(v, 'Translate text енгіз'),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                if (_type == wordMatch) ...[
+                  TextFormField(
+                    controller: _matchingPairsController,
+                    maxLines: 5,
+                    decoration: _decoration(
+                      'Matching pairs: кот|мысық, дом|үй',
+                    ),
+                    validator: _matchingPairsValidator,
+                  ),
+                  const SizedBox(height: 8),
+                  const Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Әр жолға бір жұп жазыңыз: сол жақ|оң жақ',
+                      style: TextStyle(
+                        color: Colors.grey,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
                 TextFormField(
                   controller: _xpRewardController,
                   keyboardType: TextInputType.number,
@@ -622,12 +882,12 @@ class _TaskDialogState extends State<_TaskDialog> {
                   ),
                 ),
                 const SizedBox(height: 10),
-
                 SizedBox(
                   width: double.infinity,
                   height: 52,
                   child: OutlinedButton(
-                    onPressed: _saving ? null : () => Navigator.pop(context, false),
+                    onPressed:
+                    _saving ? null : () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: purple,
                       side: const BorderSide(color: purple, width: 1.5),

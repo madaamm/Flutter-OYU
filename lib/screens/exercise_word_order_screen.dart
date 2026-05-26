@@ -232,7 +232,7 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
     if (_stage == _ExerciseStage.finished) {
       return _FinishedScreen(
         xp: _earnedXp,
-        onClose: () => Navigator.pop(context),
+        onClose: () => Navigator.pop(context, true),
       );
     }
 
