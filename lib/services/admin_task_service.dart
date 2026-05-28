@@ -13,16 +13,21 @@ class AdminTaskService {
 
   Future<Map<String, String>> _headers() async {
     final token = await _token();
+
     return {
       'Content-Type': 'application/json',
-      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+      'Accept': 'application/json',
+      if (token != null && token.isNotEmpty)
+        'Authorization': 'Bearer $token',
     };
   }
 
   List<TaskModel> _parseTasks(dynamic decoded) {
     if (decoded is List) {
       return decoded
-          .map((e) => TaskModel.fromJson(Map<String, dynamic>.from(e)))
+          .map((e) => TaskModel.fromJson(
+        Map<String, dynamic>.from(e),
+      ))
           .toList();
     }
 
@@ -35,7 +40,9 @@ class AdminTaskService {
 
       if (raw is List) {
         return raw
-            .map((e) => TaskModel.fromJson(Map<String, dynamic>.from(e)))
+            .map((e) => TaskModel.fromJson(
+          Map<String, dynamic>.from(e),
+        ))
             .toList();
       }
     }
@@ -45,18 +52,16 @@ class AdminTaskService {
 
   Future<List<TaskModel>> getLessonTasks(int lessonId) async {
     final url = '$baseUrl/api/lessons/$lessonId/tasks';
-    print('ADMIN TASK URL: $url');
 
     final response = await http.get(
       Uri.parse(url),
       headers: await _headers(),
     );
 
-    print('ADMIN TASK STATUS: ${response.statusCode}');
-    print('ADMIN TASK BODY: ${response.body}');
-
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Тапсырмаларды алу қатесі: ${response.body}');
+      throw Exception(
+        'Тапсырмаларды алу қатесі: ${response.body}',
+      );
     }
 
     final decoded = jsonDecode(response.body);
@@ -68,20 +73,22 @@ class AdminTaskService {
     return visible;
   }
 
-  List<Map<String, dynamic>> _pairsToJson(List<MatchingPair>? matchingPairs) {
-    if (matchingPairs == null) return <Map<String, dynamic>>[];
+  List<Map<String, dynamic>> _pairsToJson(
+      List<dynamic>? matchingPairs,
+      ) {
+    if (matchingPairs == null) {
+      return <Map<String, dynamic>>[];
+    }
 
-    return matchingPairs
-        .asMap()
-        .entries
-        .map(
-          (entry) => {
-        'id': entry.value.id > 0 ? entry.value.id : entry.key + 1,
-        'left': entry.value.left,
-        'right': entry.value.right,
-      },
-    )
-        .toList();
+    return matchingPairs.asMap().entries.map((entry) {
+      final pair = entry.value;
+
+      return {
+        'id': pair.id ?? (entry.key + 1),
+        'left': pair.left,
+        'right': pair.right,
+      };
+    }).toList();
   }
 
   Map<String, dynamic> _buildTaskPayload({
@@ -94,7 +101,7 @@ class AdminTaskService {
     String? audioUrl,
     String? audioText,
     String? translateText,
-    List<MatchingPair>? matchingPairs,
+    List<dynamic>? matchingPairs,
     required int xpReward,
     required int orderIndex,
   }) {
@@ -129,6 +136,7 @@ class AdminTaskService {
     }
 
     body.removeWhere((key, value) => value == null);
+
     return body;
   }
 
@@ -143,7 +151,7 @@ class AdminTaskService {
     String? audioUrl,
     String? audioText,
     String? translateText,
-    List<MatchingPair>? matchingPairs,
+    List<dynamic>? matchingPairs,
     required int xpReward,
     required int orderIndex,
   }) async {
@@ -162,22 +170,29 @@ class AdminTaskService {
       orderIndex: orderIndex,
     );
 
-    print('CREATE TASK BODY: ${jsonEncode(body)}');
-
     final response = await http.post(
       Uri.parse('$baseUrl/api/admin/lessons/$lessonId/tasks'),
       headers: await _headers(),
       body: jsonEncode(body),
     );
 
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Тапсырма қосу қатесі: ${response.body}');
+    if (response.statusCode < 200 ||
+        response.statusCode >= 300) {
+      throw Exception(
+        'Тапсырма қосу қатесі: ${response.body}',
+      );
     }
 
     final decoded = jsonDecode(response.body);
-    final data = decoded['task'] ?? decoded['data'] ?? decoded;
 
-    return TaskModel.fromJson(Map<String, dynamic>.from(data));
+    final data =
+        decoded['task'] ??
+            decoded['data'] ??
+            decoded;
+
+    return TaskModel.fromJson(
+      Map<String, dynamic>.from(data),
+    );
   }
 
   Future<TaskModel> updateTask({
@@ -191,7 +206,7 @@ class AdminTaskService {
     String? audioUrl,
     String? audioText,
     String? translateText,
-    List<MatchingPair>? matchingPairs,
+    List<dynamic>? matchingPairs,
     required int xpReward,
     required int orderIndex,
   }) async {
@@ -210,22 +225,29 @@ class AdminTaskService {
       orderIndex: orderIndex,
     );
 
-    print('UPDATE TASK BODY: ${jsonEncode(body)}');
-
     final response = await http.patch(
       Uri.parse('$baseUrl/api/admin/tasks/$taskId'),
       headers: await _headers(),
       body: jsonEncode(body),
     );
 
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Тапсырма өзгерту қатесі: ${response.body}');
+    if (response.statusCode < 200 ||
+        response.statusCode >= 300) {
+      throw Exception(
+        'Тапсырма өзгерту қатесі: ${response.body}',
+      );
     }
 
     final decoded = jsonDecode(response.body);
-    final data = decoded['task'] ?? decoded['data'] ?? decoded;
 
-    return TaskModel.fromJson(Map<String, dynamic>.from(data));
+    final data =
+        decoded['task'] ??
+            decoded['data'] ??
+            decoded;
+
+    return TaskModel.fromJson(
+      Map<String, dynamic>.from(data),
+    );
   }
 
   Future<void> archiveTask({
@@ -233,15 +255,20 @@ class AdminTaskService {
     required bool isArchived,
   }) async {
     final response = await http.patch(
-      Uri.parse('$baseUrl/api/admin/tasks/$taskId/archive'),
+      Uri.parse(
+        '$baseUrl/api/admin/tasks/$taskId/archive',
+      ),
       headers: await _headers(),
       body: jsonEncode({
         'isArchived': isArchived,
       }),
     );
 
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Архивтеу қатесі: ${response.body}');
+    if (response.statusCode < 200 ||
+        response.statusCode >= 300) {
+      throw Exception(
+        'Архивтеу қатесі: ${response.body}',
+      );
     }
   }
 }

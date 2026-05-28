@@ -34,6 +34,7 @@ class LessonService {
           decoded['result'] ??
           decoded;
     }
+
     return decoded;
   }
 
@@ -56,20 +57,35 @@ class LessonService {
     );
   }
 
+  bool _hasString(String value) {
+    return value.trim().isNotEmpty;
+  }
+
+  bool _hasWords(List<String> words) {
+    return words.map((e) => e.trim()).where((e) => e.isNotEmpty).isNotEmpty;
+  }
+
   bool _isTaskUsable(TaskModel task) {
-    final hasPrompt = task.promptText.trim().isNotEmpty;
+    if (task.isArchived) return false;
 
-    final hasOptions = task.optionsWords
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .isNotEmpty;
+    switch (task.type) {
+      case 'SENTENCE_BUILD':
+        return _hasString(task.promptText) &&
+            _hasWords(task.optionsWords) &&
+            _hasWords(task.correctWords);
 
-    final hasCorrect = task.correctWords
-        .map((e) => e.trim())
-        .where((e) => e.isNotEmpty)
-        .isNotEmpty;
+      case 'WORD_MATCH':
+        return task.matchingPairs.isNotEmpty;
 
-    return hasPrompt && hasOptions && hasCorrect && task.isArchived == false;
+      case 'AUDIO_DICTATION':
+        return _hasString(task.audioUrl) && _hasString(task.audioText);
+
+      case 'AUDIO_TRANSLATE':
+        return _hasString(task.audioUrl) && _hasString(task.translateText);
+
+      default:
+        return false;
+    }
   }
 
   Future<List<LessonModel>> getUserLessons() async {
@@ -122,7 +138,6 @@ class LessonService {
     return tasks;
   }
 
-  // 10) Отправить ответ на задание
   Future<void> submitTaskAnswer({
     required int taskId,
     required List<String> answerWords,
@@ -153,7 +168,6 @@ class LessonService {
     }
   }
 
-  // 11) Получить прогресс конкретного урока
   Future<Map<String, dynamic>> getLessonProgress(int lessonId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/progress/lessons/$lessonId'),
@@ -168,7 +182,6 @@ class LessonService {
     return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
   }
 
-  // 12) Получить весь прогресс пользователя
   Future<dynamic> getMyProgress() async {
     final response = await http.get(
       Uri.parse('$baseUrl/progress/me'),
@@ -182,7 +195,6 @@ class LessonService {
     return _extractData(jsonDecode(response.body));
   }
 
-  // 13) Получить пройденные уровни
   Future<dynamic> getCompletedLevels() async {
     final response = await http.get(
       Uri.parse('$baseUrl/progress/levels'),
@@ -196,7 +208,6 @@ class LessonService {
     return _extractData(jsonDecode(response.body));
   }
 
-  // 14) Получить серию дней streak
   Future<Map<String, dynamic>> getMyStreak() async {
     final response = await http.get(
       Uri.parse('$baseUrl/users/me/streak'),
@@ -211,7 +222,6 @@ class LessonService {
     return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
   }
 
-  // 15) Лидерборд
   Future<dynamic> getLeaderboard() async {
     final response = await http.get(
       Uri.parse('$baseUrl/leaderboard'),
