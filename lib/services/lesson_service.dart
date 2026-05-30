@@ -7,7 +7,7 @@ import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class LessonService {
-  static const String baseUrl = 'https://learnkz.kazi.rocks/api';
+  static const String baseUrl = 'https://oyu-learnkz.onrender.com/api';
 
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();

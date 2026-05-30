@@ -12,7 +12,7 @@ class ModeratorBooksScreen extends StatefulWidget {
 }
 
 class _ModeratorBooksScreenState extends State<ModeratorBooksScreen> {
-  final String apiUrl = 'https://learnkz.kazi.rocks/api/moderator/books';
+  final String apiUrl = 'https://oyu-learnkz.onrender.com/api/moderator/books';
 
   final TextEditingController searchController = TextEditingController();
 

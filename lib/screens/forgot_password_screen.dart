@@ -36,7 +36,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
     try {
       final res = await http.post(
-        Uri.parse('https://learnkz.kazi.rocks/api/auth/forgot-password'),
+        Uri.parse('https://oyu-learnkz.onrender.com/api/auth/forgot-password'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({'email': email}),
       );
