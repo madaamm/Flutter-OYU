@@ -8,6 +8,7 @@ import 'package:kazakh_learning_app/services/alphabet_prediction_service.dart';
 import 'package:kazakh_learning_app/services/alphabet_service.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:kazakh_learning_app/widgets/letter_recorder_button.dart';
+import 'package:kazakh_learning_app/screens/alphabet_game_screen.dart';
 
 class AlphabetScreen extends StatefulWidget {
   const AlphabetScreen({super.key});
@@ -92,20 +93,13 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
     );
   }
 
-  void _openFirstLetter() {
-    if (loading) return;
-
-    if (letters.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Әзірге әріптер қосылмаған'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    _openLetter(letters.first);
+  void _openGame() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => const AlphabetGameScreen(),
+      ),
+    );
   }
 
   @override
@@ -149,7 +143,7 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
                     height: 52,
                     width: double.infinity,
                     child: ElevatedButton(
-                      onPressed: _openFirstLetter,
+                      onPressed: _openGame,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white24,
                         foregroundColor: Colors.white,
@@ -159,7 +153,7 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
                         ),
                       ),
                       child: const Text(
-                        'LEARN THE LETTERS',
+                        'PLAY ALPHABET GAME',
                         style: TextStyle(fontWeight: FontWeight.w900),
                       ),
                     ),
