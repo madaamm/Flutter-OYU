@@ -218,6 +218,38 @@ class _AuthScreenState extends State<AuthScreen> {
     }
   }
 
+  Future<void> _googleLogin() async {
+    try {
+      setState(() => isLoading = true);
+
+      await _auth.loginWithGoogle();
+
+      if (!mounted) return;
+
+      final me = await _auth.me();
+
+      final username =
+      (me['username'] ?? 'User').toString();
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => HomeScreen(
+            userName: username,
+          ),
+        ),
+      );
+    } catch (e) {
+      _showError(
+        e.toString().replaceFirst('Exception: ', ''),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => isLoading = false);
+      }
+    }
+  }
+
   Future<void> _goBySavedRole({required String fallbackUserName}) async {
     final role = (await _auth.getRole() ?? 'user').toLowerCase();
     final userName = await _auth.getCachedUsernameOrDefault();
@@ -481,7 +513,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     _socialButton(
                       text: 'Login with Google',
                       icon: Icons.g_mobiledata,
-                      onTap: () => _showError('Google login '),
+                      onTap: _googleLogin,
                     ),
                   ],
                 ),

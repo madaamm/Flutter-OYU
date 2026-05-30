@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kazakh_learning_app/services/api_config.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
   static const String baseUrl = 'https://learnkz.kazi.rocks/api';
@@ -289,5 +290,49 @@ class AuthService {
     await prefs.remove('role');
     await prefs.remove('user_id');
     await prefs.remove('nickname');
+  }
+
+  Future<Map<String, dynamic>> loginWithGoogle() async {
+    final GoogleSignIn googleSignIn = GoogleSignIn(
+      scopes: ['email'],
+    );
+
+    final GoogleSignInAccount? account =
+    await googleSignIn.signIn();
+
+    if (account == null) {
+      throw Exception('Вход отменён');
+    }
+
+    final GoogleSignInAuthentication auth =
+    await account.authentication;
+
+    final String? idToken = auth.idToken;
+
+    if (idToken == null) {
+      throw Exception('Google не вернул idToken');
+    }
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/auth/google'),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode({
+        'idToken': idToken,
+      }),
+    );
+
+    final data = jsonDecode(response.body);
+
+    if (response.statusCode >= 200 &&
+        response.statusCode < 300) {
+      await saveSessionFromResponse(data);
+      return data;
+    }
+
+    throw Exception(
+      data['message'] ?? 'Google login failed',
+    );
   }
 }
