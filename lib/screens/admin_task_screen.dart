@@ -1464,7 +1464,7 @@ class _LessonItem {
 }
 
 class _LessonAdminApi {
-  static const String _baseUrl = 'https://oyu-learnkz.onrender.com';
+  static const String _baseUrl = 'https://learnkz.kazi.rocks';
 
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();

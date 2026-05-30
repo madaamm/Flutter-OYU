@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kazakh_learning_app/services/api_config.dart';
 
 class AuthService {
-  static const String baseUrl = 'https://oyu-learnkz.onrender.com/api';
+  static const String baseUrl = 'https://learnkz.kazi.rocks/api';
 
   static String _scenarioKey(String email) =>
       'scenario_shown_${email.trim().toLowerCase()}';

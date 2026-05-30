@@ -48,7 +48,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
 
     try {
       final res = await http.post(
-        Uri.parse('https://oyu-learnkz.onrender.com/api/auth/reset-password'),
+        Uri.parse('https://learnkz.kazi.rocks/api/auth/reset-password'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'token': token,

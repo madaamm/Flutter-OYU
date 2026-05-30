@@ -5,7 +5,7 @@ import 'package:kazakh_learning_app/models/lesson_model.dart';
 import 'package:kazakh_learning_app/services/api_config.dart';
 
 class AdminLessonService {
-  static const String baseUrl = 'https://oyu-learnkz.onrender.com';
+  static const String baseUrl = 'https://learnkz.kazi.rocks';
 
   Future<String?> _token() async {
     final prefs = await SharedPreferences.getInstance();

@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kazakh_learning_app/models/task_model.dart';
 
 class AdminTaskService {
-  static const String baseUrl = 'https://oyu-learnkz.onrender.com';
+  static const String baseUrl = 'https://learnkz.kazi.rocks';
 
   Future<String?> _token() async {
     final prefs = await SharedPreferences.getInstance();
