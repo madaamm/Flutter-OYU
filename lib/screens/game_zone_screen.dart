@@ -5,35 +5,35 @@ import 'reading_screen.dart';
 class GameZoneScreen extends StatelessWidget {
   const GameZoneScreen({super.key});
 
-  static const purple = Color(0xFF8E5BFF);
+  static const purple = Color(0xFF3D0067);
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F1FF),
+      backgroundColor: const Color(0xFF3D0067),
       body: SafeArea(
         child: Column(
           children: [
             // HEADER
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(18, 18, 18, 22),
+              padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
               decoration: const BoxDecoration(
                 color: purple,
                 borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(22),
-                  bottomRight: Radius.circular(22),
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
                 ),
               ),
               child: const Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  SizedBox(height: 12),
+                  SizedBox(height: 10),
                   Text(
                     'Learn by practice',
                     style: TextStyle(
                       color: Colors.white,
-                      fontSize: 30,
+                      fontSize: 22,
                       fontWeight: FontWeight.w300,
                     ),
                   ),

@@ -10,7 +10,7 @@ class AskAiScreen extends StatefulWidget {
 }
 
 class _AskAiScreenState extends State<AskAiScreen> {
-  static const purple = Color(0xFF8E5BFF);
+  static const purple = Color(0xFF3D0067);
 
   final _c = TextEditingController();
   final _scroll = ScrollController();
@@ -99,8 +99,9 @@ class _AskAiScreenState extends State<AskAiScreen> {
       backgroundColor: const Color(0xFFF6F1FF),
       appBar: AppBar(
         backgroundColor: purple,
-        title: const Text('Ask Ai'),
+        title: const Text('Ask Ai', style: TextStyle(color: Colors.white)),
         centerTitle: true,
+        automaticallyImplyLeading: false,
       ),
       body: Column(
         children: [
@@ -133,7 +134,7 @@ class _Msg {
 }
 
 class _Bubble extends StatelessWidget {
-  static const purple = Color(0xFF8E5BFF);
+  static const purple = Color(0xFF3D0067);
   final _Msg msg;
   const _Bubble({required this.msg});
 
@@ -161,7 +162,7 @@ class _Bubble extends StatelessWidget {
 }
 
 class _Composer extends StatelessWidget {
-  static const purple = Color(0xFF8E5BFF);
+  static const purple = Color(0xFF3D0067);
 
   final TextEditingController controller;
   final bool sending;
@@ -190,6 +191,7 @@ class _Composer extends StatelessWidget {
                 ),
                 child: TextField(
                   controller: controller,
+                  style: const TextStyle(color: Colors.black),
                   minLines: 1,
                   maxLines: 4,
                   textInputAction: TextInputAction.send,
@@ -197,6 +199,7 @@ class _Composer extends StatelessWidget {
                   decoration: const InputDecoration(
                     border: InputBorder.none,
                     hintText: 'Type message here...',
+                    hintStyle: TextStyle(color: Colors.grey), // светлая подсказка
                   ),
                 ),
               ),
@@ -219,9 +222,12 @@ class _Composer extends StatelessWidget {
                   height: 18,
                   child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
                 )
-                    : const Icon(Icons.send),
+                    : Transform.translate(
+                  offset: const Offset(0, -2), // смещение вверх
+                  child: const Icon(Icons.send),
+                ),
               ),
-            ),
+            )
           ],
         ),
       ),
