@@ -9,6 +9,7 @@ import 'package:kazakh_learning_app/services/alphabet_service.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:kazakh_learning_app/widgets/letter_recorder_button.dart';
 import 'package:kazakh_learning_app/screens/alphabet_game_screen.dart';
+import 'package:kazakh_learning_app/services/language_service.dart';
 
 class AlphabetScreen extends StatefulWidget {
   const AlphabetScreen({super.key});
@@ -18,7 +19,8 @@ class AlphabetScreen extends StatefulWidget {
 }
 
 class _AlphabetScreenState extends State<AlphabetScreen> {
-  static const Color purple = Color(0xFF8E5BFF);
+  static const Color purple = Color(0xFF3D0067);
+  static const Color yellow = Color(0xFFFDC500);
   static const Color bg = Color(0xFFF6F1FF);
 
   bool loading = true;
@@ -85,10 +87,14 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
     }
   }
 
-  void _openLetter(AlphabetLetterVM letter) {
-    Navigator.of(context, rootNavigator: true).push(
+  void _openLetter(AlphabetLetterVM letter, int index) {
+    Navigator.push(
+      context,
       MaterialPageRoute(
-        builder: (_) => UserAlphabetLetterDetailScreen(letterId: letter.id),
+        builder: (_) => UserAlphabetLetterDetailScreen(
+          allLetters: letters,
+          currentIndex: index,
+        ),
       ),
     );
   }
@@ -110,14 +116,13 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
         child: Column(
           children: [
             Container(
-              height: 170,
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 16),
+              padding: const EdgeInsets.fromLTRB(14, 10, 14, 10),
               decoration: const BoxDecoration(
                 color: purple,
                 borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(26),
-                  bottomRight: Radius.circular(26),
+                  bottomLeft: Radius.circular(20),
+                  bottomRight: Radius.circular(20),
                 ),
               ),
               child: Column(
@@ -126,14 +131,7 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
                     children: [
                       const SizedBox(width: 48),
                       const Spacer(),
-                      const Text(
-                        'Alphabet',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w900,
-                          fontSize: 18,
-                        ),
-                      ),
+                      const Text('Alphabet', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
                       const Spacer(),
                       const SizedBox(width: 48),
                     ],
@@ -148,14 +146,9 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
                         backgroundColor: Colors.white24,
                         foregroundColor: Colors.white,
                         elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(14),
-                        ),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
-                      child: const Text(
-                        'PLAY ALPHABET GAME',
-                        style: TextStyle(fontWeight: FontWeight.w900),
-                      ),
+                      child: const Text('PLAY ALPHABET GAME', style: TextStyle(fontWeight: FontWeight.w900)),
                     ),
                   ),
                 ],
@@ -249,7 +242,7 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
 
                         return InkWell(
                           borderRadius: BorderRadius.circular(14),
-                          onTap: () => _openLetter(l),
+                          onTap: () => _openLetter(l, i),
                           child: Container(
                             decoration: BoxDecoration(
                               color: purple.withOpacity(0.72),
@@ -310,11 +303,13 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
 }
 
 class UserAlphabetLetterDetailScreen extends StatefulWidget {
-  final int letterId;
+  final List<AlphabetLetterVM> allLetters; // весь список букв
+  final int currentIndex;                  // индекс текущей буквы в списке
 
   const UserAlphabetLetterDetailScreen({
     super.key,
-    required this.letterId,
+    required this.allLetters,
+    required this.currentIndex,
   });
 
   @override
@@ -324,19 +319,23 @@ class UserAlphabetLetterDetailScreen extends StatefulWidget {
 
 class _UserAlphabetLetterDetailScreenState
     extends State<UserAlphabetLetterDetailScreen> {
-  static const Color purple = Color(0xFF8E5BFF);
+  static const Color purple = Color(0xFF3D0067);
+  static const Color yellow = Color(0xFFFDC500);
   static const Color bg = Color(0xFFF6F1FF);
   static const Color deep = Color(0xFF4B007D);
 
   final AudioPlayer _player = AudioPlayer();
   final AlphabetService _service = AlphabetService();
 
-  bool _screenLoading = true;
+  bool _screenLoading = false; // теперь не нужна начальная загрузка, т.к. данные уже есть
   bool _playing = false;
   bool _audioLoading = false;
   bool _predictLoading = false;
   String? _recordedPath;
-  AlphabetLetterVM? _letter;
+
+  late List<AlphabetLetterVM> _allLetters;
+  late int _currentIndex;
+  AlphabetLetterVM get _letter => _allLetters[_currentIndex];
 
   StreamSubscription<PlayerState>? _playerStateSub;
   StreamSubscription<void>? _playerCompleteSub;
@@ -344,14 +343,14 @@ class _UserAlphabetLetterDetailScreenState
   @override
   void initState() {
     super.initState();
+    _allLetters = widget.allLetters;
+    _currentIndex = widget.currentIndex;
 
     _playerStateSub = _player.onPlayerStateChanged.listen((state) {
       if (!mounted) return;
       final isPlayingNow = state == PlayerState.playing;
       if (_playing != isPlayingNow) {
-        setState(() {
-          _playing = isPlayingNow;
-        });
+        setState(() => _playing = isPlayingNow);
       }
     });
 
@@ -362,42 +361,6 @@ class _UserAlphabetLetterDetailScreenState
         _audioLoading = false;
       });
     });
-
-    _loadLetter();
-  }
-
-  Future<void> _loadLetter() async {
-    try {
-      if (mounted) {
-        setState(() => _screenLoading = true);
-      }
-
-      final res = await http.get(
-        Uri.parse('${AuthService.baseUrl}/alphabet/${widget.letterId}'),
-        headers: const {'Accept': 'application/json'},
-      );
-
-      if (res.statusCode < 200 || res.statusCode >= 300) {
-        throw Exception('Letter load error: ${res.statusCode} ${res.body}');
-      }
-
-      final decoded = jsonDecode(res.body);
-      if (decoded is! Map<String, dynamic>) {
-        throw Exception('Letter response object емес');
-      }
-
-      if (!mounted) return;
-      setState(() {
-        _letter = AlphabetLetterVM.fromJson(decoded);
-        _screenLoading = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() => _screenLoading = false);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Load error: $e')),
-      );
-    }
   }
 
   @override
@@ -415,49 +378,75 @@ class _UserAlphabetLetterDetailScreenState
     return uri.replace(queryParameters: updatedParams).toString();
   }
 
+  String _getLocalizedPronunciation(AlphabetLetterVM letter, String lang) {
+    switch (lang) {
+      case 'en':
+        return letter.pronunciationEn.isNotEmpty ? letter.pronunciationEn : letter.pronunciationRu;
+      case 'ru':
+      default:
+        return letter.pronunciationRu.isNotEmpty ? letter.pronunciationRu : letter.pronunciationEn;
+    }
+  }
+
+  String _getLocalizedDescription(AlphabetLetterVM letter, String lang) {
+    switch (lang) {
+      case 'en':
+        return letter.descriptionEn.isNotEmpty ? letter.descriptionEn : letter.descriptionRu;
+      case 'ru':
+      default:
+        return letter.descriptionRu.isNotEmpty ? letter.descriptionRu : letter.descriptionEn;
+    }
+  }
+
+  String _getLocalizedExampleText(AlphabetExampleVM example, String lang) {
+    switch (lang) {
+      case 'en':
+        return example.en;
+      case 'kz':
+        return example.kz;
+      case 'ru':
+      default:
+        return example.ru;
+    }
+  }
+
+  String _getExamplesTitle(String lang) {
+    switch (lang) {
+      case 'en': return 'Examples';
+      case 'kz': return 'Мысалдар';
+      default: return 'Примеры';
+    }
+  }
+
   Future<void> _playAudio() async {
     final letter = _letter;
-    if (letter == null) return;
-
     final String url = letter.audioApiUrl.trim().isNotEmpty
         ? letter.audioApiUrl.trim()
         : _service.buildAudioApiUrl(letter.id);
 
     try {
       setState(() => _audioLoading = true);
-
       final exists = await _service.audioExists(letter.id);
       if (!exists) {
         if (!mounted) return;
         setState(() => _audioLoading = false);
-
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('This letter has no sound.'),
-            behavior: SnackBarBehavior.floating,
-          ),
+          const SnackBar(content: Text('This letter has no sound.')),
         );
         return;
       }
-
       await _player.stop();
       await _player.play(UrlSource(_withCacheBuster(url)));
-
       if (!mounted) return;
       setState(() => _audioLoading = false);
     } catch (e) {
       if (!mounted) return;
-
       setState(() {
         _audioLoading = false;
         _playing = false;
       });
-
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('This letter has no sound.'),
-          behavior: SnackBarBehavior.floating,
-        ),
+        const SnackBar(content: Text('This letter has no sound.')),
       );
     }
   }
@@ -466,7 +455,6 @@ class _UserAlphabetLetterDetailScreenState
     try {
       await _player.pause();
     } catch (e) {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Audio pause error: $e')),
       );
@@ -476,35 +464,25 @@ class _UserAlphabetLetterDetailScreenState
   Future<void> _predictRecordedVoice() async {
     final letter = _letter;
     final recordedPath = _recordedPath;
-
     if (letter == null) return;
-
     if (recordedPath == null || recordedPath.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Алдымен микрофонмен өз даусыңды жазып ал'),
-          behavior: SnackBarBehavior.floating,
-        ),
+        const SnackBar(content: Text('Алдымен микрофонмен өз даусыңды жазып ал')),
       );
       return;
     }
-
     try {
       setState(() => _predictLoading = true);
-
       final result = await AlphabetPredictionService.predictLetter(
         letterId: letter.id,
         recordedPath: recordedPath,
         expectedUppercase: letter.uppercase,
         expectedLowercase: letter.lowercase,
       );
-
       if (!mounted) return;
       setState(() => _predictLoading = false);
-
       final double percent = result.confidencePercent;
       final bool isExcellent = percent >= 95.0;
-
       showModalBottomSheet<void>(
         context: context,
         backgroundColor: Colors.transparent,
@@ -537,29 +515,11 @@ class _UserAlphabetLetterDetailScreenState
                   ),
                 ),
                 const SizedBox(height: 14),
-                Text(
-                  'Expected letter: ${letter.uppercase}${letter.lowercase}',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                Text('Expected letter: ${letter.uppercase}${letter.lowercase}'),
                 const SizedBox(height: 8),
-                Text(
-                  'Predicted letter: ${result.predictedLetter}',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+                Text('Predicted letter: ${result.predictedLetter}'),
                 const SizedBox(height: 8),
-                Text(
-                  'Accuracy: ${percent.toStringAsFixed(1)}%',
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
+                Text('Accuracy: ${percent.toStringAsFixed(1)}%'),
                 const SizedBox(height: 18),
                 SizedBox(
                   width: double.infinity,
@@ -568,17 +528,9 @@ class _UserAlphabetLetterDetailScreenState
                     onPressed: () => Navigator.pop(context),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: purple,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
-                    child: const Text(
-                      'Close',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                    child: const Text('Close', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
                   ),
                 ),
               ],
@@ -589,347 +541,231 @@ class _UserAlphabetLetterDetailScreenState
     } catch (e) {
       if (!mounted) return;
       setState(() => _predictLoading = false);
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Тексеру error: $e'),
-          behavior: SnackBarBehavior.floating,
-        ),
+        SnackBar(content: Text('Тексеру error: $e')),
       );
+    }
+  }
+
+  // --- НАВИГАЦИЯ МЕЖДУ БУКВАМИ ---
+  void _goToPrev() {
+    if (_currentIndex > 0) {
+      setState(() {
+        _currentIndex--;
+        _recordedPath = null;
+        _playing = false;
+        _audioLoading = false;
+        _predictLoading = false;
+      });
+    }
+  }
+
+  void _goToNext() {
+    if (_currentIndex < _allLetters.length - 1) {
+      setState(() {
+        _currentIndex++;
+        _recordedPath = null;
+        _playing = false;
+        _audioLoading = false;
+        _predictLoading = false;
+      });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_screenLoading || _letter == null) {
+    if (_allLetters.isEmpty) {
       return const Scaffold(
         backgroundColor: bg,
-        body: SafeArea(
-          child: Center(
-            child: CircularProgressIndicator(),
-          ),
-        ),
+        body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    final letter = _letter!;
+    final letter = _letter;
     final examples = letter.examples;
+    final hasPrev = _currentIndex > 0;
+    final hasNext = _currentIndex < _allLetters.length - 1;
+    final currentLang = LanguageService().currentLanguage;
 
     return Scaffold(
       backgroundColor: bg,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: purple),
+          onPressed: () => Navigator.pop(context),
+        ),
+        title: Text(
+          '${letter.uppercase}${letter.lowercase}',
+          style: const TextStyle(color: purple, fontWeight: FontWeight.bold),
+        ),
+        centerTitle: true,
+      ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.arrow_back, color: Colors.black87),
-                    onPressed: () =>
-                        Navigator.of(context, rootNavigator: true).pop(),
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
-                child: LayoutBuilder(
-                  builder: (context, c) {
-                    final double cardW =
-                    c.maxWidth.clamp(0.0, 380.0).toDouble();
-                    final double cardH =
-                    (cardW * 1.22).clamp(460.0, 720.0).toDouble();
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            children: [
+              // Карточка с информацией
+              Expanded(
+                child: Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+                  color: Colors.white,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Буква и произношение (фиксированный верх)
+                        Center(
+                          child: Column(
+                            children: [
+                              Text(
+                                '${letter.uppercase}${letter.lowercase}',
+                                style: const TextStyle(fontSize: 72, fontWeight: FontWeight.w900, color: purple),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _getLocalizedPronunciation(letter, currentLang),
+                                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600, color: Colors.grey[700]),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
 
-                    return Center(
-                      child: SizedBox(
-                        width: cardW,
-                        child: Stack(
-                          clipBehavior: Clip.none,
+                        // Прокручиваемая область (описание + примеры)
+                        Expanded(
+                          child: SingleChildScrollView(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Локализованное описание
+                                if (_getLocalizedDescription(letter, currentLang).isNotEmpty) ...[
+                                  Text(
+                                    currentLang == 'en' ? 'Description' : (currentLang == 'kz' ? 'Сипаттама' : 'Описание'),
+                                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: purple),
+                                  ),
+                                  const SizedBox(height: 6),
+                                  Text(
+                                    _getLocalizedDescription(letter, currentLang),
+                                    style: TextStyle(fontSize: 14, color: Colors.grey[800], height: 1.4),
+                                  ),
+                                  const SizedBox(height: 16),
+                                ],
+                                // Локализованные примеры
+                                Text(
+                                  _getExamplesTitle(currentLang),
+                                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: purple),
+                                ),
+                                const SizedBox(height: 8),
+                                if (examples.isEmpty)
+                                  Text(
+                                    currentLang == 'en' ? '— no examples yet —' : (currentLang == 'kz' ? '— мысалдар жоқ —' : '— примеры пока не добавлены —'),
+                                    style: TextStyle(color: Colors.grey[600]),
+                                  )
+                                else
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: examples.map((e) {
+                                      return Padding(
+                                        padding: const EdgeInsets.only(bottom: 8),
+                                        child: Text(
+                                          _getLocalizedExampleText(e, currentLang),
+                                          style: TextStyle(color: Colors.grey[800]),
+                                        ),
+                                      );
+                                    }).toList(),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // Фиксированные кнопки внизу
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            Positioned(
-                              top: -20,
-                              left: 0,
-                              right: 0,
-                              child: Column(
-                                children: [
-                                  Container(
-                                    width: cardW * 0.55,
-                                    height: 12,
-                                    decoration: BoxDecoration(
-                                      color: purple.withOpacity(0.55),
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Container(
-                                    width: cardW * 0.82,
-                                    height: 12,
-                                    decoration: BoxDecoration(
-                                      color: purple.withOpacity(0.55),
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            LetterRecorderButton(
+                              onRecorded: (path) {
+                                setState(() => _recordedPath = path);
+                              },
                             ),
-                            Positioned(
-                              bottom: -22,
-                              left: 0,
-                              right: 0,
-                              child: Column(
-                                children: [
-                                  Container(
-                                    width: cardW * 0.70,
-                                    height: 14,
-                                    decoration: BoxDecoration(
-                                      color: purple.withOpacity(0.55),
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Container(
-                                    width: cardW * 0.52,
-                                    height: 12,
-                                    decoration: BoxDecoration(
-                                      color: purple.withOpacity(0.55),
-                                      borderRadius: BorderRadius.circular(999),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                            Container(
-                              height: cardH,
-                              padding:
-                              const EdgeInsets.fromLTRB(22, 26, 22, 22),
-                              decoration: BoxDecoration(
-                                color: purple.withOpacity(0.65),
-                                borderRadius: BorderRadius.circular(24),
-                                boxShadow: const [
-                                  BoxShadow(
-                                    color: Color(0x22000000),
-                                    blurRadius: 18,
-                                    offset: Offset(0, 12),
-                                  ),
-                                ],
-                              ),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Center(
-                                    child: Column(
-                                      children: [
-                                        Text(
-                                          '${letter.uppercase}${letter.lowercase}',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 64,
-                                            fontWeight: FontWeight.w900,
-                                            height: 1.0,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 6),
-                                        Text(
-                                          letter.primaryPronunciation,
-                                          style: TextStyle(
-                                            color:
-                                            Colors.white.withOpacity(0.92),
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.w800,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                  const SizedBox(height: 18),
-                                  Expanded(
-                                    child: SingleChildScrollView(
-                                      physics:
-                                      const BouncingScrollPhysics(),
-                                      child: Column(
-                                        crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                        children: [
-                                          if (letter.descriptionRu.isNotEmpty) ...[
-                                            Text(
-                                              'Описание (RU):',
-                                              style: TextStyle(
-                                                color: Colors.white
-                                                    .withOpacity(0.95),
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              letter.descriptionRu,
-                                              style: TextStyle(
-                                                color: Colors.white
-                                                    .withOpacity(0.88),
-                                                height: 1.45,
-                                                fontWeight:
-                                                FontWeight.w600,
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 10),
-                                          ],
-                                          if (letter.descriptionEn.isNotEmpty) ...[
-                                            Text(
-                                              'Description (EN):',
-                                              style: TextStyle(
-                                                color: Colors.white
-                                                    .withOpacity(0.95),
-                                                fontWeight: FontWeight.w800,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 6),
-                                            Text(
-                                              letter.descriptionEn,
-                                              style: TextStyle(
-                                                color: Colors.white
-                                                    .withOpacity(0.88),
-                                                height: 1.45,
-                                                fontWeight:
-                                                FontWeight.w600,
-                                                fontSize: 13,
-                                              ),
-                                            ),
-                                            const SizedBox(height: 10),
-                                          ],
-                                          Text(
-                                            '(examples):',
-                                            style: TextStyle(
-                                              color: Colors.white
-                                                  .withOpacity(0.90),
-                                              fontWeight: FontWeight.w700,
-                                              fontSize: 16,
-                                            ),
-                                          ),
-                                          const SizedBox(height: 10),
-                                          if (examples.isEmpty)
-                                            Text(
-                                              '— examples not added yet —',
-                                              style: TextStyle(
-                                                color: Colors.white
-                                                    .withOpacity(0.88),
-                                                height: 1.55,
-                                                fontWeight:
-                                                FontWeight.w600,
-                                                fontSize: 14,
-                                              ),
-                                            )
-                                          else
-                                            Column(
-                                              crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                              children: examples
-                                                  .map(
-                                                    (e) => Padding(
-                                                  padding:
-                                                  const EdgeInsets.only(
-                                                    bottom: 10,
-                                                  ),
-                                                  child: Text(
-                                                    '• ${e.kz} — ${e.ru} — ${e.en}',
-                                                    style: TextStyle(
-                                                      color: Colors.white
-                                                          .withOpacity(
-                                                          0.88),
-                                                      height: 1.55,
-                                                      fontWeight:
-                                                      FontWeight.w600,
-                                                      fontSize: 14,
-                                                    ),
-                                                  ),
-                                                ),
-                                              )
-                                                  .toList(),
-                                            ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 14),
-                                  Row(
-                                    mainAxisAlignment:
-                                    MainAxisAlignment.center,
-                                    children: [
-                                      LetterRecorderButton(
-                                        onRecorded: (path) {
-                                          setState(() {
-                                            _recordedPath = path;
-                                          });
-                                        },
-                                      ),
-                                      const SizedBox(width: 22),
-                                      _SquareBtn(
-                                        icon: _audioLoading
-                                            ? Icons.hourglass_top_rounded
-                                            : (_playing
-                                            ? Icons.pause_circle_filled
-                                            : Icons.headphones),
-                                        onTap:
-                                        _playing ? _pauseAudio : _playAudio,
-                                        loading: _audioLoading,
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 14),
-                                  SizedBox(
-                                    width: double.infinity,
-                                    height: 52,
-                                    child: ElevatedButton.icon(
-                                      onPressed: _predictLoading
-                                          ? null
-                                          : _predictRecordedVoice,
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: deep,
-                                        foregroundColor: Colors.white,
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                          BorderRadius.circular(14),
-                                        ),
-                                      ),
-                                      icon: _predictLoading
-                                          ? const SizedBox(
-                                        width: 18,
-                                        height: 18,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          valueColor:
-                                          AlwaysStoppedAnimation<Color>(
-                                            Colors.white,
-                                          ),
-                                        ),
-                                      )
-                                          : const Icon(Icons.verified_rounded),
-                                      label: Text(
-                                        _predictLoading
-                                            ? 'Тексеріліп жатыр...'
-                                            : 'Тексеріске дауысты жіберу',
-                                        style: const TextStyle(
-                                          fontWeight: FontWeight.w800,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
+                            const SizedBox(width: 20),
+                            _SquareBtn(
+                              icon: _audioLoading
+                                  ? Icons.hourglass_top_rounded
+                                  : (_playing ? Icons.pause_circle_filled : Icons.headphones),
+                              onTap: _playing ? _pauseAudio : _playAudio,
+                              loading: _audioLoading,
                             ),
                           ],
                         ),
-                      ),
-                    );
-                  },
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          height: 52,
+                          child: ElevatedButton.icon(
+                            onPressed: _predictLoading ? null : _predictRecordedVoice,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: deep,
+                              foregroundColor: Colors.white,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                            ),
+                            icon: _predictLoading
+                                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                                : const Icon(Icons.verified_rounded),
+                            label: Text(
+                              _predictLoading
+                                  ? (currentLang == 'en' ? 'Checking...' : (currentLang == 'kz' ? 'Тексерілуде...' : 'Проверка...'))
+                                  : (currentLang == 'en' ? 'Send for verification' : (currentLang == 'kz' ? 'Дауысты тексеруге жіберу' : 'Отправить на проверку')),
+                              style: const TextStyle(fontWeight: FontWeight.w800),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ],
+              const SizedBox(height: 16),
+              // Кнопки навигации между буквами
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: hasPrev ? _goToPrev : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: purple,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(color: purple),
+                        ),
+                      ),
+                      child: Text(currentLang == 'en' ? '← Previous' : (currentLang == 'kz' ? '← Алдыңғы' : '← Предыдущая')),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: hasNext ? _goToNext : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: purple,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: Text(currentLang == 'en' ? 'Next →' : (currentLang == 'kz' ? 'Келесі →' : 'Следующая →')),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+            ],
+          ),
         ),
       ),
     );
