@@ -276,7 +276,7 @@ class _TaskCard extends StatelessWidget {
         return task.translateText.isNotEmpty
             ? task.translateText
             : 'Audio translate';
-      case 'WORD_MATCH':
+      case 'WORD_О':
         return task.matchingPairs.isNotEmpty
             ? '${task.matchingPairs.length} matching pairs'
             : 'Word match';

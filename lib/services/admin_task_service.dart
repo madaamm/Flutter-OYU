@@ -58,6 +58,10 @@ class AdminTaskService {
       headers: await _headers(),
     );
 
+    print('========== TASK RESPONSE ==========');
+    print(response.body);
+    print('===================================');
+
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception(
         'Тапсырмаларды алу қатесі: ${response.body}',

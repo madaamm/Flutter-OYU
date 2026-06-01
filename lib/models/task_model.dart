@@ -247,14 +247,57 @@ class TaskModel {
   }
 
   factory TaskModel.fromJson(Map<String, dynamic> json) {
+    print('TASK JSON = $json');
     final rawOptions =
-        json['optionsWords'] ?? json['options_words'] ?? json['words'];
+        json['optionsWords'] ??
+            json['options_words'] ??
+            json['words'];
 
     final rawCorrect =
-        json['correctWords'] ?? json['correct_words'] ?? json['answer_words'];
+        json['correctWords'] ??
+            json['correct_words'] ??
+            json['answer_words'];
 
-    final rawPairs =
-        json['matchingPairs'] ?? json['matching_pairs'] ?? json['pairs'];
+    dynamic rawPairs =
+        json['matchingPairs'] ??
+            json['matching_pairs'] ??
+            json['pairs'];
+
+    if (rawPairs == null &&
+        json['matchingOptions'] is Map<String, dynamic>) {
+
+      final options =
+      json['matchingOptions'] as Map<String, dynamic>;
+
+      final leftWords =
+          (options['leftWords'] as List?) ?? [];
+
+      final rightWords =
+          (options['rightWords'] as List?) ?? [];
+
+      final pairs = <Map<String, dynamic>>[];
+
+      for (final left in leftWords) {
+        final leftMap = Map<String, dynamic>.from(left);
+
+        final match = rightWords.firstWhere(
+              (r) =>
+          r['id'].toString() ==
+              leftMap['id'].toString(),
+          orElse: () => null,
+        );
+
+        if (match != null) {
+          pairs.add({
+            'id': leftMap['id'],
+            'left': leftMap['text'],
+            'right': match['text'],
+          });
+        }
+      }
+
+      rawPairs = pairs;
+    }
 
     return TaskModel(
       id: toInt(json['id']),
@@ -280,7 +323,11 @@ class TaskModel {
       translateText: toCleanString(
         json['translateText'] ?? json['translate_text'] ?? json['translation'],
       ),
-      matchingPairs: _parseMatchingPairs(rawPairs),
+      matchingPairs: (() {
+        final result = _parseMatchingPairs(rawPairs);
+        print('MATCHING PAIRS = ${result.length}');
+        return result;
+      })(),
       xpReward: toInt(json['xpReward'] ?? json['xp_reward'], fallback: 10),
       orderIndex: toInt(json['orderIndex'] ?? json['order_index']),
       isArchived: _toBool(json['isArchived'] ?? json['is_archived']),
