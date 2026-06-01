@@ -103,15 +103,24 @@ class _AlphabetGameScreenState extends State<AlphabetGameScreen> {
   }
 
   Future<void> _playAudio() async {
-    if (game == null || game!.audioUrl == null) return;
+    if (game == null || game!.audioUrl == null || game!.audioUrl!.isEmpty) return;
 
-    final url =
-        '${AuthService.baseUrl}${game!.audioUrl}';
+    final base = AuthService.baseUrl;
+    final relative = game!.audioUrl!;
+    final url = Uri.parse(base).resolve(relative).toString();
 
-    await _player.stop();
-    await _player.play(UrlSource(url));
+    try {
+      await _player.stop();
+      await _player.play(UrlSource(url));
+    } catch (e) {
+      debugPrint('Audio play error: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Аудио ойнатылмады. Кейінірек қайталаңыз.')),
+        );
+      }
+    }
   }
-
   void _selectAnswer(String answer) {
     if (answered) return;
 

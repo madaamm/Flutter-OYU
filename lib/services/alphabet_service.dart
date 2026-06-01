@@ -183,14 +183,7 @@ class AlphabetService {
     }
   }
 
-  String buildAudioApiUrl(int id) {
-    final apiBase = baseUrl.trim();
-    final origin = apiBase.endsWith('/api')
-        ? apiBase.substring(0, apiBase.length - 4)
-        : apiBase;
-
-    return '$origin/api/alphabet/$id/audio';
-  }
+  String buildAudioApiUrl(int id) => '$baseUrl/alphabet/$id/audio';
 
   Future<bool> audioExists(int id) async {
     try {
