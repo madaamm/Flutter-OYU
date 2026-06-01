@@ -456,6 +456,7 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
   static const Color green = Color(0xFF34C759);
   static const Color red = Color(0xFFFF4B4B);
   static const Color bg = Color(0xFFFDF8FF);
+  final LessonService _lessonService = LessonService();
 
   int _lives = 3;
 
@@ -467,6 +468,7 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
   int? _selectedLeftId;
   int? _selectedRightId;
   final Map<int, int> _matchedIds = {};
+  bool _submittingAnswer = false;
 
   _ExerciseStage _stage = _ExerciseStage.building;
 
@@ -548,10 +550,13 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
 
   void _selectLeft(int id) {
     if (_stage != _ExerciseStage.building) return;
-    if (_matchedIds.containsKey(id)) return;
 
     setState(() {
-      _selectedLeftId = id;
+      if (_selectedLeftId == id) {
+        _selectedLeftId = null;
+      } else {
+        _selectedLeftId = id;
+      }
     });
 
     _tryMatch();
@@ -559,10 +564,13 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
 
   void _selectRight(int id) {
     if (_stage != _ExerciseStage.building) return;
-    if (_matchedIds.containsValue(id)) return;
 
     setState(() {
-      _selectedRightId = id;
+      if (_selectedRightId == id) {
+        _selectedRightId = null;
+      } else {
+        _selectedRightId = id;
+      }
     });
 
     _tryMatch();
@@ -575,9 +583,16 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
     if (leftId == null || rightId == null) return;
 
     setState(() {
-      if (leftId == rightId) {
-        _matchedIds[leftId] = rightId;
+      final previousLeftForRight = _matchedIds.entries
+          .where((entry) => entry.value == rightId && entry.key != leftId)
+          .map((entry) => entry.key)
+          .toList();
+
+      for (final previousLeftId in previousLeftForRight) {
+        _matchedIds.remove(previousLeftId);
       }
+
+      _matchedIds[leftId] = rightId;
 
       _selectedLeftId = null;
       _selectedRightId = null;
@@ -592,10 +607,38 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
     }
 
     if (_isWordMatch) {
-      return _matchedIds.isNotEmpty;
+      return _matchedIds.length == _task.matchingPairs.length;
     }
 
     return false;
+  }
+
+  List<Map<String, String>> _buildAnswerPairs() {
+    return _matchedIds.entries
+        .map(
+          (entry) => {
+            'leftId': entry.key.toString(),
+            'rightId': entry.value.toString(),
+          },
+        )
+        .toList();
+  }
+
+  Future<void> _submitCorrectAnswer() async {
+    if (_isSentenceBuild) {
+      await _lessonService.submitTaskAnswer(
+        taskId: _task.id,
+        answerWords: _slots,
+      );
+      return;
+    }
+
+    if (_isWordMatch) {
+      await _lessonService.submitTaskAnswer(
+        taskId: _task.id,
+        answerPairs: _buildAnswerPairs(),
+      );
+    }
   }
 
   String _normalize(String word) {
@@ -635,12 +678,34 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
   }
 
   Future<void> _handleCheck() async {
-    if (!_canCheck) return;
+    if (!_canCheck || _submittingAnswer) return;
 
     if (_isCorrectAnswer()) {
       setState(() {
-        _stage = _ExerciseStage.reward;
+        _submittingAnswer = true;
       });
+
+      try {
+        await _submitCorrectAnswer();
+
+        if (!mounted) return;
+
+        setState(() {
+          _stage = _ExerciseStage.reward;
+        });
+      } catch (e) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Submit error: $e')),
+        );
+      } finally {
+        if (mounted) {
+          setState(() {
+            _submittingAnswer = false;
+          });
+        }
+      }
       return;
     }
 
@@ -667,6 +732,7 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
   void _restartTask() {
     setState(() {
       _lives = 3;
+      _submittingAnswer = false;
       _setupTask();
     });
   }
@@ -690,7 +756,7 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
       return () => Navigator.pop(context, true);
     }
 
-    if (_canCheck) return _handleCheck;
+    if (_canCheck && !_submittingAnswer) return _handleCheck;
 
     return null;
   }
@@ -807,7 +873,9 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
                 child: Text(
                   _stage == _ExerciseStage.wrong && _lives == 0
                       ? 'Finish'
-                      : 'Check',
+                      : _submittingAnswer
+                          ? 'Saving...'
+                          : 'Check',
                   style: TextStyle(
                     color: _buttonTextColor(),
                     fontSize: 16,
@@ -1112,7 +1180,7 @@ class _WordMatchBoard extends StatelessWidget {
                     text: pair.left,
                     selected: selected,
                     matched: matched,
-                    disabled: isLocked || matched,
+                    disabled: isLocked,
                     onTap: () => onTapLeft(pair.id),
                   ),
                 );
@@ -1132,7 +1200,7 @@ class _WordMatchBoard extends StatelessWidget {
                     text: pair.right,
                     selected: selected,
                     matched: matched,
-                    disabled: isLocked || matched,
+                    disabled: isLocked,
                     onTap: () => onTapRight(pair.id),
                   ),
                 );

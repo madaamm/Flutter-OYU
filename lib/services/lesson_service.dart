@@ -138,14 +138,30 @@ class LessonService {
     return tasks;
   }
 
-  Future<void> submitTaskAnswer({
+  Future<Map<String, dynamic>> submitTaskAnswer({
     required int taskId,
-    required List<String> answerWords,
+    List<String>? answerWords,
+    String? answerText,
+    List<Map<String, String>>? answerPairs,
   }) async {
     final token = await AuthService().getToken();
 
     if (token == null || token.isEmpty) {
       throw Exception('Token жоқ. Қайта login жасаңыз.');
+    }
+
+    final body = <String, dynamic>{};
+
+    if (answerWords != null) {
+      body['answerWords'] = answerWords;
+    }
+
+    if (answerText != null && answerText.trim().isNotEmpty) {
+      body['answerText'] = answerText.trim();
+    }
+
+    if (answerPairs != null) {
+      body['answerPairs'] = answerPairs;
     }
 
     final response = await http.post(
@@ -155,9 +171,7 @@ class LessonService {
         'Accept': 'application/json',
         'Authorization': 'Bearer $token',
       },
-      body: jsonEncode({
-        'answerWords': answerWords,
-      }),
+      body: jsonEncode(body),
     );
 
     print('Submit status: ${response.statusCode}');
@@ -166,6 +180,9 @@ class LessonService {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Submit error ${response.statusCode}: ${response.body}');
     }
+
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
   }
 
   Future<Map<String, dynamic>> getLessonProgress(int lessonId) async {
