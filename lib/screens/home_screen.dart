@@ -27,6 +27,8 @@ class _HomeScreenState extends State<HomeScreen> {
   int currentIndex = 0;
   final _auth = AuthService();
   String _name = 'User';
+  int _homePageEpoch = 0;
+  int _profilePageEpoch = 0;
   late List<Widget> pages;
 
   @override
@@ -39,11 +41,17 @@ class _HomeScreenState extends State<HomeScreen> {
 
   List<Widget> _buildPages() {
     return [
-      HomePage(userName: _name),
+      HomePage(
+        key: ValueKey('home-page-$_homePageEpoch'),
+        userName: _name,
+      ),
       const AlphabetScreen(),
       const AskAiScreen(),
       const GameZoneScreen(),
-      ProfileScreen(userName: _name),
+      ProfileScreen(
+        key: ValueKey('profile-page-$_profilePageEpoch'),
+        userName: _name,
+      ),
     ];
   }
 
@@ -76,11 +84,19 @@ class _HomeScreenState extends State<HomeScreen> {
       currentIndex = index;
 
       if (index == 0) {
-        pages[0] = HomePage(userName: _name);
+        _homePageEpoch++;
+        pages[0] = HomePage(
+          key: ValueKey('home-page-$_homePageEpoch'),
+          userName: _name,
+        );
       }
 
       if (index == 4) {
-        pages[4] = ProfileScreen(userName: _name);
+        _profilePageEpoch++;
+        pages[4] = ProfileScreen(
+          key: ValueKey('profile-page-$_profilePageEpoch'),
+          userName: _name,
+        );
       }
     });
 
