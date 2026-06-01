@@ -428,7 +428,7 @@ class _SelectMessage extends StatelessWidget {
   }
 }
 
-enum _ExerciseStage { building, wrong, reward }
+enum _ExerciseStage { building, correct, wrong, reward }
 
 class ExerciseWordOrderScreen extends StatefulWidget {
   final int lessonId;
@@ -683,10 +683,12 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
     if (_isCorrectAnswer()) {
       setState(() {
         _submittingAnswer = true;
+        _stage = _ExerciseStage.correct;
       });
 
       try {
         await _submitCorrectAnswer();
+        await Future<void>.delayed(const Duration(milliseconds: 700));
 
         if (!mounted) return;
 
@@ -738,13 +740,16 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
   }
 
   Color _buttonColor() {
+    if (_stage == _ExerciseStage.correct) return green;
     if (_stage == _ExerciseStage.wrong && _lives == 0) return red;
     if (_canCheck) return green;
     return const Color(0xFFE9E2EE);
   }
 
   Color _buttonTextColor() {
-    if (_stage == _ExerciseStage.wrong || _canCheck) {
+    if (_stage == _ExerciseStage.correct ||
+        _stage == _ExerciseStage.wrong ||
+        _canCheck) {
       return Colors.white;
     }
 
@@ -752,6 +757,8 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
   }
 
   VoidCallback? _buttonAction() {
+    if (_stage == _ExerciseStage.correct) return null;
+
     if (_stage == _ExerciseStage.wrong && _lives == 0) {
       return () => Navigator.pop(context, true);
     }
@@ -839,7 +846,8 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
                     selectedLeftId: _selectedLeftId,
                     selectedRightId: _selectedRightId,
                     matchedIds: _matchedIds,
-                    isLocked: isWrong,
+                    stage: _stage,
+                    isLocked: isWrong || _stage == _ExerciseStage.correct,
                     onTapLeft: _selectLeft,
                     onTapRight: _selectRight,
                   ),
@@ -873,6 +881,8 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
                 child: Text(
                   _stage == _ExerciseStage.wrong && _lives == 0
                       ? 'Finish'
+                      : _stage == _ExerciseStage.correct
+                          ? 'Correct!'
                       : _submittingAnswer
                           ? 'Saving...'
                           : 'Check',
@@ -1141,6 +1151,7 @@ class _WordMatchBoard extends StatelessWidget {
   final int? selectedLeftId;
   final int? selectedRightId;
   final Map<int, int> matchedIds;
+  final _ExerciseStage stage;
   final bool isLocked;
   final void Function(int id) onTapLeft;
   final void Function(int id) onTapRight;
@@ -1151,6 +1162,7 @@ class _WordMatchBoard extends StatelessWidget {
     required this.selectedLeftId,
     required this.selectedRightId,
     required this.matchedIds,
+    required this.stage,
     required this.isLocked,
     required this.onTapLeft,
     required this.onTapRight,
@@ -1180,6 +1192,7 @@ class _WordMatchBoard extends StatelessWidget {
                     text: pair.left,
                     selected: selected,
                     matched: matched,
+                    stage: stage,
                     disabled: isLocked,
                     onTap: () => onTapLeft(pair.id),
                   ),
@@ -1200,6 +1213,7 @@ class _WordMatchBoard extends StatelessWidget {
                     text: pair.right,
                     selected: selected,
                     matched: matched,
+                    stage: stage,
                     disabled: isLocked,
                     onTap: () => onTapRight(pair.id),
                   ),
@@ -1217,6 +1231,7 @@ class _MatchCard extends StatelessWidget {
   final String text;
   final bool selected;
   final bool matched;
+  final _ExerciseStage stage;
   final bool disabled;
   final VoidCallback onTap;
 
@@ -1224,17 +1239,28 @@ class _MatchCard extends StatelessWidget {
     required this.text,
     required this.selected,
     required this.matched,
+    required this.stage,
     required this.disabled,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    final borderColor = matched
+    final bool isHighlighted = selected || matched;
+    final borderColor = stage == _ExerciseStage.correct
         ? const Color(0xFF34C759)
-        : selected
-        ? const Color(0xFFFFC400)
-        : const Color(0xFF6A00FF);
+        : stage == _ExerciseStage.wrong
+            ? const Color(0xFFFF4B4B)
+            : isHighlighted
+                ? const Color(0xFFFFC400)
+                : const Color(0xFF6A00FF);
+    final backgroundColor = stage == _ExerciseStage.correct
+        ? const Color(0xFFEFFFF3)
+        : stage == _ExerciseStage.wrong
+            ? const Color(0xFFFFEFEF)
+            : isHighlighted
+                ? const Color(0xFFFFF7DA)
+                : Colors.white;
 
     return Opacity(
       opacity: disabled && !matched ? 0.6 : 1,
@@ -1246,7 +1272,7 @@ class _MatchCard extends StatelessWidget {
           constraints: const BoxConstraints(minHeight: 58),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
           decoration: BoxDecoration(
-            color: matched ? const Color(0xFFEFFFF3) : Colors.white,
+            color: backgroundColor,
             borderRadius: BorderRadius.circular(18),
             border: Border.all(
               color: borderColor,
