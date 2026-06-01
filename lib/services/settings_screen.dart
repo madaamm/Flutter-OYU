@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:kazakh_learning_app/services/language_service.dart';
 
+import '../screens/welcome_screen.dart';
+
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
 
