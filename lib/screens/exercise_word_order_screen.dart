@@ -469,6 +469,8 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
   int? _selectedRightId;
   final Map<int, int> _matchedIds = {};
   bool _submittingAnswer = false;
+  bool _alreadyCompletedTask = false;
+  int _earnedXp = 0;
 
   _ExerciseStage _stage = _ExerciseStage.building;
 
@@ -624,21 +626,22 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
         .toList();
   }
 
-  Future<void> _submitCorrectAnswer() async {
+  Future<Map<String, dynamic>> _submitCorrectAnswer() async {
     if (_isSentenceBuild) {
-      await _lessonService.submitTaskAnswer(
+      return _lessonService.submitTaskAnswer(
         taskId: _task.id,
         answerWords: _slots,
       );
-      return;
     }
 
     if (_isWordMatch) {
-      await _lessonService.submitTaskAnswer(
+      return _lessonService.submitTaskAnswer(
         taskId: _task.id,
         answerPairs: _buildAnswerPairs(),
       );
     }
+
+    return <String, dynamic>{};
   }
 
   String _normalize(String word) {
@@ -687,7 +690,13 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
       });
 
       try {
-        await _submitCorrectAnswer();
+        final result = await _submitCorrectAnswer();
+
+        _alreadyCompletedTask = result['alreadySubmitted'] == true;
+        _earnedXp = result['earnedXp'] is int
+            ? result['earnedXp'] as int
+            : int.tryParse('${result['earnedXp'] ?? 0}') ?? 0;
+
         await Future<void>.delayed(const Duration(milliseconds: 700));
 
         if (!mounted) return;
@@ -735,6 +744,8 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
     setState(() {
       _lives = 3;
       _submittingAnswer = false;
+      _alreadyCompletedTask = false;
+      _earnedXp = 0;
       _setupTask();
     });
   }
@@ -801,7 +812,8 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
   Widget build(BuildContext context) {
     if (_stage == _ExerciseStage.reward) {
       return _RewardScreen(
-        xp: _task.xpReward,
+        xp: _earnedXp > 0 ? _earnedXp : _task.xpReward,
+        alreadyCompleted: _alreadyCompletedTask,
         onGet: _handleRewardGet,
         onClose: () => Navigator.pop(context, true),
         onRestart: _restartTask,
@@ -1348,12 +1360,14 @@ class _FeedbackBox extends StatelessWidget {
 
 class _RewardScreen extends StatelessWidget {
   final int xp;
+  final bool alreadyCompleted;
   final VoidCallback onGet;
   final VoidCallback onClose;
   final VoidCallback onRestart;
 
   const _RewardScreen({
     required this.xp,
+    required this.alreadyCompleted,
     required this.onGet,
     required this.onClose,
     required this.onRestart,
@@ -1399,59 +1413,92 @@ class _RewardScreen extends StatelessWidget {
                   fit: BoxFit.contain,
                 ),
                 const SizedBox(height: 26),
-                const Text(
-                  'You did great job',
+                Text(
+                  alreadyCompleted
+                      ? 'You already completed this task'
+                      : 'You did great job',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 26,
                     fontWeight: FontWeight.w900,
                   ),
                 ),
                 const SizedBox(height: 10),
-                const Text(
-                  'Task finished',
+                Text(
+                  alreadyCompleted
+                      ? 'No additional rewards are given for repeated completion'
+                      : 'Task finished',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Color(0xFFE8D9FF),
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(height: 24),
-                Container(
-                  width: 250,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 24,
-                    vertical: 20,
+                if (!alreadyCompleted)
+                  Container(
+                    width: 250,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 20,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.24),
+                          blurRadius: 18,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        _RewardItem(
+                          image: 'assets/images/Sandyk.png',
+                          value: '+1',
+                          size: 64,
+                        ),
+                        _RewardItem(
+                          image: 'assets/images/diamond.png',
+                          value: '+$xp',
+                          size: 62,
+                        ),
+                      ],
+                    ),
                   ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(30),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.24),
-                        blurRadius: 18,
-                        offset: const Offset(0, 8),
+                if (alreadyCompleted)
+                  Container(
+                    width: 280,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 24,
+                    ),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(30),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.24),
+                          blurRadius: 18,
+                          offset: const Offset(0, 8),
+                        ),
+                      ],
+                    ),
+                    child: const Text(
+                      'Task already passed',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: Colors.black,
+                        fontSize: 22,
+                        fontWeight: FontWeight.w900,
                       ),
-                    ],
+                    ),
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      _RewardItem(
-                        image: 'assets/images/Sandyk.png',
-                        value: '+1',
-                        size: 64,
-                      ),
-                      _RewardItem(
-                        image: 'assets/images/diamond.png',
-                        value: '+$xp',
-                        size: 62,
-                      ),
-                    ],
-                  ),
-                ),
                 const Spacer(),
                 SizedBox(
                   width: double.infinity,
