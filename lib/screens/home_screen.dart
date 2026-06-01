@@ -22,7 +22,7 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  static const Color purple = Color(0xFF6F19D9);
+  static const Color purple = Color(0xFF5D0099);
 
   int currentIndex = 0;
   final _auth = AuthService();
@@ -149,8 +149,8 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  static const Color purple = Color(0xFF6F19D9);
-  static const Color darkPurple = Color(0xFF4C0DB0);
+  static const Color purple = Color(0xFF5D0099);
+  static const Color darkPurple = Color(0xFF3D0067);
 
   final _lessonService = LessonService();
   late Future<List<LessonModel>> _futureLessons;
@@ -359,7 +359,7 @@ class _HomePageState extends State<HomePage> {
         top: MediaQuery.of(context).padding.top + 14,
         left: 18,
         right: 18,
-        bottom: 18,
+        bottom: 14,
       ),
       decoration: const BoxDecoration(
         gradient: LinearGradient(
@@ -389,13 +389,13 @@ class _HomePageState extends State<HomePage> {
             icon: const Icon(
               Icons.logout_rounded,
               color: Colors.white,
-              size: 26,
+              size: 15,
             ),
             label: const Text(
               'Выйти',
               style: TextStyle(
                 color: Colors.white,
-                fontSize: 16,
+                fontSize: 15,
                 fontWeight: FontWeight.w800,
               ),
             ),
@@ -661,8 +661,8 @@ class _LessonActionSheet extends StatelessWidget {
     required this.onExerciseTap,
   });
 
-  static const Color purple = Color(0xFF7B1FE0);
-  static const Color darkPurple = Color(0xFF5A0FAE);
+  static const Color purple = Color(0xFF5D0099);
+  static const Color darkPurple = Color(0xFF3D0067);
 
   @override
   Widget build(BuildContext context) {
@@ -860,7 +860,7 @@ class TheoryLessonScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const purple = Color(0xFF6A00FF);
+    const purple = Color(0xFF5D0099);
 
     return Scaffold(
       backgroundColor: const Color(0xFFF6F1FF),
