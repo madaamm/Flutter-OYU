@@ -11,6 +11,8 @@ import 'package:kazakh_learning_app/screens/profile_screen.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:kazakh_learning_app/services/lesson_service.dart';
 import 'package:kazakh_learning_app/screens/exercise_word_order_screen.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
 class HomeScreen extends StatefulWidget {
   final String userName;
@@ -892,13 +894,12 @@ class TheoryLessonScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     const purple = Color(0xFF5D0099);
-
     return Scaffold(
       backgroundColor: const Color(0xFFF6F1FF),
       appBar: AppBar(
         backgroundColor: purple,
         foregroundColor: Colors.white,
-        title: Text(title.isEmpty ? 'Theory Lesson $lessonNumber' : title),
+        title: Text(title.isEmpty ? 'Теория' : title),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -914,36 +915,22 @@ class TheoryLessonScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Level: $level',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w800,
-                      color: purple,
-                    ),
-                  ),
-                  const SizedBox(height: 18),
-                  if (description.isNotEmpty) ...[
-                    Text(
-                      description,
-                      style: const TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black87,
-                        height: 1.5,
-                      ),
-                    ),
-                    const SizedBox(height: 18),
-                  ],
-                  Text(
-                    lectureText.trim().isNotEmpty
-                        ? lectureText
-                        : 'Бұл сабаққа теория әлі қосылмаған',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: Colors.black87,
-                      height: 1.5,
+                  if (level.isNotEmpty)
+                    Text('Level: $level', style: const TextStyle(fontWeight: FontWeight.bold, color: purple)),
+                  const SizedBox(height: 12),
+                  if (description.isNotEmpty)
+                    Text(description, style: const TextStyle(height: 1.5)),
+                  const SizedBox(height: 16),
+                  lectureText.trim().isEmpty
+                      ? const Text('Теория жоқ')
+                      : MarkdownBody(
+                    data: lectureText,
+                    selectable: true,  // чтобы можно было выделять текст
+                    styleSheet: MarkdownStyleSheet(
+                      p: const TextStyle(fontSize: 16, height: 1.5),
+                      h2: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: purple),
+                      h3: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+                      blockquote: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey),
                     ),
                   ),
                 ],
