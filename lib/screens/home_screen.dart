@@ -355,7 +355,7 @@ class _HomePageState extends State<HomePage> {
                               startNumber: start + 1,
                               showBox: groupLessons.length == 6,
                               mascotAsset: isUnlockedGroup
-                                  ? 'assets/images/emblema.png'
+                                  ? 'assets/images/Oyu.png'
                                   : 'assets/images/Oyu_uyktauda.png',
                               isLockedGroup: !isUnlockedGroup,
                               onTapLesson: (lesson, number) {
@@ -955,6 +955,7 @@ class TheoryLessonScreen extends StatelessWidget {
     );
   }
 }
+
 
 
 
