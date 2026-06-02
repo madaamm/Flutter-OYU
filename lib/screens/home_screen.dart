@@ -343,14 +343,21 @@ class _HomePageState extends State<HomePage> {
                             final end = math.min(start + 6, lessons.length);
                             final groupLessons = lessons.sublist(start, end);
 
+                            final isUnlockedGroup =
+                                start == 0 ||
+                                lessons.take(start).every(
+                                  (lesson) => lesson.progressStatus == 'COMPLETED',
+                                );
+
                             return _LessonCircleGroup(
                               base: base,
                               lessons: groupLessons,
                               startNumber: start + 1,
                               showBox: groupLessons.length == 6,
-                              mascotAsset: groupIndex.isOdd
-                                  ? 'assets/images/Oyu_uyktauda.png'
-                                  : 'assets/images/Oyu.png',
+                              mascotAsset: isUnlockedGroup
+                                  ? 'assets/images/emblema.png'
+                                  : 'assets/images/Oyu_uyktauda.png',
+                              isLockedGroup: !isUnlockedGroup,
                               onTapLesson: (lesson, number) {
                                 _openLessonSheet(lesson, number);
                               },
@@ -428,6 +435,7 @@ class _LessonCircleGroup extends StatelessWidget {
   final int startNumber;
   final bool showBox;
   final String mascotAsset;
+  final bool isLockedGroup;
   final void Function(LessonModel lesson, int number) onTapLesson;
 
   const _LessonCircleGroup({
@@ -436,6 +444,7 @@ class _LessonCircleGroup extends StatelessWidget {
     required this.startNumber,
     required this.showBox,
     required this.mascotAsset,
+    required this.isLockedGroup,
     required this.onTapLesson,
   });
 
@@ -527,7 +536,7 @@ class _LessonCircleGroup extends StatelessWidget {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: onTap,
+              onTap: isLockedGroup ? null : onTap,
               borderRadius: BorderRadius.circular(size),
               child: SizedBox(
                 width: size,
@@ -536,7 +545,13 @@ class _LessonCircleGroup extends StatelessWidget {
                   alignment: Alignment.center,
                   children: [
                     Image.asset(
-                      'assets/images/Pink_egg.png',
+                      isLockedGroup
+                          ? 'assets/images/SilverEgg.png'
+                          : lesson.progressStatus == 'COMPLETED'
+                              ? 'assets/images/GoldEgg.png'
+                              : lesson.progressStatus == 'IN_PROGRESS'
+                                  ? 'assets/images/FioGoldEgg.png'
+                                  : 'assets/images/Pink_egg.png',
                       width: size,
                       height: size,
                       fit: BoxFit.contain,
@@ -940,3 +955,7 @@ class TheoryLessonScreen extends StatelessWidget {
     );
   }
 }
+
+
+
+

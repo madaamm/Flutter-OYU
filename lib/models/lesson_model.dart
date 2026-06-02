@@ -6,6 +6,7 @@ class LessonModel {
   final String level;
   final int orderIndex;
   final bool isArchived;
+  final String progressStatus;
 
   LessonModel({
     required this.id,
@@ -15,6 +16,7 @@ class LessonModel {
     required this.level,
     required this.orderIndex,
     required this.isArchived,
+    this.progressStatus = 'NOT_STARTED',
   });
 
   static int _toInt(dynamic value) {
@@ -34,19 +36,23 @@ class LessonModel {
 
   factory LessonModel.fromJson(Map<String, dynamic> json) {
     return LessonModel(
-      id: _toInt(json['id']),
+      id: _toInt(json['id'] ?? json['lessonId'] ?? json['lesson_id']),
       title: (json['title'] ?? '').toString(),
       description: (json['description'] ?? '').toString(),
       lectureText: (json['lectureText'] ??
-          json['lecture_text'] ??
-          json['theory'] ??
-          json['content'] ??
-          json['body'] ??
-          '')
+              json['lecture_text'] ??
+              json['theory'] ??
+              json['content'] ??
+              json['body'] ??
+              '')
           .toString(),
       level: (json['level'] ?? '').toString(),
       orderIndex: _toInt(json['orderIndex'] ?? json['order_index']),
       isArchived: _toBool(json['isArchived'] ?? json['is_archived']),
+      progressStatus: (json['status'] ?? json['progressStatus'] ?? 'NOT_STARTED')
+          .toString()
+          .trim()
+          .toUpperCase(),
     );
   }
 
@@ -59,6 +65,7 @@ class LessonModel {
       'level': level,
       'orderIndex': orderIndex,
       'isArchived': isArchived,
+      'progressStatus': progressStatus,
     };
   }
 
@@ -70,6 +77,7 @@ class LessonModel {
     String? level,
     int? orderIndex,
     bool? isArchived,
+    String? progressStatus,
   }) {
     return LessonModel(
       id: id ?? this.id,
@@ -79,6 +87,7 @@ class LessonModel {
       level: level ?? this.level,
       orderIndex: orderIndex ?? this.orderIndex,
       isArchived: isArchived ?? this.isArchived,
+      progressStatus: progressStatus ?? this.progressStatus,
     );
   }
 }

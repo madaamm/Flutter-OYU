@@ -89,24 +89,49 @@ class LessonService {
   }
 
   Future<List<LessonModel>> getUserLessons() async {
-    final response = await http.get(
-      Uri.parse('$baseUrl/lessons'),
-      headers: await _headers(),
-    );
+    final headers = await _headers();
+    final responses = await Future.wait([
+      http.get(Uri.parse('$baseUrl/lessons'), headers: headers),
+      http.get(Uri.parse('$baseUrl/progress/me'), headers: headers),
+    ]);
 
-    if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw _buildException(response);
+    final lessonsResponse = responses[0];
+    final progressResponse = responses[1];
+
+    if (lessonsResponse.statusCode < 200 || lessonsResponse.statusCode >= 300) {
+      throw _buildException(lessonsResponse);
     }
 
-    final decoded = jsonDecode(response.body);
-    final raw = _extractData(decoded);
+    final lessonsDecoded = jsonDecode(lessonsResponse.body);
+    final lessonsRaw = _extractData(lessonsDecoded);
 
-    if (raw is! List) return <LessonModel>[];
+    if (lessonsRaw is! List) return <LessonModel>[];
 
-    final lessons = raw
+    final progressByLessonId = <int, String>{};
+    if (progressResponse.statusCode >= 200 && progressResponse.statusCode < 300) {
+      final progressDecoded = jsonDecode(progressResponse.body);
+      final progressRaw = _extractData(progressDecoded);
+
+      if (progressRaw is List) {
+        for (final row in progressRaw.whereType<Map<String, dynamic>>()) {
+          final lessonId = int.tryParse('${row['lessonId'] ?? row['id'] ?? row['lesson_id']}');
+          if (lessonId != null) {
+            progressByLessonId[lessonId] =
+                (row['status'] ?? 'NOT_STARTED').toString().trim().toUpperCase();
+          }
+        }
+      }
+    }
+
+    final lessons = lessonsRaw
         .whereType<Map<String, dynamic>>()
         .map(LessonModel.fromJson)
         .where((lesson) => lesson.isArchived == false)
+        .map(
+          (lesson) => lesson.copyWith(
+            progressStatus: progressByLessonId[lesson.id] ?? 'NOT_STARTED',
+          ),
+        )
         .toList()
       ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
 
