@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'speaking_screen.dart';
 import 'reading_screen.dart';
+import 'listening_screen.dart';
 
 class GameZoneScreen extends StatelessWidget {
   const GameZoneScreen({super.key});
@@ -111,6 +112,14 @@ class _GameCard extends StatelessWidget {
         context,
         MaterialPageRoute(
           builder: (_) => const ReadingScreen(),
+        ),
+      );
+    }
+    else if (title == 'Listening') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const ListeningScreen(),
         ),
       );
     }

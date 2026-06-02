@@ -7,6 +7,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 
 import 'moderator_books_screen.dart';
+import 'moderator_audio_books_screen.dart';
 
 
 enum GameCategory { speaking, reading, listening, writing }
@@ -60,6 +61,10 @@ class ModeratorCategoryTasksEntryScreen extends StatelessWidget {
           child: Text('Speaking screen coming soon'),
         ),
       );
+    }
+
+    if (category == GameCategory.listening) {
+      return const ModeratorAudioBooksScreen();
     }
 
     return Scaffold(
