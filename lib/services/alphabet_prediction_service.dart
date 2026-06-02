@@ -83,7 +83,7 @@ class AlphabetPredictionService {
   AlphabetPredictionService._();
 
   static const String _predictUrl =
-      'https://oyuml.onrender.com/api/alphabet/predict-letter';
+      'https://learnkz.kazi.rocks/api/alphabetAudio/predict-letter';
 
   static Future<LetterPredictionResult> predictLetter({
     required int letterId,
