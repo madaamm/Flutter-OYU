@@ -24,7 +24,7 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
 
   Map<String, dynamic>? result;
 
-  final String apiUrl = 'https://oyuml.onrender.com/api/speaking-api/evaluate';
+  final String apiUrl = 'https://learnkz.kazi.rocks/api/speaking-ml/evaluate';
 
   @override
   void dispose() {
