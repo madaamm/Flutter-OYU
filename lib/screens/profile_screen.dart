@@ -24,6 +24,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool loading = true;
   bool savingNick = false;
   bool savingName = false;
+  bool _xpStatsLoading = true;
+  bool _leaderboardLoading = true;
   String? error;
 
   String nickname = '';
@@ -37,6 +39,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final FollowService _follow = FollowService();
   FollowCounts? _counts;
   bool _countsLoading = true;
+  String _xpWindow = 'WEEKLY';
+  int _dailyXp = 0;
+  int _weeklyXp = 0;
+  int _allTimeXp = 0;
+  int _bestDayXp = 0;
+  int _bestWeekXp = 0;
+  int _averagePerActiveDay = 0;
+  String _leaderboardWindow = 'week';
+  List<Map<String, dynamic>> _leaderboardItems = [];
 
   Map<String, dynamic> _safeJsonMap(String body) {
     try {
@@ -62,6 +73,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       loading = true;
       error = null;
       _countsLoading = true;
+      _xpStatsLoading = true;
+      _leaderboardLoading = true;
     });
 
     try {
@@ -106,10 +119,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
         } catch (_) {}
       }
 
+      await _loadXpStats();
+      await _loadLeaderboard();
+
+      final resolvedXp =
+          (me['xp'] ?? 0) is int ? (me['xp'] ?? 0) : int.tryParse('${me['xp']}') ?? 0;
+
       setState(() {
         nickname = finalNick;
         email = (me['email'] ?? me['user']?['email'] ?? '').toString().trim();
-        xp = (me['xp'] ?? 0) is int ? (me['xp'] ?? 0) : int.tryParse('${me['xp']}') ?? 0;
+        xp = resolvedXp;
+        if (_dailyXp == 0 && resolvedXp > 0) {
+          _dailyXp = resolvedXp;
+        }
+        if (_weeklyXp == 0 && resolvedXp > 0) {
+          _weeklyXp = resolvedXp;
+        }
+        if (_allTimeXp < resolvedXp) {
+          _allTimeXp = resolvedXp;
+        }
+        if (_xpWindow == 'ALL_TIME' && _averagePerActiveDay == 0 && resolvedXp > 0) {
+          _averagePerActiveDay = resolvedXp;
+        }
         level = (me['level'] ?? 'A0').toString();
         _counts = c;
         loading = false;
@@ -120,7 +151,207 @@ class _ProfileScreenState extends State<ProfileScreen> {
         error = 'ME error: $e';
         loading = false;
         _countsLoading = false;
+        _xpStatsLoading = false;
+        _leaderboardLoading = false;
       });
+    }
+  }
+
+  Future<void> _loadXpStats() async {
+    final token = await AuthService().getToken();
+    if (token == null || token.isEmpty) {
+      if (mounted) {
+        setState(() => _xpStatsLoading = false);
+      }
+      return;
+    }
+
+    try {
+      final res = await http.get(
+        Uri.parse('${AuthService.baseUrl}/progress/xp-stats'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (res.statusCode != 200) {
+        if (mounted) {
+          setState(() => _xpStatsLoading = false);
+        }
+        return;
+      }
+
+      final decoded = _safeJsonMap(res.body);
+      if (!mounted) return;
+
+      int toInt(dynamic value) {
+        if (value is int) return value;
+        return int.tryParse('$value') ?? 0;
+      }
+
+      setState(() {
+        _dailyXp = toInt(decoded['dailyXp']);
+        _weeklyXp = toInt(decoded['weeklyXp']);
+        _allTimeXp = toInt(decoded['allTimeXp']);
+        _bestDayXp = toInt(decoded['bestDayXp']);
+        _bestWeekXp = toInt(decoded['bestWeekXp']);
+        _averagePerActiveDay = toInt(decoded['averagePerActiveDay']);
+        _xpStatsLoading = false;
+      });
+    } catch (_) {
+      if (mounted) {
+        setState(() => _xpStatsLoading = false);
+      }
+    }
+  }
+
+  Future<void> _loadLeaderboard() async {
+    try {
+      final token = await AuthService().getToken();
+      if (token == null || token.isEmpty) {
+        if (mounted) {
+          setState(() => _leaderboardLoading = false);
+        }
+        return;
+      }
+
+      final res = await http.get(
+        Uri.parse('${AuthService.baseUrl}/leaderboard?limit=50&period=$_leaderboardWindow'),
+        headers: {'Authorization': 'Bearer $token'},
+      );
+
+      if (res.statusCode != 200) {
+        if (mounted) {
+          setState(() => _leaderboardLoading = false);
+        }
+        return;
+      }
+
+      final decoded = jsonDecode(res.body);
+      if (!mounted) return;
+
+      if (decoded is List) {
+        final periodItems = decoded
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+
+        final allTimeRes = await http.get(
+          Uri.parse('${AuthService.baseUrl}/leaderboard?limit=50&period=all'),
+          headers: {'Authorization': 'Bearer $token'},
+        );
+
+        List<Map<String, dynamic>> allTimeItems = [];
+        if (allTimeRes.statusCode == 200) {
+          final allTimeDecoded = jsonDecode(allTimeRes.body);
+          if (allTimeDecoded is List) {
+            allTimeItems = allTimeDecoded
+                .whereType<Map>()
+                .map((e) => Map<String, dynamic>.from(e))
+                .toList();
+          }
+        }
+
+        final topThree = <Map<String, dynamic>>[];
+        for (final item in periodItems) {
+          if (topThree.length == 3) break;
+          topThree.add(item);
+        }
+        for (final item in allTimeItems) {
+          if (topThree.length == 3) break;
+          final exists = topThree.any((row) => '${row['id']}' == '${item['id']}');
+          if (!exists) {
+            topThree.add({
+              ...item,
+              'periodXp': 0,
+            });
+          }
+        }
+
+        final currentUser = periodItems.cast<Map<String, dynamic>?>().firstWhere(
+              (item) {
+                final rowUserId = item?['id'] is int
+                    ? item!['id'] as int
+                    : int.tryParse('${item?['id']}') ?? 0;
+                return rowUserId == userId;
+              },
+              orElse: () => null,
+            );
+
+        final fallbackCurrentUser = currentUser ??
+            allTimeItems.cast<Map<String, dynamic>?>().firstWhere(
+              (item) {
+                final rowUserId = item?['id'] is int
+                    ? item!['id'] as int
+                    : int.tryParse('${item?['id']}') ?? 0;
+                return rowUserId == userId;
+              },
+              orElse: () => null,
+            );
+
+        final displayItems = <Map<String, dynamic>>[...topThree];
+        if (fallbackCurrentUser != null &&
+            !displayItems.any((item) => '${item['id']}' == '${fallbackCurrentUser['id']}')) {
+          displayItems.add({
+            ...fallbackCurrentUser,
+            'periodXp': currentUser?['periodXp'] ?? 0,
+          });
+        }
+
+        final normalizedItems = displayItems.map((item) {
+          final totalXp = item['xp'] is int ? item['xp'] as int : int.tryParse('${item['xp']}') ?? 0;
+          final rawPeriodXp = item['periodXp'] is int
+              ? item['periodXp'] as int
+              : int.tryParse('${item['periodXp']}') ?? 0;
+          return {
+            ...item,
+            'periodXp': rawPeriodXp > totalXp ? totalXp : rawPeriodXp,
+          };
+        }).toList();
+
+        if (_leaderboardWindow == 'week' || _leaderboardWindow == 'month') {
+          normalizedItems.sort((a, b) {
+            final aPoints = a['periodXp'] is int ? a['periodXp'] as int : int.tryParse('${a['periodXp']}') ?? 0;
+            final bPoints = b['periodXp'] is int ? b['periodXp'] as int : int.tryParse('${b['periodXp']}') ?? 0;
+            if (bPoints != aPoints) return bPoints - aPoints;
+            final aRank = a['rank'] is int ? a['rank'] as int : int.tryParse('${a['rank']}') ?? 9999;
+            final bRank = b['rank'] is int ? b['rank'] as int : int.tryParse('${b['rank']}') ?? 9999;
+            return aRank - bRank;
+          });
+        }
+
+        setState(() {
+          _leaderboardItems = normalizedItems;
+          _leaderboardLoading = false;
+        });
+        return;
+      }
+
+      setState(() => _leaderboardLoading = false);
+    } catch (_) {
+      if (mounted) {
+        setState(() => _leaderboardLoading = false);
+      }
+    }
+  }
+
+  String get _xpPrimaryLabel {
+    switch (_xpWindow) {
+      case 'DAILY':
+        return 'Today';
+      case 'ALL_TIME':
+        return 'Total';
+      default:
+        return 'This week';
+    }
+  }
+
+  int get _xpPrimaryValue {
+    switch (_xpWindow) {
+      case 'DAILY':
+        return _dailyXp;
+      case 'ALL_TIME':
+        return _allTimeXp > 0 ? _allTimeXp : xp;
+      default:
+        return _weeklyXp;
     }
   }
 
@@ -631,7 +862,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      'Your Lessons Progress',
+                      'Your XP Progress',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
@@ -639,33 +870,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(99),
-                      child: LinearProgressIndicator(
-                        value: progress,
-                        minHeight: 10,
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3EFEA),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(child: _xpSwitchChip(label: 'Daily', value: 'DAILY')),
+                          Expanded(child: _xpSwitchChip(label: 'Weekly', value: 'WEEKLY')),
+                          Expanded(
+                            child: _xpSwitchChip(label: 'All time', value: 'ALL_TIME'),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          '$xp xp done',
-                          style: const TextStyle(
-                            color: Colors.black54,
-                            fontWeight: FontWeight.w600,
-                          ),
+                    const SizedBox(height: 22),
+                    if (_xpStatsLoading)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 16),
+                          child: CircularProgressIndicator(color: purple),
                         ),
-                        const Text(
-                          'Goal 1000',
-                          style: TextStyle(
-                            color: Colors.black54,
-                            fontWeight: FontWeight.w600,
+                      )
+                    else
+                      Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _xpPrimaryLabel,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              color: Color(0xFF928688),
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
-                        ),
-                      ],
-                    ),
+                          const SizedBox(height: 8),
+                          Row(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                '$_xpPrimaryValue',
+                                style: const TextStyle(
+                                  fontSize: 42,
+                                  height: 1,
+                                  color: Colors.black,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              const Padding(
+                                padding: EdgeInsets.only(bottom: 5),
+                                child: Text(
+                                  'XP',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    color: Color(0xFFB4A9AA),
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
                     const SizedBox(height: 18),
                     Row(
                       children: [
@@ -702,6 +970,220 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       ],
                     ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 18),
+              Container(
+                padding: const EdgeInsets.all(18),
+                decoration: BoxDecoration(
+                  color: card,
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: const [
+                    BoxShadow(
+                      color: Color(0x10000000),
+                      blurRadius: 14,
+                      offset: Offset(0, 8),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.public_rounded, color: purple),
+                        const SizedBox(width: 10),
+                        const Expanded(
+                          child: Text(
+                            'World Records',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w900,
+                              color: Color(0xFF2F2034),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF3EFEA),
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: _leaderboardSwitchChip(
+                              label: 'Week',
+                              value: 'week',
+                            ),
+                          ),
+                          Expanded(
+                            child: _leaderboardSwitchChip(
+                              label: 'Month',
+                              value: 'month',
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    if (_leaderboardLoading)
+                      const Center(
+                        child: Padding(
+                          padding: EdgeInsets.symmetric(vertical: 18),
+                          child: CircularProgressIndicator(color: purple),
+                        ),
+                      )
+                    else if (_leaderboardItems.isEmpty)
+                      const Padding(
+                        padding: EdgeInsets.symmetric(vertical: 12),
+                        child: Center(
+                          child: Text(
+                            'No leaderboard data yet',
+                            style: TextStyle(
+                              color: Colors.black54,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      )
+                    else
+                      Container(
+                        clipBehavior: Clip.antiAlias,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF8F4FF),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFE4CEF9)),
+                        ),
+                        child: Column(
+                          children: List.generate(_leaderboardItems.length, (index) {
+                            final item = _leaderboardItems[index];
+                            final rowUserId = item['id'] is int
+                                ? item['id'] as int
+                                : int.tryParse('${item['id']}') ?? 0;
+                            final isCurrentUser = rowUserId == userId;
+                            final displayName =
+                                (item['username'] ?? 'User').toString().trim();
+                            final points = item['periodXp'] ?? item['xp'] ?? 0;
+                            final rank = item['rank'] ?? (index + 1);
+                            final medal = index == 0
+                                ? const Color(0xFFFFB800)
+                                : index == 1
+                                    ? const Color(0xFFB7BEC8)
+                                    : index == 2
+                                        ? const Color(0xFFC76A00)
+                                        : const Color(0xFF8E5BFF);
+
+                            return Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 14,
+                              ),
+                              decoration: BoxDecoration(
+                                color: isCurrentUser
+                                    ? const Color(0xFFF0E5FF)
+                                    : Colors.transparent,
+                                border: index == _leaderboardItems.length - 1
+                                    ? null
+                                    : const Border(
+                                        bottom: BorderSide(
+                                          color: Color(0xFFEADCF6),
+                                        ),
+                                      ),
+                              ),
+                              child: Row(
+                                children: [
+                                  SizedBox(
+                                    width: 40,
+                                    child: index < 3
+                                        ? Icon(
+                                            Icons.workspace_premium_outlined,
+                                            color: medal,
+                                            size: 24,
+                                          )
+                                        : Text(
+                                            '#$rank',
+                                            style: const TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w800,
+                                              color: Color(0xFF4A4150),
+                                            ),
+                                          ),
+                                  ),
+                                  Container(
+                                    width: 44,
+                                    height: 44,
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFFE8D8FF),
+                                      borderRadius: BorderRadius.circular(999),
+                                    ),
+                                    child: Center(
+                                      child: Text(
+                                        displayName.isNotEmpty
+                                            ? displayName.substring(0, 1).toUpperCase()
+                                            : '?',
+                                        style: const TextStyle(
+                                          color: purple,
+                                          fontWeight: FontWeight.w900,
+                                          fontSize: 18,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          isCurrentUser ? 'You ($displayName)' : displayName,
+                                          style: const TextStyle(
+                                            fontSize: 18,
+                                            fontWeight: FontWeight.w700,
+                                            color: Color(0xFF2F2034),
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          (item['level'] ?? 'KZ').toString(),
+                                          style: const TextStyle(
+                                            color: Color(0xFF7A7091),
+                                            fontWeight: FontWeight.w500,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Column(
+                                    crossAxisAlignment: CrossAxisAlignment.end,
+                                    children: [
+                                      Text(
+                                        '$points',
+                                        style: const TextStyle(
+                                          color: purple,
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w900,
+                                        ),
+                                      ),
+                                      const Text(
+                                        'points',
+                                        style: TextStyle(
+                                          color: Color(0xFF7A7091),
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          }),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -787,6 +1269,89 @@ class _ProfileScreenState extends State<ProfileScreen> {
         style: TextStyle(
           color: filled ? Colors.white : const Color(0xFF222222),
           fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+
+  Widget _xpSwitchChip({
+    required String label,
+    required String value,
+  }) {
+    final selected = _xpWindow == value;
+
+    return InkWell(
+      onTap: () => setState(() => _xpWindow = value),
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: selected
+              ? const [
+                  BoxShadow(
+                    color: Color(0x16000000),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: selected ? const Color(0xFF1D1D1D) : const Color(0xFF5F5758),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _leaderboardSwitchChip({
+    required String label,
+    required String value,
+  }) {
+    final selected = _leaderboardWindow == value;
+
+    return InkWell(
+      onTap: () {
+        if (_leaderboardWindow == value) return;
+        setState(() {
+          _leaderboardWindow = value;
+          _leaderboardLoading = true;
+        });
+        _loadLeaderboard();
+      },
+      borderRadius: BorderRadius.circular(999),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? Colors.white : Colors.transparent,
+          borderRadius: BorderRadius.circular(999),
+          boxShadow: selected
+              ? const [
+                  BoxShadow(
+                    color: Color(0x16000000),
+                    blurRadius: 10,
+                    offset: Offset(0, 4),
+                  ),
+                ]
+              : null,
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 15,
+            fontWeight: FontWeight.w800,
+            color: selected ? const Color(0xFF1D1D1D) : const Color(0xFF5F5758),
+          ),
         ),
       ),
     );
