@@ -95,29 +95,38 @@ class _ModeratorAudioBooksScreenState extends State<ModeratorAudioBooksScreen> {
   }
 
   Future<void> addAudioBook({
-    required PlatformFile file,
+    PlatformFile? file,
     required String title,
     required String author,
     required String genre,
     required String level,
+    String? externalUrl,
   }) async {
     setState(() => loading = true);
 
     try {
       final request = http.MultipartRequest('POST', Uri.parse(apiUrl));
       request.headers.addAll(await _authHeaders());
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          file.bytes!,
-          filename: file.name,
-        ),
-      );
+
+      if (file != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'file',
+            file.bytes!,
+            filename: file.name,
+          ),
+        );
+      }
+
       request.fields['title'] = title;
       request.fields['author'] = author;
       request.fields['genre'] = genre;
       request.fields['level'] = level;
-      request.fields['format'] = _inferFormat(file.name);
+      request.fields['format'] = file != null ? _inferFormat(file.name) : 'mp3';
+
+      if (externalUrl != null && externalUrl.trim().isNotEmpty) {
+        request.fields['externalUrl'] = externalUrl.trim();
+      }
 
       final streamed = await request.send();
       final response = await http.Response.fromStream(streamed);
@@ -157,6 +166,7 @@ class _ModeratorAudioBooksScreenState extends State<ModeratorAudioBooksScreen> {
     required String author,
     required String genre,
     required String level,
+    String? externalUrl,
   }) async {
     setState(() => loading = true);
 
@@ -169,6 +179,7 @@ class _ModeratorAudioBooksScreenState extends State<ModeratorAudioBooksScreen> {
           'author': author,
           'genre': genre,
           'level': level,
+          'externalUrl': externalUrl?.trim(),
         }),
       );
 
@@ -208,9 +219,7 @@ class _ModeratorAudioBooksScreenState extends State<ModeratorAudioBooksScreen> {
         if (decoded is Map && decoded['message'] != null) {
           message = decoded['message'].toString();
         }
-      } catch (_) {
-        // Keep raw body if it is not JSON.
-      }
+      } catch (_) {}
     }
 
     if (message.length > 220) {
@@ -234,6 +243,7 @@ class _ModeratorAudioBooksScreenState extends State<ModeratorAudioBooksScreen> {
   void openAddAudioBookSheet() {
     final titleController = TextEditingController();
     final authorController = TextEditingController();
+    final externalUrlController = TextEditingController();
     PlatformFile? selectedFile;
     String? fileName;
     String selectedGenre = genres.first;
@@ -279,6 +289,11 @@ class _ModeratorAudioBooksScreenState extends State<ModeratorAudioBooksScreen> {
                     const SizedBox(height: 12),
                     _Input(controller: authorController, hint: 'Author'),
                     const SizedBox(height: 12),
+                    _Input(
+                      controller: externalUrlController,
+                      hint: 'External audio URL (optional)',
+                    ),
+                    const SizedBox(height: 12),
                     _DropdownField<String>(
                       label: 'Genre',
                       value: selectedGenre,
@@ -323,7 +338,7 @@ class _ModeratorAudioBooksScreenState extends State<ModeratorAudioBooksScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                fileName ?? 'Choose audio file',
+                                fileName ?? 'Choose audio file (or use link above)',
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontSize: 16,
@@ -343,22 +358,31 @@ class _ModeratorAudioBooksScreenState extends State<ModeratorAudioBooksScreen> {
                         onPressed: () {
                           final title = titleController.text.trim();
                           final author = authorController.text.trim();
-                          if (title.isEmpty || author.isEmpty || selectedFile == null) {
-                            showMessage('Fill all fields and choose a file');
+                          final externalUrl = externalUrlController.text.trim();
+
+                          if (title.isEmpty || author.isEmpty) {
+                            showMessage('Fill title and author');
                             return;
                           }
 
-                          if (selectedFile!.bytes == null) {
+                          if (selectedFile == null && externalUrl.isEmpty) {
+                            showMessage('Choose a file or enter an external audio URL');
+                            return;
+                          }
+
+                          if (selectedFile != null && selectedFile!.bytes == null) {
                             showMessage('File bytes not found. Pick the file again.');
                             return;
                           }
+
                           Navigator.pop(context);
                           addAudioBook(
-                            file: selectedFile!,
+                            file: selectedFile,
                             title: title,
                             author: author,
                             genre: selectedGenre,
                             level: selectedLevel,
+                            externalUrl: externalUrl,
                           );
                         },
                         style: ElevatedButton.styleFrom(
@@ -368,7 +392,7 @@ class _ModeratorAudioBooksScreenState extends State<ModeratorAudioBooksScreen> {
                           ),
                         ),
                         child: const Text(
-                          'Upload audio book',
+                          'Save audio book',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -391,6 +415,7 @@ class _ModeratorAudioBooksScreenState extends State<ModeratorAudioBooksScreen> {
     final id = '${book['id'] ?? ''}';
     final titleController = TextEditingController(text: '${book['title'] ?? ''}');
     final authorController = TextEditingController(text: '${book['author'] ?? ''}');
+    final externalUrlController = TextEditingController(text: '${book['externalUrl'] ?? ''}');
     final rawGenre =
         ('${book['genre'] ?? 'General'}'.trim().isEmpty ? 'General' : '${book['genre']}');
     final rawLevel = '${book['level'] ?? 'A0'}';
@@ -437,6 +462,11 @@ class _ModeratorAudioBooksScreenState extends State<ModeratorAudioBooksScreen> {
                     const SizedBox(height: 12),
                     _Input(controller: authorController, hint: 'Author'),
                     const SizedBox(height: 12),
+                    _Input(
+                      controller: externalUrlController,
+                      hint: 'External audio URL (optional)',
+                    ),
+                    const SizedBox(height: 12),
                     _DropdownField<String>(
                       label: 'Genre',
                       value: selectedGenre,
@@ -473,6 +503,7 @@ class _ModeratorAudioBooksScreenState extends State<ModeratorAudioBooksScreen> {
                             author: author,
                             genre: selectedGenre,
                             level: selectedLevel,
+                            externalUrl: externalUrlController.text.trim(),
                           );
                         },
                         style: ElevatedButton.styleFrom(
@@ -622,6 +653,7 @@ class _AudioAdminCard extends StatelessWidget {
         ? 'General'
         : '${book['genre']}';
     final level = '${book['level'] ?? 'A0'}';
+    final hasExternalUrl = '${book['externalUrl'] ?? ''}'.trim().isNotEmpty;
 
     return Container(
       width: 170,
@@ -681,6 +713,7 @@ class _AudioAdminCard extends StatelessWidget {
             children: [
               _SmallAudioTag(label: genre),
               _SmallAudioTag(label: level),
+              _SmallAudioTag(label: hasExternalUrl ? 'Link' : 'File'),
             ],
           ),
         ],

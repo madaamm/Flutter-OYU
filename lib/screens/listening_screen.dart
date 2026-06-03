@@ -239,8 +239,9 @@ class _ListeningDetailsScreenState extends State<ListeningDetailsScreen> {
   bool _loading = false;
   bool _isPlaying = false;
 
-  String get _streamUrl =>
-      '${AuthService.baseUrl}/audio-books/${widget.book.id}/file?disposition=inline';
+  String get _streamUrl => widget.book.hasExternalUrl
+      ? widget.book.externalUrl
+      : '${AuthService.baseUrl}/audio-books/${widget.book.id}/file?disposition=inline';
 
   List<AudioBookModel> get relatedBooks {
     return widget.allBooks
@@ -829,7 +830,7 @@ class _Blob extends StatelessWidget {
         borderRadius: BorderRadius.circular(height),
         boxShadow: [
           BoxShadow(
-            color: color.withOpacity(0.34),
+            color: color.withValues(alpha: 0.34),
             blurRadius: 14,
             spreadRadius: 4,
           ),
@@ -1032,3 +1033,8 @@ class _ListeningError extends StatelessWidget {
     );
   }
 }
+
+
+
+
+

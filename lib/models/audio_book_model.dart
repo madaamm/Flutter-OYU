@@ -1,4 +1,4 @@
-class AudioBookModel {
+﻿class AudioBookModel {
   final int id;
   final String title;
   final String author;
@@ -6,6 +6,7 @@ class AudioBookModel {
   final String genre;
   final String level;
   final String fileUrl;
+  final String externalUrl;
 
   const AudioBookModel({
     required this.id,
@@ -15,7 +16,10 @@ class AudioBookModel {
     required this.genre,
     required this.level,
     required this.fileUrl,
+    required this.externalUrl,
   });
+
+  bool get hasExternalUrl => externalUrl.trim().isNotEmpty;
 
   factory AudioBookModel.fromJson(Map<String, dynamic> json) {
     int toInt(dynamic value, {int fallback = 0}) {
@@ -33,6 +37,7 @@ class AudioBookModel {
           : (json['genre'] ?? 'General').toString().trim(),
       level: (json['level'] ?? 'A0').toString().trim().toUpperCase(),
       fileUrl: (json['fileUrl'] ?? '').toString().trim(),
+      externalUrl: (json['externalUrl'] ?? '').toString().trim(),
     );
   }
 }
