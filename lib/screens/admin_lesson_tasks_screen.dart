@@ -1,7 +1,9 @@
+﻿import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:kazakh_learning_app/models/lesson_model.dart';
 import 'package:kazakh_learning_app/models/task_model.dart';
-import 'package:kazakh_learning_app/services/admin_task_service.dart';
+
+import '../services/admin_task_service.dart';
 
 class AdminLessonTasksScreen extends StatefulWidget {
   final LessonModel lesson;
@@ -45,7 +47,7 @@ class _AdminLessonTasksScreenState extends State<AdminLessonTasksScreen> {
       await _reload();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Тапсырма қосылды')),
+        const SnackBar(content: Text('Task added')),
       );
     }
   }
@@ -63,7 +65,7 @@ class _AdminLessonTasksScreenState extends State<AdminLessonTasksScreen> {
       await _reload();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Тапсырма жаңартылды')),
+        const SnackBar(content: Text('Task updated')),
       );
     }
   }
@@ -74,23 +76,18 @@ class _AdminLessonTasksScreenState extends State<AdminLessonTasksScreen> {
         taskId: task.id,
         isArchived: !task.isArchived,
       );
-
       await _reload();
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            task.isArchived
-                ? 'Тапсырма разархивирован'
-                : 'Тапсырма архивке жіберілді',
-          ),
+          content: Text(task.isArchived ? 'Task unarchived' : 'Task archived'),
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Қате: $e')),
+        SnackBar(content: Text('Error: $e')),
       );
     }
   }
@@ -128,17 +125,14 @@ class _AdminLessonTasksScreenState extends State<AdminLessonTasksScreen> {
                       backgroundColor: Colors.white,
                       foregroundColor: purple,
                       elevation: 0,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 18,
-                        vertical: 14,
-                      ),
+                      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(18),
                       ),
                     ),
                     icon: const Icon(Icons.add_rounded),
                     label: const Text(
-                      'Добавить',
+                      'Add',
                       style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
@@ -176,14 +170,10 @@ class _AdminLessonTasksScreenState extends State<AdminLessonTasksScreen> {
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      const Icon(
-                                        Icons.cloud_off_rounded,
-                                        size: 58,
-                                        color: Colors.grey,
-                                      ),
+                                      const Icon(Icons.cloud_off_rounded, size: 58, color: Colors.grey),
                                       const SizedBox(height: 14),
                                       const Text(
-                                        'Тапсырмалар жүктелмеді',
+                                        'Tasks failed to load',
                                         style: TextStyle(
                                           fontSize: 22,
                                           fontWeight: FontWeight.w800,
@@ -194,8 +184,7 @@ class _AdminLessonTasksScreenState extends State<AdminLessonTasksScreen> {
                                       Text(
                                         '${snapshot.error}',
                                         textAlign: TextAlign.center,
-                                        style:
-                                        const TextStyle(color: Colors.grey),
+                                        style: const TextStyle(color: Colors.grey),
                                       ),
                                     ],
                                   ),
@@ -216,7 +205,7 @@ class _AdminLessonTasksScreenState extends State<AdminLessonTasksScreen> {
                               height: 600,
                               child: Center(
                                 child: Text(
-                                  'Әзірге тапсырма жоқ',
+                                  'No tasks yet',
                                   style: TextStyle(
                                     fontSize: 22,
                                     fontWeight: FontWeight.w800,
@@ -273,10 +262,8 @@ class _TaskCard extends StatelessWidget {
       case 'AUDIO_DICTATION':
         return task.audioText.isNotEmpty ? task.audioText : 'Audio dictation';
       case 'AUDIO_TRANSLATE':
-        return task.translateText.isNotEmpty
-            ? task.translateText
-            : 'Audio translate';
-      case 'WORD_О':
+        return task.translateText.isNotEmpty ? task.translateText : 'Audio translate';
+      case 'WORD_MATCH':
         return task.matchingPairs.isNotEmpty
             ? '${task.matchingPairs.length} matching pairs'
             : 'Word match';
@@ -329,9 +316,7 @@ class _TaskCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: task.isArchived
-                ? const Color(0xFFD3D3D3)
-                : const Color(0xFFE7D8FF),
+            color: task.isArchived ? const Color(0xFFD3D3D3) : const Color(0xFFE7D8FF),
           ),
         ),
         child: Row(
@@ -342,15 +327,9 @@ class _TaskCard extends StatelessWidget {
               height: 58,
               decoration: const BoxDecoration(
                 shape: BoxShape.circle,
-                gradient: LinearGradient(
-                  colors: [Color(0xFF8E2BFF), Color(0xFF4E0497)],
-                ),
+                gradient: LinearGradient(colors: [Color(0xFF8E2BFF), Color(0xFF4E0497)]),
               ),
-              child: Icon(
-                _icon,
-                color: Colors.white,
-                size: 30,
-              ),
+              child: Icon(_icon, color: Colors.white, size: 30),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -369,11 +348,8 @@ class _TaskCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    '${task.promptLang} → ${task.targetLang}',
-                    style: const TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey,
-                    ),
+                    '${task.promptLang} -> ${task.targetLang}',
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
                   ),
                   const SizedBox(height: 8),
                   Wrap(
@@ -395,14 +371,8 @@ class _TaskCard extends StatelessWidget {
                 if (value == 'archive') onArchive();
               },
               itemBuilder: (_) => const [
-                PopupMenuItem(
-                  value: 'edit',
-                  child: Text('Өзгерту'),
-                ),
-                PopupMenuItem(
-                  value: 'archive',
-                  child: Text('Архивировать'),
-                ),
+                PopupMenuItem(value: 'edit', child: Text('Edit')),
+                PopupMenuItem(value: 'archive', child: Text('Archive')),
               ],
             ),
           ],
@@ -475,6 +445,7 @@ class _TaskDialogState extends State<_TaskDialog> {
   String _promptLang = 'RU';
   String _targetLang = 'KZ';
   bool _saving = false;
+  bool _uploadingAudio = false;
 
   bool get isEdit => widget.task != null;
 
@@ -483,34 +454,21 @@ class _TaskDialogState extends State<_TaskDialog> {
     super.initState();
 
     final task = widget.task;
-
     _type = task?.type.isNotEmpty == true ? task!.type : sentenceBuild;
     _promptLang = task?.promptLang.isNotEmpty == true ? task!.promptLang : 'RU';
     _targetLang = task?.targetLang.isNotEmpty == true ? task!.targetLang : 'KZ';
 
     _promptTextController = TextEditingController(text: task?.promptText ?? '');
-    _optionsWordsController = TextEditingController(
-      text: task?.optionsWords.join(', ') ?? '',
-    );
-    _correctWordsController = TextEditingController(
-      text: task?.correctWords.join(', ') ?? '',
-    );
+    _optionsWordsController = TextEditingController(text: task?.optionsWords.join(', ') ?? '');
+    _correctWordsController = TextEditingController(text: task?.correctWords.join(', ') ?? '');
     _audioUrlController = TextEditingController(text: task?.audioUrl ?? '');
     _audioTextController = TextEditingController(text: task?.audioText ?? '');
-    _translateTextController = TextEditingController(
-      text: task?.translateText ?? '',
-    );
+    _translateTextController = TextEditingController(text: task?.translateText ?? '');
     _matchingPairsController = TextEditingController(
-      text: task == null
-          ? ''
-          : task.matchingPairs.map((e) => '${e.left}|${e.right}').join('\n'),
+      text: task == null ? '' : task.matchingPairs.map((e) => '${e.left}|${e.right}').join('\n'),
     );
-    _xpRewardController = TextEditingController(
-      text: (task?.xpReward ?? 10).toString(),
-    );
-    _orderIndexController = TextEditingController(
-      text: (task?.orderIndex ?? 1).toString(),
-    );
+    _xpRewardController = TextEditingController(text: (task?.xpReward ?? 10).toString());
+    _orderIndexController = TextEditingController(text: (task?.orderIndex ?? 1).toString());
   }
 
   @override
@@ -548,10 +506,10 @@ class _TaskDialogState extends State<_TaskDialog> {
       final separator = line.contains('|')
           ? '|'
           : line.contains('=')
-          ? '='
-          : line.contains(':')
-          ? ':'
-          : null;
+              ? '='
+              : line.contains(':')
+                  ? ':'
+                  : null;
 
       if (separator == null) continue;
 
@@ -588,9 +546,49 @@ class _TaskDialogState extends State<_TaskDialog> {
   String? _matchingPairsValidator(String? value) {
     final pairs = _parseMatchingPairs(value ?? '');
     if (pairs.isEmpty) {
-      return 'Matching pairs енгіз: кот|мысық';
+      return 'Enter matching pairs like: cat|мысық';
     }
     return null;
+  }
+
+  Future<void> _pickAndUploadAudio() async {
+    try {
+      final picked = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['mp3', 'm4a', 'wav', 'ogg', 'flac', 'aac'],
+        withData: true,
+      );
+
+      if (picked == null) return;
+      final file = picked.files.single;
+
+      if (file.bytes == null) {
+        throw Exception('Audio file bytes not found. Pick the file again.');
+      }
+
+      setState(() => _uploadingAudio = true);
+      final audioUrl = await _service.uploadTaskAudio(
+        file: file,
+        title: _promptTextController.text.trim().isNotEmpty
+            ? _promptTextController.text.trim()
+            : _audioTextController.text.trim().isNotEmpty
+                ? _audioTextController.text.trim()
+                : _translateTextController.text.trim(),
+      );
+      _audioUrlController.text = audioUrl;
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Audio file uploaded successfully')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Audio upload error: $e')),
+      );
+    } finally {
+      if (mounted) setState(() => _uploadingAudio = false);
+    }
   }
 
   Future<void> _submit() async {
@@ -668,7 +666,7 @@ class _TaskDialogState extends State<_TaskDialog> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Қате: $e')),
+        SnackBar(content: Text('Error: $e')),
       );
     } finally {
       if (mounted) {
@@ -690,7 +688,7 @@ class _TaskDialogState extends State<_TaskDialog> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
-                  isEdit ? 'Тапсырманы өзгерту' : 'Жаңа тапсырма қосу',
+                  isEdit ? 'Edit task' : 'Add new task',
                   style: const TextStyle(
                     fontSize: 22,
                     fontWeight: FontWeight.w800,
@@ -699,25 +697,13 @@ class _TaskDialogState extends State<_TaskDialog> {
                 ),
                 const SizedBox(height: 18),
                 DropdownButtonFormField<String>(
-                  value: _type,
+                  initialValue: _type,
                   decoration: _decoration('Task type'),
                   items: const [
-                    DropdownMenuItem(
-                      value: sentenceBuild,
-                      child: Text('Sentence build'),
-                    ),
-                    DropdownMenuItem(
-                      value: audioDictation,
-                      child: Text('Audio dictation'),
-                    ),
-                    DropdownMenuItem(
-                      value: audioTranslate,
-                      child: Text('Audio translate'),
-                    ),
-                    DropdownMenuItem(
-                      value: wordMatch,
-                      child: Text('Word match'),
-                    ),
+                    DropdownMenuItem(value: sentenceBuild, child: Text('Sentence build')),
+                    DropdownMenuItem(value: audioDictation, child: Text('Audio dictation')),
+                    DropdownMenuItem(value: audioTranslate, child: Text('Audio translate')),
+                    DropdownMenuItem(value: wordMatch, child: Text('Word match')),
                   ],
                   onChanged: (v) {
                     if (v != null) setState(() => _type = v);
@@ -725,7 +711,7 @@ class _TaskDialogState extends State<_TaskDialog> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _promptLang,
+                  initialValue: _promptLang,
                   decoration: _decoration('Prompt language'),
                   items: const [
                     DropdownMenuItem(value: 'RU', child: Text('RU')),
@@ -738,7 +724,7 @@ class _TaskDialogState extends State<_TaskDialog> {
                 ),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: _targetLang,
+                  initialValue: _targetLang,
                   decoration: _decoration('Target language'),
                   items: const [
                     DropdownMenuItem(value: 'KZ', child: Text('KZ')),
@@ -750,81 +736,100 @@ class _TaskDialogState extends State<_TaskDialog> {
                   },
                 ),
                 const SizedBox(height: 12),
-
                 if (_type == sentenceBuild) ...[
                   TextFormField(
                     controller: _promptTextController,
                     decoration: _decoration('Prompt text'),
-                    validator: (v) =>
-                        _requiredTextValidator(v, 'Prompt text енгіз'),
+                    validator: (v) => _requiredTextValidator(v, 'Enter prompt text'),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _optionsWordsController,
                     maxLines: 3,
-                    decoration: _decoration('Options words (comma арқылы)'),
-                    validator: (v) => _wordsValidator(v, 'Options енгіз'),
+                    decoration: _decoration('Options words (comma separated)'),
+                    validator: (v) => _wordsValidator(v, 'Enter options'),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _correctWordsController,
                     maxLines: 2,
-                    decoration: _decoration('Correct words (comma арқылы)'),
-                    validator: (v) => _wordsValidator(v, 'Correct words енгіз'),
+                    decoration: _decoration('Correct words (comma separated)'),
+                    validator: (v) => _wordsValidator(v, 'Enter correct words'),
                   ),
                   const SizedBox(height: 12),
                 ],
-
                 if (_type == audioDictation) ...[
                   TextFormField(
                     controller: _audioUrlController,
                     decoration: _decoration('Audio URL'),
-                    validator: (v) =>
-                        _requiredTextValidator(v, 'Audio URL енгіз'),
+                    validator: (v) => _requiredTextValidator(v, 'Enter audio URL'),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _uploadingAudio ? null : _pickAndUploadAudio,
+                      icon: _uploadingAudio
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.audiotrack_rounded),
+                      label: Text(_uploadingAudio ? 'Uploading audio...' : 'Choose audio file'),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _audioTextController,
                     maxLines: 3,
                     decoration: _decoration('Audio text'),
-                    validator: (v) =>
-                        _requiredTextValidator(v, 'Audio text енгіз'),
+                    validator: (v) => _requiredTextValidator(v, 'Enter audio text'),
                   ),
                   const SizedBox(height: 12),
                 ],
-
                 if (_type == audioTranslate) ...[
                   TextFormField(
                     controller: _audioUrlController,
                     decoration: _decoration('Audio URL'),
-                    validator: (v) =>
-                        _requiredTextValidator(v, 'Audio URL енгіз'),
+                    validator: (v) => _requiredTextValidator(v, 'Enter audio URL'),
+                  ),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      onPressed: _uploadingAudio ? null : _pickAndUploadAudio,
+                      icon: _uploadingAudio
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.audiotrack_rounded),
+                      label: Text(_uploadingAudio ? 'Uploading audio...' : 'Choose audio file'),
+                    ),
                   ),
                   const SizedBox(height: 12),
                   TextFormField(
                     controller: _translateTextController,
                     maxLines: 3,
                     decoration: _decoration('Translate text'),
-                    validator: (v) =>
-                        _requiredTextValidator(v, 'Translate text енгіз'),
+                    validator: (v) => _requiredTextValidator(v, 'Enter translation text'),
                   ),
                   const SizedBox(height: 12),
                 ],
-
                 if (_type == wordMatch) ...[
                   TextFormField(
                     controller: _matchingPairsController,
                     maxLines: 5,
-                    decoration: _decoration(
-                      'Matching pairs: кот|мысық, дом|үй',
-                    ),
+                    decoration: _decoration('Matching pairs: cat|мысық, house|үй'),
                     validator: _matchingPairsValidator,
                   ),
                   const SizedBox(height: 8),
                   const Align(
                     alignment: Alignment.centerLeft,
                     child: Text(
-                      'Әр жолға бір жұп жазыңыз: сол жақ|оң жақ',
+                      'Write one pair per line: left|right',
                       style: TextStyle(
                         color: Colors.grey,
                         fontSize: 12,
@@ -834,14 +839,13 @@ class _TaskDialogState extends State<_TaskDialog> {
                   ),
                   const SizedBox(height: 12),
                 ],
-
                 TextFormField(
                   controller: _xpRewardController,
                   keyboardType: TextInputType.number,
                   decoration: _decoration('XP reward'),
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'XP енгіз';
-                    if (int.tryParse(v.trim()) == null) return 'Сан енгіз';
+                    if (v == null || v.trim().isEmpty) return 'Enter XP';
+                    if (int.tryParse(v.trim()) == null) return 'Enter a number';
                     return null;
                   },
                 ),
@@ -851,8 +855,8 @@ class _TaskDialogState extends State<_TaskDialog> {
                   keyboardType: TextInputType.number,
                   decoration: _decoration('Order index'),
                   validator: (v) {
-                    if (v == null || v.trim().isEmpty) return 'Order енгіз';
-                    if (int.tryParse(v.trim()) == null) return 'Сан енгіз';
+                    if (v == null || v.trim().isEmpty) return 'Enter order';
+                    if (int.tryParse(v.trim()) == null) return 'Enter a number';
                     return null;
                   },
                 ),
@@ -871,14 +875,14 @@ class _TaskDialogState extends State<_TaskDialog> {
                     ),
                     child: _saving
                         ? const SizedBox(
-                      width: 22,
-                      height: 22,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2.4,
-                        color: Colors.white,
-                      ),
-                    )
-                        : Text(isEdit ? 'Сақтау' : 'Қосу'),
+                            width: 22,
+                            height: 22,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2.4,
+                              color: Colors.white,
+                            ),
+                          )
+                        : Text(isEdit ? 'Save' : 'Add'),
                   ),
                 ),
                 const SizedBox(height: 10),
@@ -886,8 +890,7 @@ class _TaskDialogState extends State<_TaskDialog> {
                   width: double.infinity,
                   height: 52,
                   child: OutlinedButton(
-                    onPressed:
-                    _saving ? null : () => Navigator.pop(context, false),
+                    onPressed: _saving ? null : () => Navigator.pop(context, false),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: purple,
                       side: const BorderSide(color: purple, width: 1.5),
@@ -896,10 +899,8 @@ class _TaskDialogState extends State<_TaskDialog> {
                       ),
                     ),
                     child: const Text(
-                      'Артқа қайту',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                      ),
+                      'Cancel',
+                      style: TextStyle(fontWeight: FontWeight.w700),
                     ),
                   ),
                 ),

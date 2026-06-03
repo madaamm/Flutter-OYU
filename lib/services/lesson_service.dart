@@ -92,10 +92,10 @@ class LessonService {
         return task.matchingPairs.isNotEmpty;
 
       case 'AUDIO_DICTATION':
-        return _hasString(task.audioUrl) && _hasString(task.audioText);
+        return _hasString(task.audioUrl);
 
       case 'AUDIO_TRANSLATE':
-        return _hasString(task.audioUrl) && _hasString(task.translateText);
+        return _hasString(task.audioUrl);
 
       default:
         return false;

@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:math' as math;
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:kazakh_learning_app/models/task_model.dart';
 import 'package:kazakh_learning_app/services/lesson_service.dart';
@@ -46,6 +48,10 @@ class _ExerciseTaskSelectScreenState extends State<ExerciseTaskSelectScreen> {
 
       if (task.type == 'WORD_MATCH') {
         return task.matchingPairs.isNotEmpty;
+      }
+
+      if (task.type == 'AUDIO_DICTATION' || task.type == 'AUDIO_TRANSLATE') {
+        return task.audioUrl.trim().isNotEmpty;
       }
 
       return false;
@@ -214,20 +220,40 @@ class _UserTaskCard extends StatelessWidget {
       return 'Word match';
     }
 
+    if (task.type == 'AUDIO_DICTATION') {
+      return task.promptText.trim().isNotEmpty
+          ? task.promptText.trim()
+          : 'Audio dictation';
+    }
+
+    if (task.type == 'AUDIO_TRANSLATE') {
+      return task.promptText.trim().isNotEmpty
+          ? task.promptText.trim()
+          : 'Audio translate';
+    }
+
     return 'Task';
   }
 
   IconData get _icon {
+    if (task.type == 'AUDIO_DICTATION' || task.type == 'AUDIO_TRANSLATE') {
+      return Icons.headphones_rounded;
+    }
     if (task.type == 'WORD_MATCH') return Icons.compare_arrows_rounded;
     return Icons.extension_rounded;
   }
 
   String get _typeLabel {
+    if (task.type == 'AUDIO_DICTATION') return 'Audio dictation';
+    if (task.type == 'AUDIO_TRANSLATE') return 'Audio translate';
     if (task.type == 'WORD_MATCH') return 'Word match';
     return 'Sentence build';
   }
 
   int get _itemsCount {
+    if (task.type == 'AUDIO_DICTATION' || task.type == 'AUDIO_TRANSLATE') {
+      return 0;
+    }
     if (task.type == 'WORD_MATCH') return task.matchingPairs.length;
     return task.optionsWords.length;
   }
@@ -457,6 +483,9 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
   static const Color red = Color(0xFFFF4B4B);
   static const Color bg = Color(0xFFFDF8FF);
   final LessonService _lessonService = LessonService();
+  final TextEditingController _answerTextController = TextEditingController();
+  late final AudioPlayer _audioPlayer;
+  StreamSubscription<PlayerState>? _playerStateSub;
 
   int _lives = 3;
 
@@ -471,6 +500,7 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
   bool _submittingAnswer = false;
   bool _alreadyCompletedTask = false;
   int _earnedXp = 0;
+  bool _isPlayingAudio = false;
 
   _ExerciseStage _stage = _ExerciseStage.building;
 
@@ -480,10 +510,31 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
 
   bool get _isWordMatch => _task.type == 'WORD_MATCH';
 
+  bool get _isAudioDictation => _task.type == 'AUDIO_DICTATION';
+
+  bool get _isAudioTranslate => _task.type == 'AUDIO_TRANSLATE';
+
+  bool get _isAudioTask => _isAudioDictation || _isAudioTranslate;
+
   @override
   void initState() {
     super.initState();
+    _audioPlayer = AudioPlayer();
+    _playerStateSub = _audioPlayer.onPlayerStateChanged.listen((state) {
+      if (!mounted) return;
+      setState(() {
+        _isPlayingAudio = state == PlayerState.playing;
+      });
+    });
     _setupTask();
+  }
+
+  @override
+  void dispose() {
+    _playerStateSub?.cancel();
+    _audioPlayer.dispose();
+    _answerTextController.dispose();
+    super.dispose();
   }
 
   List<String> _cleanWords(List<String> words) {
@@ -511,6 +562,7 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
     _selectedLeftId = null;
     _selectedRightId = null;
     _matchedIds.clear();
+    _answerTextController.clear();
 
     if (_isSentenceBuild) {
       final correct = _cleanWords(_task.correctWords);
@@ -612,6 +664,10 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
       return _matchedIds.length == _task.matchingPairs.length;
     }
 
+    if (_isAudioTask) {
+      return _answerTextController.text.trim().isNotEmpty;
+    }
+
     return false;
   }
 
@@ -638,6 +694,13 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
       return _lessonService.submitTaskAnswer(
         taskId: _task.id,
         answerPairs: _buildAnswerPairs(),
+      );
+    }
+
+    if (_isAudioTask) {
+      return _lessonService.submitTaskAnswer(
+        taskId: _task.id,
+        answerText: _answerTextController.text.trim(),
       );
     }
 
@@ -682,6 +745,60 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
 
   Future<void> _handleCheck() async {
     if (!_canCheck || _submittingAnswer) return;
+
+    if (_isAudioTask) {
+      setState(() {
+        _submittingAnswer = true;
+      });
+
+      try {
+        final result = await _submitCorrectAnswer();
+        final isCorrect = result['isCorrect'] == true;
+
+        if (isCorrect) {
+          setState(() {
+            _stage = _ExerciseStage.correct;
+            _alreadyCompletedTask = result['alreadySubmitted'] == true;
+            _earnedXp = result['earnedXp'] is int
+                ? result['earnedXp'] as int
+                : int.tryParse('${result['earnedXp'] ?? 0}') ?? 0;
+          });
+
+          await Future<void>.delayed(const Duration(milliseconds: 700));
+          if (!mounted) return;
+          setState(() {
+            _stage = _ExerciseStage.reward;
+          });
+        } else {
+          setState(() {
+            _lives = math.max(0, _lives - 1);
+            _stage = _ExerciseStage.wrong;
+          });
+
+          if (_lives > 0) {
+            await Future<void>.delayed(const Duration(milliseconds: 850));
+            if (!mounted) return;
+            setState(() {
+              _stage = _ExerciseStage.building;
+              _answerTextController.clear();
+            });
+          }
+        }
+      } catch (e) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Submit error: $e')),
+        );
+      } finally {
+        if (mounted) {
+          setState(() {
+            _submittingAnswer = false;
+          });
+        }
+      }
+      return;
+    }
 
     if (_isCorrectAnswer()) {
       setState(() {
@@ -790,6 +907,18 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
       return 'Match the words';
     }
 
+    if (_isAudioDictation) {
+      return _task.promptText.trim().isNotEmpty
+          ? _task.promptText.trim()
+          : 'Listen and type what you hear';
+    }
+
+    if (_isAudioTranslate) {
+      return _task.promptText.trim().isNotEmpty
+          ? _task.promptText.trim()
+          : 'Listen and translate the audio';
+    }
+
     return 'Exercise';
   }
 
@@ -805,7 +934,30 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
       return 'Wrong. Correct pairs: $correct';
     }
 
+    if (_isAudioTask) {
+      return 'Wrong answer. Listen again and try one more time.';
+    }
+
     return 'Wrong answer';
+  }
+
+  Future<void> _toggleAudioPlayback() async {
+    final audioUrl = _task.audioUrl.trim();
+    if (audioUrl.isEmpty) return;
+
+    try {
+      if (_isPlayingAudio) {
+        await _audioPlayer.pause();
+        return;
+      }
+
+      await _audioPlayer.play(UrlSource(audioUrl));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not play this audio')),
+      );
+    }
   }
 
   @override
@@ -862,6 +1014,18 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
                     isLocked: isWrong || _stage == _ExerciseStage.correct,
                     onTapLeft: _selectLeft,
                     onTapRight: _selectRight,
+                  ),
+                ],
+                if (_isAudioTask) ...[
+                  _AudioTaskPanel(
+                    isPlaying: _isPlayingAudio,
+                    answerController: _answerTextController,
+                    isLocked: isWrong || _stage == _ExerciseStage.correct || _submittingAnswer,
+                    onPlayTap: _toggleAudioPlayback,
+                    hintText: _isAudioTranslate
+                        ? 'Type the translation here'
+                        : 'Type what you hear',
+                    onChanged: (_) => setState(() {}),
                   ),
                 ],
                 if (isWrong) ...[
@@ -1309,6 +1473,94 @@ class _MatchCard extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _AudioTaskPanel extends StatelessWidget {
+  final bool isPlaying;
+  final TextEditingController answerController;
+  final bool isLocked;
+  final VoidCallback onPlayTap;
+  final String hintText;
+  final ValueChanged<String> onChanged;
+
+  const _AudioTaskPanel({
+    required this.isPlaying,
+    required this.answerController,
+    required this.isLocked,
+    required this.onPlayTap,
+    required this.hintText,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF0F0F0),
+        borderRadius: BorderRadius.circular(26),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ElevatedButton.icon(
+            onPressed: onPlayTap,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6A00FF),
+              foregroundColor: Colors.white,
+              minimumSize: const Size.fromHeight(56),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(18),
+              ),
+            ),
+            icon: Icon(
+              isPlaying
+                  ? Icons.pause_circle_filled_rounded
+                  : Icons.play_circle_fill_rounded,
+              size: 28,
+            ),
+            label: Text(
+              isPlaying ? 'Pause audio' : 'Play audio',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w900,
+              ),
+            ),
+          ),
+          const SizedBox(height: 18),
+          TextField(
+            controller: answerController,
+            enabled: !isLocked,
+            minLines: 3,
+            maxLines: 5,
+            onChanged: onChanged,
+            decoration: InputDecoration(
+              hintText: hintText,
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: const BorderSide(color: Color(0xFFD7C7F8)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: const BorderSide(color: Color(0xFFD7C7F8)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(18),
+                borderSide: const BorderSide(
+                  color: Color(0xFF6A00FF),
+                  width: 2,
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -1,4 +1,6 @@
-import 'dart:convert';
+﻿import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kazakh_learning_app/models/task_model.dart';
@@ -17,33 +19,28 @@ class AdminTaskService {
     return {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
-      if (token != null && token.isNotEmpty)
-        'Authorization': 'Bearer $token',
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
+    };
+  }
+
+  Future<Map<String, String>> _multipartHeaders() async {
+    final token = await _token();
+    return {
+      'Accept': 'application/json',
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
     };
   }
 
   List<TaskModel> _parseTasks(dynamic decoded) {
     if (decoded is List) {
-      return decoded
-          .map((e) => TaskModel.fromJson(
-        Map<String, dynamic>.from(e),
-      ))
-          .toList();
+      return decoded.map((e) => TaskModel.fromJson(Map<String, dynamic>.from(e))).toList();
     }
 
     if (decoded is Map<String, dynamic>) {
-      final raw = decoded['tasks'] ??
-          decoded['data'] ??
-          decoded['items'] ??
-          decoded['rows'] ??
-          decoded['result'];
+      final raw = decoded['tasks'] ?? decoded['data'] ?? decoded['items'] ?? decoded['rows'] ?? decoded['result'];
 
       if (raw is List) {
-        return raw
-            .map((e) => TaskModel.fromJson(
-          Map<String, dynamic>.from(e),
-        ))
-            .toList();
+        return raw.map((e) => TaskModel.fromJson(Map<String, dynamic>.from(e))).toList();
       }
     }
 
@@ -58,14 +55,8 @@ class AdminTaskService {
       headers: await _headers(),
     );
 
-    print('========== TASK RESPONSE ==========');
-    print(response.body);
-    print('===================================');
-
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception(
-        'Тапсырмаларды алу қатесі: ${response.body}',
-      );
+      throw Exception('Тапсырмаларды алу ?атесі: ${response.body}');
     }
 
     final decoded = jsonDecode(response.body);
@@ -77,9 +68,50 @@ class AdminTaskService {
     return visible;
   }
 
-  List<Map<String, dynamic>> _pairsToJson(
-      List<dynamic>? matchingPairs,
-      ) {
+  Future<String> uploadTaskAudio({
+    required PlatformFile file,
+    String? title,
+  }) async {
+    if (file.bytes == null) {
+      throw Exception('Audio file bytes not found. Pick the file again.');
+    }
+
+    final request = http.MultipartRequest(
+      'POST',
+      Uri.parse('$baseUrl/api/admin/tasks/audio-upload'),
+    );
+
+    request.headers.addAll(await _multipartHeaders());
+    request.files.add(
+      http.MultipartFile.fromBytes(
+        'file',
+        file.bytes!,
+        filename: file.name,
+      ),
+    );
+
+    if (title != null && title.trim().isNotEmpty) {
+      request.fields['title'] = title.trim();
+    }
+
+    final streamed = await request.send();
+    final response = await http.Response.fromStream(streamed);
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Аудио ж?ктеу ?атесі: ${response.body}');
+    }
+
+    final decoded = jsonDecode(response.body);
+    final audioUrl = decoded['audioUrl']?.toString().trim() ?? '';
+
+    if (audioUrl.isEmpty) {
+      throw Exception('Audio upload succeeded but audioUrl was empty');
+    }
+
+    return audioUrl;
+  }
+
+  List<Map<String, dynamic>> _pairsToJson(List<dynamic>? matchingPairs) {
     if (matchingPairs == null) {
       return <Map<String, dynamic>>[];
     }
@@ -180,23 +212,14 @@ class AdminTaskService {
       body: jsonEncode(body),
     );
 
-    if (response.statusCode < 200 ||
-        response.statusCode >= 300) {
-      throw Exception(
-        'Тапсырма қосу қатесі: ${response.body}',
-      );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Тапсырма ?осу ?атесі: ${response.body}');
     }
 
     final decoded = jsonDecode(response.body);
+    final data = decoded['task'] ?? decoded['data'] ?? decoded;
 
-    final data =
-        decoded['task'] ??
-            decoded['data'] ??
-            decoded;
-
-    return TaskModel.fromJson(
-      Map<String, dynamic>.from(data),
-    );
+    return TaskModel.fromJson(Map<String, dynamic>.from(data));
   }
 
   Future<TaskModel> updateTask({
@@ -235,23 +258,14 @@ class AdminTaskService {
       body: jsonEncode(body),
     );
 
-    if (response.statusCode < 200 ||
-        response.statusCode >= 300) {
-      throw Exception(
-        'Тапсырма өзгерту қатесі: ${response.body}',
-      );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Тапсырма ?згерту ?атесі: ${response.body}');
     }
 
     final decoded = jsonDecode(response.body);
+    final data = decoded['task'] ?? decoded['data'] ?? decoded;
 
-    final data =
-        decoded['task'] ??
-            decoded['data'] ??
-            decoded;
-
-    return TaskModel.fromJson(
-      Map<String, dynamic>.from(data),
-    );
+    return TaskModel.fromJson(Map<String, dynamic>.from(data));
   }
 
   Future<void> archiveTask({
@@ -259,20 +273,16 @@ class AdminTaskService {
     required bool isArchived,
   }) async {
     final response = await http.patch(
-      Uri.parse(
-        '$baseUrl/api/admin/tasks/$taskId/archive',
-      ),
+      Uri.parse('$baseUrl/api/admin/tasks/$taskId/archive'),
       headers: await _headers(),
       body: jsonEncode({
         'isArchived': isArchived,
       }),
     );
 
-    if (response.statusCode < 200 ||
-        response.statusCode >= 300) {
-      throw Exception(
-        'Архивтеу қатесі: ${response.body}',
-      );
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Архивтеу ?атесі: ${response.body}');
     }
   }
 }
+
