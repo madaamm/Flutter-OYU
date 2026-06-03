@@ -83,9 +83,10 @@ class _ReadingScreenState extends State<ReadingScreen> {
   }
 
   Future<void> _openBookFile(BookModel book) async {
-    final uri = Uri.tryParse(
-      '${AuthService.baseUrl}/books/${book.id}/file?disposition=inline',
-    );
+    final rawUrl = book.hasExternalUrl
+        ? book.externalUrl
+        : '${AuthService.baseUrl}/books/${book.id}/file?disposition=inline';
+    final uri = Uri.tryParse(rawUrl);
     if (uri == null) return;
 
     final opened = await launchUrl(uri, mode: LaunchMode.platformDefault);

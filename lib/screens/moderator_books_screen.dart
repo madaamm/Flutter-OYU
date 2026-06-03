@@ -96,33 +96,42 @@ class _ModeratorBooksScreenState extends State<ModeratorBooksScreen> {
   }
 
   Future<void> addBook({
-    required PlatformFile file,
+    PlatformFile? file,
     required String title,
     required String author,
     required String pageCount,
     required String genre,
     required String description,
     required String level,
+    String? externalUrl,
   }) async {
     setState(() => loading = true);
 
     try {
       final request = http.MultipartRequest('POST', Uri.parse(apiUrl));
       request.headers.addAll(await _authHeaders());
-      request.files.add(
-        http.MultipartFile.fromBytes(
-          'file',
-          file.bytes!,
-          filename: file.name,
-        ),
-      );
+
+      if (file != null) {
+        request.files.add(
+          http.MultipartFile.fromBytes(
+            'file',
+            file.bytes!,
+            filename: file.name,
+          ),
+        );
+      }
+
       request.fields['title'] = title;
       request.fields['author'] = author;
       request.fields['pageCount'] = pageCount;
       request.fields['genre'] = genre;
       request.fields['description'] = description;
       request.fields['level'] = level;
-      request.fields['format'] = _inferFormat(file.name);
+      request.fields['format'] = file != null ? _inferFormat(file.name) : 'pdf';
+
+      if (externalUrl != null && externalUrl.trim().isNotEmpty) {
+        request.fields['externalUrl'] = externalUrl.trim();
+      }
 
       final streamed = await request.send();
       final response = await http.Response.fromStream(streamed);
@@ -150,6 +159,7 @@ class _ModeratorBooksScreenState extends State<ModeratorBooksScreen> {
     required String genre,
     required String description,
     required String level,
+    String? externalUrl,
   }) async {
     setState(() => loading = true);
 
@@ -164,6 +174,7 @@ class _ModeratorBooksScreenState extends State<ModeratorBooksScreen> {
           'genre': genre,
           'description': description,
           'level': level,
+          'externalUrl': externalUrl?.trim(),
         }),
       );
 
@@ -202,6 +213,7 @@ class _ModeratorBooksScreenState extends State<ModeratorBooksScreen> {
     final authorController = TextEditingController();
     final pageController = TextEditingController();
     final descriptionController = TextEditingController();
+    final externalUrlController = TextEditingController();
     PlatformFile? selectedFile;
     String? fileName;
     String selectedGenre = genres.first;
@@ -259,6 +271,11 @@ class _ModeratorBooksScreenState extends State<ModeratorBooksScreen> {
                       maxLines: 4,
                     ),
                     const SizedBox(height: 12),
+                    _Input(
+                      controller: externalUrlController,
+                      hint: 'External book URL (optional)',
+                    ),
+                    const SizedBox(height: 12),
                     _DropdownField<String>(
                       label: 'Genre',
                       value: selectedGenre,
@@ -308,7 +325,7 @@ class _ModeratorBooksScreenState extends State<ModeratorBooksScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
-                                fileName ?? 'Choose book file',
+                                fileName ?? 'Choose book file (or use link above)',
                                 overflow: TextOverflow.ellipsis,
                                 style: const TextStyle(
                                   fontSize: 16,
@@ -330,29 +347,33 @@ class _ModeratorBooksScreenState extends State<ModeratorBooksScreen> {
                           final author = authorController.text.trim();
                           final pageCount = pageController.text.trim();
                           final description = descriptionController.text.trim();
+                          final externalUrl = externalUrlController.text.trim();
 
-                          if (title.isEmpty ||
-                              author.isEmpty ||
-                              pageCount.isEmpty ||
-                              selectedFile == null) {
-                            showMessage('Fill all fields and choose a file');
+                          if (title.isEmpty || author.isEmpty || pageCount.isEmpty) {
+                            showMessage('Fill title, author and page count');
                             return;
                           }
 
-                          if (selectedFile!.bytes == null) {
+                          if (selectedFile == null && externalUrl.isEmpty) {
+                            showMessage('Choose a file or enter an external book URL');
+                            return;
+                          }
+
+                          if (selectedFile != null && selectedFile!.bytes == null) {
                             showMessage('File bytes not found. Pick the file again.');
                             return;
                           }
 
                           Navigator.pop(context);
                           addBook(
-                            file: selectedFile!,
+                            file: selectedFile,
                             title: title,
                             author: author,
                             pageCount: pageCount,
                             genre: selectedGenre,
                             description: description,
                             level: selectedLevel,
+                            externalUrl: externalUrl,
                           );
                         },
                         style: ElevatedButton.styleFrom(
@@ -362,7 +383,7 @@ class _ModeratorBooksScreenState extends State<ModeratorBooksScreen> {
                           ),
                         ),
                         child: const Text(
-                          'Upload book',
+                          'Save book',
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 18,
@@ -386,8 +407,8 @@ class _ModeratorBooksScreenState extends State<ModeratorBooksScreen> {
     final titleController = TextEditingController(text: '${book['title'] ?? ''}');
     final authorController = TextEditingController(text: '${book['author'] ?? ''}');
     final pageController = TextEditingController(text: '${book['pageCount'] ?? ''}');
-    final descriptionController =
-        TextEditingController(text: '${book['description'] ?? ''}');
+    final descriptionController = TextEditingController(text: '${book['description'] ?? ''}');
+    final externalUrlController = TextEditingController(text: '${book['externalUrl'] ?? ''}');
     final rawGenre =
         ('${book['genre'] ?? 'General'}'.trim().isEmpty ? 'General' : '${book['genre']}');
     final rawLevel = '${book['level'] ?? 'A0'}';
@@ -446,6 +467,11 @@ class _ModeratorBooksScreenState extends State<ModeratorBooksScreen> {
                       maxLines: 4,
                     ),
                     const SizedBox(height: 12),
+                    _Input(
+                      controller: externalUrlController,
+                      hint: 'External book URL (optional)',
+                    ),
+                    const SizedBox(height: 12),
                     _DropdownField<String>(
                       label: 'Genre',
                       value: selectedGenre,
@@ -492,6 +518,7 @@ class _ModeratorBooksScreenState extends State<ModeratorBooksScreen> {
                             genre: selectedGenre,
                             description: description,
                             level: selectedLevel,
+                            externalUrl: externalUrlController.text.trim(),
                           );
                         },
                         style: ElevatedButton.styleFrom(
@@ -641,6 +668,7 @@ class _AdminBookCard extends StatelessWidget {
         ? 'General'
         : '${book['genre']}';
     final level = '${book['level'] ?? 'A0'}';
+    final hasExternalUrl = '${book['externalUrl'] ?? ''}'.trim().isNotEmpty;
 
     return Container(
       width: 170,
@@ -700,6 +728,7 @@ class _AdminBookCard extends StatelessWidget {
             children: [
               _SmallTag(label: genre),
               _SmallTag(label: level),
+              _SmallTag(label: hasExternalUrl ? 'Link' : 'File'),
             ],
           ),
         ],

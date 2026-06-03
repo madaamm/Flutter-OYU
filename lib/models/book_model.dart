@@ -8,6 +8,7 @@ class BookModel {
   final String description;
   final String level;
   final String fileUrl;
+  final String externalUrl;
 
   const BookModel({
     required this.id,
@@ -19,7 +20,10 @@ class BookModel {
     required this.description,
     required this.level,
     required this.fileUrl,
+    required this.externalUrl,
   });
+
+  bool get hasExternalUrl => externalUrl.trim().isNotEmpty;
 
   factory BookModel.fromJson(Map<String, dynamic> json) {
     int toInt(dynamic value, {int fallback = 0}) {
@@ -39,6 +43,7 @@ class BookModel {
       description: (json['description'] ?? '').toString().trim(),
       level: (json['level'] ?? 'A0').toString().trim().toUpperCase(),
       fileUrl: (json['fileUrl'] ?? '').toString().trim(),
+      externalUrl: (json['externalUrl'] ?? '').toString().trim(),
     );
   }
 }
