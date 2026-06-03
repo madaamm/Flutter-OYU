@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:kazakh_learning_app/models/lesson_model.dart';
@@ -172,13 +172,28 @@ class _HomePageState extends State<HomePage> {
 
   final _lessonService = LessonService();
   late Future<List<LessonModel>> _futureLessons;
+  String _userLevel = 'A0';
 
   @override
   void initState() {
     super.initState();
     _futureLessons = _lessonService.getUserLessons();
+    _loadUserLevel();
   }
 
+
+  Future<void> _loadUserLevel() async {
+    try {
+      final me = await AuthService().me();
+      final level = (me['level'] ?? 'A0').toString().trim().toUpperCase();
+
+      if (!mounted) return;
+
+      setState(() {
+        _userLevel = level.isEmpty ? 'A0' : level;
+      });
+    } catch (_) {}
+  }
   Future<void> _refreshLessons() async {
     setState(() {
       _futureLessons = _lessonService.getUserLessons();
@@ -197,6 +212,98 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
+
+  static const Map<String, int> _levelOrder = {
+    'A0': 0,
+    'A1': 1,
+    'A2': 2,
+    'B1': 3,
+    'B2': 4,
+    'C1': 5,
+    'C2': 6,
+  };
+
+  int _levelRank(String level) {
+    return _levelOrder[level.trim().toUpperCase()] ?? 0;
+  }
+
+  bool _isLessonCompleted(LessonModel lesson) {
+    return lesson.progressStatus == 'COMPLETED';
+  }
+
+  bool _isGroupCompleted(_LessonGroupData group) {
+    return group.lessons.isNotEmpty && group.lessons.every(_isLessonCompleted);
+  }
+
+  List<_LessonGroupData> _buildLessonGroups(List<LessonModel> lessons) {
+    final groupedByLevel = <String, List<LessonModel>>{};
+
+    for (final lesson in lessons) {
+      groupedByLevel.putIfAbsent(lesson.level, () => <LessonModel>[]).add(lesson);
+    }
+
+    final orderedLevels = groupedByLevel.keys.toList()
+      ..sort((a, b) => _levelRank(a).compareTo(_levelRank(b)));
+
+    final groups = <_LessonGroupData>[];
+    var startNumber = 1;
+
+    for (final level in orderedLevels) {
+      final levelLessons = groupedByLevel[level]!
+        ..sort((a, b) {
+          final orderCompare = a.orderIndex.compareTo(b.orderIndex);
+          if (orderCompare != 0) return orderCompare;
+          return a.id.compareTo(b.id);
+        });
+
+      for (var i = 0; i < levelLessons.length; i += 6) {
+        final slice = levelLessons.sublist(
+          i,
+          math.min(i + 6, levelLessons.length),
+        );
+
+        groups.add(
+          _LessonGroupData(
+            level: level,
+            lessons: slice,
+            startNumber: startNumber,
+            indexWithinLevel: i ~/ 6,
+          ),
+        );
+
+        startNumber += slice.length;
+      }
+    }
+
+    return groups;
+  }
+
+  bool _isGroupUnlocked(
+    _LessonGroupData group,
+    List<_LessonGroupData> allGroups,
+  ) {
+    final userRank = _levelRank(_userLevel);
+    final groupRank = _levelRank(group.level);
+
+    if (groupRank < userRank) {
+      return true;
+    }
+
+    if (groupRank > userRank) {
+      return false;
+    }
+
+    if (group.indexWithinLevel == 0) {
+      return true;
+    }
+
+    final previousGroups = allGroups.where(
+      (item) =>
+          item.level == group.level && item.indexWithinLevel < group.indexWithinLevel,
+    );
+
+    return previousGroups.every(_isGroupCompleted);
+  }
   void _openLessonSheet(LessonModel lesson, int lessonNumber) {
     showModalBottomSheet(
       context: context,
@@ -293,7 +400,7 @@ class _HomePageState extends State<HomePage> {
                                     ),
                                     const SizedBox(height: 14),
                                     const Text(
-                                      'Уроктар жүктелмеді',
+                                      'Lessons failed to load',
                                       style: TextStyle(
                                         fontSize: 22,
                                         fontWeight: FontWeight.w800,
@@ -329,33 +436,24 @@ class _HomePageState extends State<HomePage> {
                       );
                     }
 
-                    final firstGroup = lessons.take(6).toList();
-
                     return LayoutBuilder(
                       builder: (context, c) {
                         final base = math.min(c.maxWidth, c.maxHeight);
-                        final groupCount = (lessons.length / 6).ceil();
+                        final groups = _buildLessonGroups(lessons);
 
                         return ListView.builder(
                           physics: const BouncingScrollPhysics(),
                           padding: const EdgeInsets.fromLTRB(18, 20, 18, 28),
-                          itemCount: groupCount,
+                          itemCount: groups.length,
                           itemBuilder: (context, groupIndex) {
-                            final start = groupIndex * 6;
-                            final end = math.min(start + 6, lessons.length);
-                            final groupLessons = lessons.sublist(start, end);
-
-                            final isUnlockedGroup =
-                                start == 0 ||
-                                lessons.take(start).every(
-                                  (lesson) => lesson.progressStatus == 'COMPLETED',
-                                );
+                            final group = groups[groupIndex];
+                            final isUnlockedGroup = _isGroupUnlocked(group, groups);
 
                             return _LessonCircleGroup(
                               base: base,
-                              lessons: groupLessons,
-                              startNumber: start + 1,
-                              showBox: groupLessons.length == 6,
+                              lessons: group.lessons,
+                              startNumber: group.startNumber,
+                              showBox: group.lessons.length == 6,
                               mascotAsset: isUnlockedGroup
                                   ? 'assets/images/Oyu.png'
                                   : 'assets/images/Oyu_uyktauda.png',
@@ -417,7 +515,7 @@ class _HomePageState extends State<HomePage> {
               size: 15,
             ),
             label: const Text(
-              'Выйти',
+              'Logout',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 15,
@@ -431,6 +529,19 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
+class _LessonGroupData {
+  final String level;
+  final List<LessonModel> lessons;
+  final int startNumber;
+  final int indexWithinLevel;
+
+  const _LessonGroupData({
+    required this.level,
+    required this.lessons,
+    required this.startNumber,
+    required this.indexWithinLevel,
+  });
+}
 class _LessonCircleGroup extends StatelessWidget {
   final double base;
   final List<LessonModel> lessons;
@@ -820,7 +931,7 @@ class _EmptyLessonsState extends StatelessWidget {
             ),
             SizedBox(height: 20),
             Text(
-              'Әзірге урок жоқ',
+              'No lessons yet',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 22,
@@ -830,7 +941,7 @@ class _EmptyLessonsState extends StatelessWidget {
             ),
             SizedBox(height: 10),
             Text(
-              'Админ урок қосқаннан кейін осында шығады',
+              'Lessons will appear here after the admin adds them',
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontSize: 15,
@@ -899,7 +1010,7 @@ class TheoryLessonScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: purple,
         foregroundColor: Colors.white,
-        title: Text(title.isEmpty ? 'Теория' : title),
+        title: Text(title.isEmpty ? 'Theory' : title),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -922,10 +1033,10 @@ class TheoryLessonScreen extends StatelessWidget {
                     Text(description, style: const TextStyle(height: 1.5)),
                   const SizedBox(height: 16),
                   lectureText.trim().isEmpty
-                      ? const Text('Теория жоқ')
+                      ? const Text('No theory available')
                       : MarkdownBody(
                     data: lectureText,
-                    selectable: true,  // чтобы можно было выделять текст
+                    selectable: true,
                     styleSheet: MarkdownStyleSheet(
                       p: const TextStyle(fontSize: 16, height: 1.5),
                       h2: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: purple),
@@ -942,6 +1053,9 @@ class TheoryLessonScreen extends StatelessWidget {
     );
   }
 }
+
+
+
 
 
 

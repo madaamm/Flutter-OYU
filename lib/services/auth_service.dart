@@ -1,7 +1,6 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:kazakh_learning_app/services/api_config.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 class AuthService {
@@ -89,9 +88,92 @@ class AuthService {
     return name.trim();
   }
 
+  Map<String, dynamic> _parseJsonMap(String body) {
+    if (body.isEmpty) return <String, dynamic>{};
+
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        return decoded;
+      }
+    } catch (_) {}
+
+    return <String, dynamic>{};
+  }
+
+  Future<Map<String, String>> _authorizedHeaders({
+    bool withJson = false,
+  }) async {
+    final token = await getToken();
+    if (token == null || token.isEmpty) {
+      throw Exception('Token missing (not saved).');
+    }
+
+    final headers = <String, String>{
+      'Authorization': 'Bearer $token',
+    };
+
+    if (withJson) {
+      headers['Content-Type'] = 'application/json';
+    }
+
+    return headers;
+  }
+
+  Future<Map<String, dynamic>> _authorizedGet(String path) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final headers = await _authorizedHeaders();
+
+    final res = await http
+        .get(uri, headers: headers)
+        .timeout(const Duration(seconds: 20));
+
+    if (res.statusCode == 401) {
+      await logout();
+      throw Exception('Session expired. Please log in again.');
+    }
+
+    final data = _parseJsonMap(res.body);
+
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return data;
+    }
+
+    throw Exception((data['message'] ?? 'Request failed').toString());
+  }
+
+  Future<Map<String, dynamic>> _authorizedPost(
+    String path, {
+    Map<String, dynamic>? body,
+  }) async {
+    final uri = Uri.parse('$baseUrl$path');
+    final headers = await _authorizedHeaders(withJson: true);
+
+    final res = await http
+        .post(
+          uri,
+          headers: headers,
+          body: jsonEncode(body ?? <String, dynamic>{}),
+        )
+        .timeout(const Duration(seconds: 20));
+
+    if (res.statusCode == 401) {
+      await logout();
+      throw Exception('Session expired. Please log in again.');
+    }
+
+    final data = _parseJsonMap(res.body);
+
+    if (res.statusCode >= 200 && res.statusCode < 300) {
+      return data;
+    }
+
+    throw Exception((data['message'] ?? 'Request failed').toString());
+  }
+
   Future<void> saveSessionFromResponse(Map<String, dynamic> data) async {
     final token =
-    (data['token'] ?? data['accessToken'] ?? '').toString().trim();
+        (data['token'] ?? data['accessToken'] ?? '').toString().trim();
 
     if (token.isEmpty) {
       throw Exception('Token not received');
@@ -113,17 +195,17 @@ class AuthService {
     }
 
     final username =
-    (user['username'] ?? user['name'] ?? data['username'] ?? '')
-        .toString()
-        .trim();
+        (user['username'] ?? user['name'] ?? data['username'] ?? '')
+            .toString()
+            .trim();
     if (userId > 0 && username.isNotEmpty) {
       await saveUsernameForUser(userId, username);
     }
 
     final nickname =
-    (user['nickname'] ?? user['nickName'] ?? user['handle'] ?? '')
-        .toString()
-        .trim();
+        (user['nickname'] ?? user['nickName'] ?? user['handle'] ?? '')
+            .toString()
+            .trim();
     if (userId > 0 && nickname.isNotEmpty) {
       await saveNicknameForUser(userId, nickname);
     }
@@ -137,21 +219,16 @@ class AuthService {
 
     final res = await http
         .post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': email.trim(),
-        'password': password.trim(),
-      }),
-    )
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'email': email.trim(),
+            'password': password.trim(),
+          }),
+        )
         .timeout(const Duration(seconds: 20));
 
-    Map<String, dynamic> data = {};
-    try {
-      if (res.body.isNotEmpty) {
-        data = jsonDecode(res.body) as Map<String, dynamic>;
-      }
-    } catch (_) {}
+    final data = _parseJsonMap(res.body);
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
       await saveSessionFromResponse(data);
@@ -171,23 +248,18 @@ class AuthService {
 
     final res = await http
         .post(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'username': username.trim(),
-        'email': email.trim(),
-        'password': password.trim(),
-        'repeatPassword': repeatPassword.trim(),
-      }),
-    )
+          uri,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'username': username.trim(),
+            'email': email.trim(),
+            'password': password.trim(),
+            'repeatPassword': repeatPassword.trim(),
+          }),
+        )
         .timeout(const Duration(seconds: 20));
 
-    Map<String, dynamic> data = {};
-    try {
-      if (res.body.isNotEmpty) {
-        data = jsonDecode(res.body) as Map<String, dynamic>;
-      }
-    } catch (_) {}
+    final data = _parseJsonMap(res.body);
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
       return data;
@@ -197,44 +269,52 @@ class AuthService {
   }
 
   Future<Map<String, dynamic>> me() async {
-    final token = await getToken();
-    if (token == null || token.isEmpty) {
-      throw Exception('Token missing (not saved).');
-    }
+    final decoded = await _authorizedGet('/user/me');
 
-    final uri = Uri.parse('$baseUrl/user/me');
-
-    final res = await http.get(
-      uri,
-      headers: {'Authorization': 'Bearer $token'},
-    ).timeout(const Duration(seconds: 20));
-
-    if (res.statusCode == 401) {
-      await logout();
-      throw Exception('Session expired. Please log in again.');
-    }
-
-    if (res.statusCode != 200) {
-      throw Exception('ME error ${res.statusCode}: ${res.body}');
-    }
-
-    final decoded = jsonDecode(res.body);
-
-    if (decoded is Map<String, dynamic>) {
-      final userId = await getUserId();
-      if (userId != null) {
-        final username =
-        (decoded['username'] ?? decoded['user']?['username'] ?? '')
-            .toString()
-            .trim();
-        if (username.isNotEmpty) {
-          await saveUsernameForUser(userId, username);
-        }
+    final userId = await getUserId();
+    if (userId != null) {
+      final username =
+          (decoded['username'] ?? decoded['user']?['username'] ?? '')
+              .toString()
+              .trim();
+      if (username.isNotEmpty) {
+        await saveUsernameForUser(userId, username);
       }
-      return decoded;
     }
 
-    throw Exception('ME response is incorrect: ${res.body}');
+    return decoded;
+  }
+
+  Future<Map<String, dynamic>> getInitialSetupStatus() async {
+    return _authorizedGet('/user/onboarding/status');
+  }
+
+  Future<Map<String, dynamic>> getInitialSetupLanguages() async {
+    return _authorizedGet('/user/onboarding/languages');
+  }
+
+  Future<Map<String, dynamic>> saveInterfaceLanguage(String language) async {
+    return _authorizedPost(
+      '/user/onboarding/language',
+      body: {'language': language.trim().toLowerCase()},
+    );
+  }
+
+  Future<Map<String, dynamic>> getPlacementTestQuestions() async {
+    return _authorizedGet('/user/onboarding/placement-test');
+  }
+
+  Future<Map<String, dynamic>> startFromZero() async {
+    return _authorizedPost('/user/onboarding/start-from-zero');
+  }
+
+  Future<Map<String, dynamic>> submitPlacementTest(
+    List<Map<String, dynamic>> answers,
+  ) async {
+    return _authorizedPost(
+      '/user/onboarding/placement-test',
+      body: {'answers': answers},
+    );
   }
 
   Future<Map<String, dynamic>> updateUsername(String newUsername) async {
@@ -255,24 +335,21 @@ class AuthService {
 
     final res = await http
         .patch(
-      uri,
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode({'username': newUsername.trim()}),
-    )
+          uri,
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode({'username': newUsername.trim()}),
+        )
         .timeout(const Duration(seconds: 20));
 
-    Map<String, dynamic> data = {};
-    try {
-      if (res.body.isNotEmpty) data = jsonDecode(res.body);
-    } catch (_) {}
+    final data = _parseJsonMap(res.body);
 
     if (res.statusCode >= 200 && res.statusCode < 300) {
       final updated =
-      (data['username'] ?? data['user']?['username'] ?? newUsername.trim())
-          .toString();
+          (data['username'] ?? data['user']?['username'] ?? newUsername.trim())
+              .toString();
 
       await saveUsernameForUser(userId, updated);
       return {'ok': true, 'username': updated};
@@ -297,20 +374,18 @@ class AuthService {
       scopes: ['email'],
     );
 
-    final GoogleSignInAccount? account =
-    await googleSignIn.signIn();
+    final GoogleSignInAccount? account = await googleSignIn.signIn();
 
     if (account == null) {
-      throw Exception('Вход отменён');
+      throw Exception('Sign-in was cancelled');
     }
 
-    final GoogleSignInAuthentication auth =
-    await account.authentication;
+    final GoogleSignInAuthentication auth = await account.authentication;
 
     final String? idToken = auth.idToken;
 
     if (idToken == null) {
-      throw Exception('Google не вернул idToken');
+      throw Exception('Google did not return an idToken');
     }
 
     final response = await http.post(
@@ -323,10 +398,9 @@ class AuthService {
       }),
     );
 
-    final data = jsonDecode(response.body);
+    final data = _parseJsonMap(response.body);
 
-    if (response.statusCode >= 200 &&
-        response.statusCode < 300) {
+    if (response.statusCode >= 200 && response.statusCode < 300) {
       await saveSessionFromResponse(data);
       return data;
     }
@@ -336,3 +410,6 @@ class AuthService {
     );
   }
 }
+
+
+

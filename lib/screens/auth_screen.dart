@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 import 'package:flutter/material.dart';
 
 import 'package:kazakh_learning_app/screens/admin_home_screen.dart';
@@ -6,8 +6,9 @@ import 'package:kazakh_learning_app/screens/moderator_home_screen.dart';
 import 'package:kazakh_learning_app/screens/forgot_password_screen.dart';
 import 'package:kazakh_learning_app/screens/home_screen.dart';
 import 'package:kazakh_learning_app/screens/confirm_email_screen.dart';
-import 'package:kazakh_learning_app/screens/scenario_select_screen.dart';
+import 'initial_setup_screen.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
+import 'package:kazakh_learning_app/services/language_service.dart';
 
 class AuthScreen extends StatefulWidget {
   const AuthScreen({super.key});
@@ -178,8 +179,6 @@ class _AuthScreenState extends State<AuthScreen> {
         repeatPassword: _confirmC.text.trim(),
       );
 
-      await _auth.resetScenarioForEmail(email);
-
       if (!mounted) return;
 
       Navigator.push(
@@ -222,22 +221,18 @@ class _AuthScreenState extends State<AuthScreen> {
     try {
       setState(() => isLoading = true);
 
-      await _auth.loginWithGoogle();
+      final data = await _auth.loginWithGoogle();
 
       if (!mounted) return;
 
-      final me = await _auth.me();
-
+      final user = (data['user'] is Map<String, dynamic>)
+          ? data['user'] as Map<String, dynamic>
+          : <String, dynamic>{};
       final username =
-      (me['username'] ?? 'User').toString();
+          (user['username'] ?? data['username'] ?? 'User').toString().trim();
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (_) => HomeScreen(
-            userName: username,
-          ),
-        ),
+      await _goBySavedRole(
+        fallbackUserName: username.isEmpty ? 'User' : username,
       );
     } catch (e) {
       _showError(
@@ -249,14 +244,11 @@ class _AuthScreenState extends State<AuthScreen> {
       }
     }
   }
-
   Future<void> _goBySavedRole({required String fallbackUserName}) async {
     final role = (await _auth.getRole() ?? 'user').toLowerCase();
     final userName = await _auth.getCachedUsernameOrDefault();
     final resolvedName =
-    userName.trim().isEmpty || userName == 'User' ? fallbackUserName : userName;
-
-    final email = _emailC.text.trim().toLowerCase();
+        userName.trim().isEmpty || userName == 'User' ? fallbackUserName : userName;
 
     if (!mounted) return;
 
@@ -278,28 +270,32 @@ class _AuthScreenState extends State<AuthScreen> {
       return;
     }
 
-    final alreadyShown = await _auth.isScenarioShownForEmail(email);
+    final status = await _auth.getInitialSetupStatus();
+    final interfaceLanguage =
+        (status['interfaceLanguage'] ?? '').toString().trim().toLowerCase();
+    final initialSetupCompleted = status['initialSetupCompleted'] == true;
+
+    if (interfaceLanguage.isNotEmpty) {
+      await LanguageService().setLanguage(interfaceLanguage);
+    }
 
     if (!mounted) return;
 
-    if (!alreadyShown) {
+    if (interfaceLanguage.isEmpty || !initialSetupCompleted) {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(
-          builder: (_) => ScenarioSelectScreen(
-            userName: resolvedName,
-            email: email,
-          ),
+          builder: (_) => InitialSetupScreen(userName: resolvedName),
         ),
       );
-    } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => HomeScreen(userName: resolvedName),
-        ),
-      );
+      return;
     }
-  }
 
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => HomeScreen(userName: resolvedName),
+      ),
+    );
+  }
   void _switchTab(bool login) {
     setState(() {
       isLogin = login;
@@ -717,3 +713,7 @@ class _AuthScreenState extends State<AuthScreen> {
     );
   }
 }
+
+
+
+

@@ -1,4 +1,4 @@
-import 'dart:convert';
+﻿import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:kazakh_learning_app/models/lesson_model.dart';
@@ -8,6 +8,20 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class LessonService {
   static const String baseUrl = 'https://learnkz.kazi.rocks/api';
+  static const Map<String, int> _levelOrder = {
+    'A0': 0,
+    'A1': 1,
+    'A2': 2,
+    'B1': 3,
+    'B2': 4,
+    'C1': 5,
+    'C2': 6,
+  };
+
+  int _levelRank(String level) {
+    return _levelOrder[level.trim().toUpperCase()] ?? 0;
+  }
+
 
   Future<String?> _getToken() async {
     final prefs = await SharedPreferences.getInstance();
@@ -133,7 +147,15 @@ class LessonService {
           ),
         )
         .toList()
-      ..sort((a, b) => a.orderIndex.compareTo(b.orderIndex));
+      ..sort((a, b) {
+        final levelCompare = _levelRank(a.level).compareTo(_levelRank(b.level));
+        if (levelCompare != 0) return levelCompare;
+
+        final orderCompare = a.orderIndex.compareTo(b.orderIndex);
+        if (orderCompare != 0) return orderCompare;
+
+        return a.id.compareTo(b.id);
+      });
 
     return lessons;
   }
@@ -172,7 +194,7 @@ class LessonService {
     final token = await AuthService().getToken();
 
     if (token == null || token.isEmpty) {
-      throw Exception('Token жоқ. Қайта login жасаңыз.');
+      throw Exception('Token missing. Please log in again.');
     }
 
     final body = <String, dynamic>{};
@@ -277,3 +299,6 @@ class LessonService {
     return _extractData(jsonDecode(response.body));
   }
 }
+
+
+
