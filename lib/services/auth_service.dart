@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -371,7 +371,8 @@ class AuthService {
 
   Future<Map<String, dynamic>> loginWithGoogle() async {
     final GoogleSignIn googleSignIn = GoogleSignIn(
-      scopes: ['email'],
+      scopes: ['email', 'profile'],
+      clientId: '571997766638-6no22qkied8t4p2l76aprc1k7r052k4v.apps.googleusercontent.com',
     );
 
     final GoogleSignInAccount? account = await googleSignIn.signIn();
@@ -383,9 +384,11 @@ class AuthService {
     final GoogleSignInAuthentication auth = await account.authentication;
 
     final String? idToken = auth.idToken;
+    final String? accessToken = auth.accessToken;
 
-    if (idToken == null) {
-      throw Exception('Google did not return an idToken');
+    if ((idToken == null || idToken.isEmpty) &&
+        (accessToken == null || accessToken.isEmpty)) {
+      throw Exception('Google did not return a usable token');
     }
 
     final response = await http.post(
@@ -394,7 +397,8 @@ class AuthService {
         'Content-Type': 'application/json',
       },
       body: jsonEncode({
-        'idToken': idToken,
+        if (idToken != null && idToken.isNotEmpty) 'idToken': idToken,
+        if (accessToken != null && accessToken.isNotEmpty) 'accessToken': accessToken,
       }),
     );
 
@@ -410,6 +414,9 @@ class AuthService {
     );
   }
 }
+
+
+
 
 
 
