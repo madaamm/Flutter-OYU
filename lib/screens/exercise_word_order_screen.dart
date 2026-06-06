@@ -965,16 +965,15 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
   }
 
   Future<void> _toggleAudioPlayback() async {
-    final audioUrl = _task.audioUrl.trim();
-    if (audioUrl.isEmpty) return;
+    if (_task.audioUrl.trim().isEmpty) return;
 
     try {
       if (_isPlayingAudio) {
         await _audioPlayer.pause();
         return;
       }
-
-      await _audioPlayer.play(UrlSource(audioUrl));
+      final streamUrl = LessonService.baseUrl + '/tasks/' + _task.id.toString() + '/audio';
+      await _audioPlayer.play(UrlSource(streamUrl));
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -1850,6 +1849,11 @@ class _RewardItem extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
 
 
 
