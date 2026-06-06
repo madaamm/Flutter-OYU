@@ -70,6 +70,7 @@ class TaskModel {
   final int xpReward;
   final int orderIndex;
   final bool isArchived;
+  final bool isCompleted;
 
   const TaskModel({
     required this.id,
@@ -87,6 +88,7 @@ class TaskModel {
     required this.xpReward,
     required this.orderIndex,
     required this.isArchived,
+    required this.isCompleted,
   });
 
   static int toInt(dynamic value, {int fallback = 0}) {
@@ -331,6 +333,7 @@ class TaskModel {
       xpReward: toInt(json['xpReward'] ?? json['xp_reward'], fallback: 10),
       orderIndex: toInt(json['orderIndex'] ?? json['order_index']),
       isArchived: _toBool(json['isArchived'] ?? json['is_archived']),
+      isCompleted: _toBool(json['isCompleted'] ?? json['is_completed']),
     );
   }
 
@@ -351,6 +354,7 @@ class TaskModel {
       'xpReward': xpReward,
       'orderIndex': orderIndex,
       'isArchived': isArchived,
+      'isCompleted': isCompleted,
     };
   }
 
@@ -370,6 +374,7 @@ class TaskModel {
     int? xpReward,
     int? orderIndex,
     bool? isArchived,
+    bool? isCompleted,
   }) {
     return TaskModel(
       id: id ?? this.id,
@@ -387,6 +392,8 @@ class TaskModel {
       xpReward: xpReward ?? this.xpReward,
       orderIndex: orderIndex ?? this.orderIndex,
       isArchived: isArchived ?? this.isArchived,
+      isCompleted: isCompleted ?? this.isCompleted,
     );
   }
 }
+

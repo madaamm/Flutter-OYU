@@ -26,6 +26,9 @@ class ExerciseTaskSelectScreen extends StatefulWidget {
 
 class _ExerciseTaskSelectScreenState extends State<ExerciseTaskSelectScreen> {
   static const Color purple = Color(0xFF6A00FF);
+  static const Color completedFill = Color(0xFFE6F4EA);
+  static const Color completedBorder = Color(0xFFB7D9C1);
+  static const Color completedAccent = Color(0xFF148019);
   static const Color bg = Color(0xFFFDF8FF);
 
   final LessonService _lessonService = LessonService();
@@ -208,6 +211,9 @@ class _UserTaskCard extends StatelessWidget {
   });
 
   static const Color purple = Color(0xFF6A00FF);
+  static const Color completedFill = Color(0xFFE6F4EA);
+  static const Color completedBorder = Color(0xFFB7D9C1);
+  static const Color completedAccent = Color(0xFF148019);
 
   String get _title {
     if (task.type == 'SENTENCE_BUILD') {
@@ -260,8 +266,16 @@ class _UserTaskCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isCompleted = task.isCompleted;
+    final cardColor = isCompleted ? completedFill : Colors.white;
+    final borderColor = isCompleted ? completedBorder : const Color(0xFFE4D2FF);
+    final titleColor = isCompleted ? completedAccent : purple;
+    final subtitleColor = isCompleted ? const Color(0xFF5E7A66) : const Color(0xFF9A9A9A);
+    final tagFill = isCompleted ? const Color(0xFFDDEFE2) : const Color(0xFFF1E8FF);
+    final tagTextColor = isCompleted ? completedAccent : const Color(0xFF6A00FF);
+
     return Material(
-      color: Colors.white,
+      color: cardColor,
       borderRadius: BorderRadius.circular(24),
       child: InkWell(
         onTap: onTap,
@@ -271,12 +285,12 @@ class _UserTaskCard extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
-              color: const Color(0xFFE4D2FF),
+              color: borderColor,
               width: 1.5,
             ),
             boxShadow: [
               BoxShadow(
-                color: purple.withOpacity(0.07),
+                color: (isCompleted ? completedAccent : purple).withOpacity(0.07),
                 blurRadius: 14,
                 offset: const Offset(0, 6),
               ),
@@ -311,8 +325,8 @@ class _UserTaskCard extends StatelessWidget {
                       _title,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: purple,
+                      style: TextStyle(
+                        color: titleColor,
                         fontSize: 21,
                         fontWeight: FontWeight.w900,
                       ),
@@ -320,8 +334,8 @@ class _UserTaskCard extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       '${task.promptLang} → ${task.targetLang}',
-                      style: const TextStyle(
-                        color: Color(0xFF9A9A9A),
+                      style: TextStyle(
+                        color: subtitleColor,
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
                       ),
@@ -331,10 +345,10 @@ class _UserTaskCard extends StatelessWidget {
                       spacing: 8,
                       runSpacing: 8,
                       children: [
-                        _TaskTag(text: _typeLabel),
-                        _TaskTag(text: 'XP: ${task.xpReward}'),
-                        _TaskTag(text: 'Order: ${task.orderIndex}'),
-                        if (_itemsCount > 0) _TaskTag(text: 'Items: $_itemsCount'),
+                        _TaskTag(text: _typeLabel, fillColor: tagFill, textColor: tagTextColor),
+                        _TaskTag(text: 'XP: ', fillColor: tagFill, textColor: tagTextColor),
+                        _TaskTag(text: 'Order: ', fillColor: tagFill, textColor: tagTextColor),
+                        if (_itemsCount > 0) _TaskTag(text: 'Items: ', fillColor: tagFill, textColor: tagTextColor),
                       ],
                     ),
                   ],
@@ -356,15 +370,21 @@ class _UserTaskCard extends StatelessWidget {
 
 class _TaskTag extends StatelessWidget {
   final String text;
+  final Color fillColor;
+  final Color textColor;
 
-  const _TaskTag({required this.text});
+  const _TaskTag({
+    required this.text,
+    this.fillColor = const Color(0xFFF1E8FF),
+    this.textColor = const Color(0xFF6A00FF),
+  });
 
   @override
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: const Color(0xFFF1E8FF),
+        color: fillColor,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Text(
@@ -479,6 +499,9 @@ class ExerciseWordOrderScreen extends StatefulWidget {
 
 class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
   static const Color purple = Color(0xFF6A00FF);
+  static const Color completedFill = Color(0xFFE6F4EA);
+  static const Color completedBorder = Color(0xFFB7D9C1);
+  static const Color completedAccent = Color(0xFF148019);
   static const Color green = Color(0xFF34C759);
   static const Color red = Color(0xFFFF4B4B);
   static const Color bg = Color(0xFFFDF8FF);
@@ -1827,3 +1850,7 @@ class _RewardItem extends StatelessWidget {
     );
   }
 }
+
+
+
+
