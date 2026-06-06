@@ -200,6 +200,29 @@ class _ModeratorAudioBooksScreenState extends State<ModeratorAudioBooksScreen> {
     }
   }
 
+  Future<void> deleteAudioBookById(String id) async {
+    setState(() => loading = true);
+    try {
+      final response = await http.delete(
+        Uri.parse('$apiUrl/$id'),
+        headers: await _authHeaders(),
+      );
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        await fetchAudioBooks();
+        showMessage('Audio book deleted successfully');
+      } else {
+        showDetailedError(
+          action: 'Delete failed',
+          statusCode: response.statusCode,
+          body: response.body,
+        );
+      }
+    } catch (e) {
+      showMessage('Error: ' + e.toString());
+    } finally {
+      if (mounted) setState(() => loading = false);
+    }
+  }
   void showMessage(String text) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
@@ -412,7 +435,7 @@ class _ModeratorAudioBooksScreenState extends State<ModeratorAudioBooksScreen> {
   }
 
   void openEditAudioBookSheet(Map<String, dynamic> book) {
-    final id = '${book['id'] ?? ''}';
+    final id = '';
     final titleController = TextEditingController(text: '${book['title'] ?? ''}');
     final authorController = TextEditingController(text: '${book['author'] ?? ''}');
     final externalUrlController = TextEditingController(text: '${book['externalUrl'] ?? ''}');
@@ -622,6 +645,29 @@ class _ModeratorAudioBooksScreenState extends State<ModeratorAudioBooksScreen> {
                                     (book) => _AudioAdminCard(
                                       book: book,
                                       onEdit: () => openEditAudioBookSheet(book),
+                                      onDelete: () async {
+                                        final id = (book['id'] ?? '').toString();
+                                        final confirmed = await showDialog<bool>(
+                                          context: context,
+                                          builder: (_) => AlertDialog(
+                                            title: const Text('Delete audio book?'),
+                                            content: Text('Delete ' + (book['title'] ?? 'this audio book').toString() + '?'),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(context, false),
+                                                child: const Text('Cancel'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(context, true),
+                                                child: const Text('Delete'),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                        if (confirmed == true && id.isNotEmpty) {
+                                          await deleteAudioBookById(id);
+                                        }
+                                      },
                                     ),
                                   )
                                   .toList(),
@@ -639,10 +685,12 @@ class _ModeratorAudioBooksScreenState extends State<ModeratorAudioBooksScreen> {
 class _AudioAdminCard extends StatelessWidget {
   final Map<String, dynamic> book;
   final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   const _AudioAdminCard({
     required this.book,
     required this.onEdit,
+    required this.onDelete,
   });
 
   @override
@@ -678,17 +726,34 @@ class _AudioAdminCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              InkWell(
-                onTap: onEdit,
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
+              Column(
+                children: [
+                  InkWell(
+                    onTap: onEdit,
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.edit, size: 18, color: Color(0xFF5A008B)),
+                    ),
                   ),
-                  child: const Icon(Icons.edit, size: 18, color: Color(0xFF5A008B)),
-                ),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: onDelete,
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFD64545)),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -808,3 +873,13 @@ class _Input extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
+
+

@@ -193,6 +193,27 @@ class _ModeratorBooksScreenState extends State<ModeratorBooksScreen> {
     }
   }
 
+  Future<void> deleteBookById(String id) async {
+    setState(() => loading = true);
+    try {
+      final response = await http.delete(
+        Uri.parse('$apiUrl/$id'),
+        headers: await _authHeaders(),
+      );
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        showMessage('Book deleted successfully');
+        await fetchBooks();
+      } else {
+        showMessage('Delete error: ' + response.body);
+      }
+    } catch (e) {
+      showMessage('Error: ' + e.toString());
+    } finally {
+      if (mounted) {
+        setState(() => loading = false);
+      }
+    }
+  }
   void showMessage(String text) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
@@ -403,7 +424,7 @@ class _ModeratorBooksScreenState extends State<ModeratorBooksScreen> {
   }
 
   void openEditBookSheet(Map<String, dynamic> book) {
-    final id = '${book['id'] ?? ''}';
+    final id = '';
     final titleController = TextEditingController(text: '${book['title'] ?? ''}');
     final authorController = TextEditingController(text: '${book['author'] ?? ''}');
     final pageController = TextEditingController(text: '${book['pageCount'] ?? ''}');
@@ -637,6 +658,29 @@ class _ModeratorBooksScreenState extends State<ModeratorBooksScreen> {
                                     (book) => _AdminBookCard(
                                       book: book,
                                       onEdit: () => openEditBookSheet(book),
+                                      onDelete: () async {
+                                        final id = (book['id'] ?? '').toString();
+                                        final confirmed = await showDialog<bool>(
+                                          context: context,
+                                          builder: (_) => AlertDialog(
+                                            title: const Text('Delete book?'),
+                                            content: Text('Delete ' + (book['title'] ?? 'this book').toString() + '?'),
+                                            actions: [
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(context, false),
+                                                child: const Text('Cancel'),
+                                              ),
+                                              TextButton(
+                                                onPressed: () => Navigator.pop(context, true),
+                                                child: const Text('Delete'),
+                                              ),
+                                            ],
+                                          ),
+                                        );
+                                        if (confirmed == true && id.isNotEmpty) {
+                                          await deleteBookById(id);
+                                        }
+                                      },
                                     ),
                                   )
                                   .toList(),
@@ -654,10 +698,12 @@ class _ModeratorBooksScreenState extends State<ModeratorBooksScreen> {
 class _AdminBookCard extends StatelessWidget {
   final Map<String, dynamic> book;
   final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
   const _AdminBookCard({
     required this.book,
     required this.onEdit,
+    required this.onDelete,
   });
 
   @override
@@ -693,17 +739,34 @@ class _AdminBookCard extends StatelessWidget {
                 ),
               ),
               const SizedBox(width: 8),
-              InkWell(
-                onTap: onEdit,
-                child: Container(
-                  width: 34,
-                  height: 34,
-                  decoration: const BoxDecoration(
-                    color: Colors.white,
-                    shape: BoxShape.circle,
+              Column(
+                children: [
+                  InkWell(
+                    onTap: onEdit,
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.edit, size: 18, color: Color(0xFF5A008B)),
+                    ),
                   ),
-                  child: const Icon(Icons.edit, size: 18, color: Color(0xFF5A008B)),
-                ),
+                  const SizedBox(height: 8),
+                  InkWell(
+                    onTap: onDelete,
+                    child: Container(
+                      width: 34,
+                      height: 34,
+                      decoration: const BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.delete_outline_rounded, size: 18, color: Color(0xFFD64545)),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -836,3 +899,13 @@ class _Input extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
+
+
+
+
