@@ -1,4 +1,4 @@
-﻿import 'dart:math' as math;
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:kazakh_learning_app/models/lesson_model.dart';
@@ -449,18 +449,30 @@ class _HomePageState extends State<HomePage> {
                             final group = groups[groupIndex];
                             final isUnlockedGroup = _isGroupUnlocked(group, groups);
 
-                            return _LessonCircleGroup(
-                              base: base,
-                              lessons: group.lessons,
-                              startNumber: group.startNumber,
-                              showBox: group.lessons.length == 6,
-                              mascotAsset: isUnlockedGroup
-                                  ? 'assets/images/Oyu.png'
-                                  : 'assets/images/Oyu_uyktauda.png',
-                              isLockedGroup: !isUnlockedGroup,
-                              onTapLesson: (lesson, number) {
-                                _openLessonSheet(lesson, number);
-                              },
+                            final showLevelDivider =
+                                groupIndex > 0 && groups[groupIndex - 1].level != group.level;
+
+                            return Column(
+                              children: [
+                                if (showLevelDivider)
+                                  const Padding(
+                                    padding: EdgeInsets.symmetric(vertical: 12),
+                                    child: _LevelDivider(),
+                                  ),
+                                _LessonCircleGroup(
+                                  base: base,
+                                  lessons: group.lessons,
+                                  startNumber: group.startNumber,
+                                  showBox: group.lessons.length == 6,
+                                  mascotAsset: isUnlockedGroup
+                                      ? 'assets/images/Oyu.png'
+                                      : 'assets/images/Oyu_uyktauda.png',
+                                  isLockedGroup: !isUnlockedGroup,
+                                  onTapLesson: (lesson, number) {
+                                    _openLessonSheet(lesson, number);
+                                  },
+                                ),
+                              ],
                             );
                           },
                         );
@@ -542,6 +554,36 @@ class _LessonGroupData {
     required this.indexWithinLevel,
   });
 }
+class _LevelDivider extends StatelessWidget {
+  const _LevelDivider();
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Expanded(
+          child: Divider(
+            color: Color(0xFFD9C2FF),
+            thickness: 4,
+            endIndent: 16,
+          ),
+        ),
+        Image.asset(
+          'assets/images/Qorap.png',
+          width: 58,
+          height: 58,
+          fit: BoxFit.contain,
+        ),
+        const Expanded(
+          child: Divider(
+            color: Color(0xFFD9C2FF),
+            thickness: 4,
+            indent: 16,
+          ),
+        ),
+      ],
+    );
+  }
+}
 class _LessonCircleGroup extends StatelessWidget {
   final double base;
   final List<LessonModel> lessons;
@@ -593,6 +635,7 @@ class _LessonCircleGroup extends StatelessWidget {
                       ),
                       for (int i = 0; i < lessons.length && i < 6; i++)
                         _buildEggPosition(
+                          context: context,
                           lesson: lessons[i],
                           index: i,
                           size: eggSize,
@@ -625,6 +668,7 @@ class _LessonCircleGroup extends StatelessWidget {
   }
 
   Widget _buildEggPosition({
+    required BuildContext context,
     required LessonModel lesson,
     required int index,
     required double size,
@@ -649,7 +693,13 @@ class _LessonCircleGroup extends StatelessWidget {
           child: Material(
             color: Colors.transparent,
             child: InkWell(
-              onTap: isLockedGroup ? null : onTap,
+              onTap: isLockedGroup
+                  ? () => showDialog<void>(
+                        context: context,
+                        barrierColor: Colors.black.withOpacity(0.28),
+                        builder: (_) => const _LockedLessonDialog(),
+                      )
+                  : onTap,
               borderRadius: BorderRadius.circular(size),
               child: SizedBox(
                 width: size,
@@ -696,6 +746,132 @@ class _LessonCircleGroup extends StatelessWidget {
   }
 }
 
+class _LockedLessonDialog extends StatelessWidget {
+  const _LockedLessonDialog();
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 22),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: const [
+              Image(
+                image: AssetImage('assets/images/crybaby.png'),
+                width: 112,
+                fit: BoxFit.contain,
+              ),
+              SizedBox(width: 12),
+              Expanded(
+                child: _LockedSpeechBubble(
+                  title: 'Locked lesson',
+                  message: 'Complete the previous levels to unlock this lesson.',
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0xFF6A00FF),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              child: const Text(
+                'OK',
+                style: TextStyle(fontWeight: FontWeight.w700),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+class _LockedSpeechBubble extends StatelessWidget {
+  final String title;
+  final String message;
+  const _LockedSpeechBubble({
+    required this.title,
+    required this.message,
+  });
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF7F1FF),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF6A00FF).withOpacity(0.10),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Color(0xFF41107A),
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                message,
+                style: const TextStyle(
+                  color: Color(0xFF5D4A77),
+                  fontSize: 15,
+                  height: 1.4,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          left: -12,
+          bottom: 18,
+          child: Transform.rotate(
+            angle: 0.78,
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: const BoxDecoration(
+                color: Color(0xFFF7F1FF),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(6),
+                  topRight: Radius.circular(16),
+                  bottomLeft: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
 class _LessonsVerticalList extends StatelessWidget {
   final List<LessonModel> lessons;
   final int startNumber;
@@ -1053,6 +1229,12 @@ class TheoryLessonScreen extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
 
 
 
