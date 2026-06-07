@@ -5,6 +5,8 @@ import 'package:http/http.dart' as http;
 import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:kazakh_learning_app/screens/shop_screen.dart';
 import 'package:kazakh_learning_app/screens/dictionary_screen.dart';
+import 'package:kazakh_learning_app/screens/friends_screen.dart';
+import 'package:kazakh_learning_app/services/friend_service.dart';
 import 'package:kazakh_learning_app/services/follow_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -38,8 +40,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   late String _fullName;
 
   final FollowService _follow = FollowService();
+  final FriendService _friendService = FriendService();
   FollowCounts? _counts;
   bool _countsLoading = true;
+  int _friendsCount = 0;
+  int _incomingFriendRequests = 0;
   String _xpWindow = 'WEEKLY';
   int _dailyXp = 0;
   int _weeklyXp = 0;
@@ -120,6 +125,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
         } catch (_) {}
       }
 
+      int friendsCount = 0;
+      int incomingFriendRequests = 0;
+      if (uid > 0) {
+        try {
+          final friends = await _friendService.getFriends();
+          friendsCount = friends.length;
+        } catch (_) {}
+        try {
+          final incomingRequests = await _friendService.getIncomingRequests();
+          incomingFriendRequests = incomingRequests.length;
+        } catch (_) {}
+      }
+
       await _loadXpStats();
       await _loadLeaderboard();
 
@@ -144,6 +162,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         }
         level = (me['level'] ?? 'A0').toString();
         _counts = c;
+        _friendsCount = friendsCount;
+        _incomingFriendRequests = incomingFriendRequests;
         loading = false;
         _countsLoading = false;
       });
@@ -570,8 +590,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final displayName = nickname.isNotEmpty ? nickname : _fullName;
     final initial = displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
-    final followingCount = _countsLoading ? 'â€”' : '${_counts?.followingCount ?? 0}';
-    final followersCount = _countsLoading ? 'â€”' : '${_counts?.followersCount ?? 0}';
+    final friendsCount = _countsLoading ? '—' : '$_friendsCount';
+    final requestsCount = _countsLoading ? '—' : '$_incomingFriendRequests';
     final progress = ((xp % 1000) / 1000).clamp(0.0, 1.0);
 
     return Scaffold(
@@ -684,14 +704,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(width: 14),
                         Expanded(
                           child: _topStat(
-                            title: 'Following',
-                            value: followingCount,
+                            title: 'Friends',
+                            value: friendsCount,
                             onTap: () async {
-                              if (userId <= 0) return;
-
                               await Navigator.of(context, rootNavigator: true).push(
                                 MaterialPageRoute(
-                                  builder: (_) => FollowingListScreen(userId: userId),
+                                  builder: (_) => const FriendsScreen(),
                                 ),
                               );
 
@@ -704,14 +722,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Container(width: 1, height: 34, color: Colors.black12),
                         Expanded(
                           child: _topStat(
-                            title: 'Followers',
-                            value: followersCount,
+                            title: 'Requests',
+                            value: requestsCount,
                             onTap: () async {
-                              if (userId <= 0) return;
-
                               await Navigator.of(context, rootNavigator: true).push(
                                 MaterialPageRoute(
-                                  builder: (_) => FollowersListScreen(userId: userId),
+                                  builder: (_) => const FriendsScreen(),
                                 ),
                               );
 
@@ -728,7 +744,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         Expanded(
                           child: InkWell(
-                            onTap: _openInviteSheet,
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => const FriendsScreen(),
+                                ),
+                              ).then((_) => _loadMe());
+                            },
                             borderRadius: BorderRadius.circular(16),
                             child: Container(
                               height: 52,
@@ -747,7 +770,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               child: const Center(
                                 child: Text(
-                                  'INVITE',
+                                  'FRIENDS',
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w900,
@@ -2584,4 +2607,9 @@ class _PublicStat extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
 
