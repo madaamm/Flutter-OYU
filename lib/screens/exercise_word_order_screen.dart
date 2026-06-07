@@ -4,6 +4,7 @@ import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:kazakh_learning_app/models/task_model.dart';
 import 'package:kazakh_learning_app/services/lesson_service.dart';
+import 'package:kazakh_learning_app/services/dictionary_service.dart';
 
 class ExerciseTaskSelectScreen extends StatefulWidget {
   final int lessonId;
@@ -32,6 +33,7 @@ class _ExerciseTaskSelectScreenState extends State<ExerciseTaskSelectScreen> {
   static const Color bg = Color(0xFFFDF8FF);
 
   final LessonService _lessonService = LessonService();
+  final DictionaryService _dictionaryService = DictionaryService();
 
   late Future<List<TaskModel>> _futureTasks;
 
@@ -506,6 +508,7 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
   static const Color red = Color(0xFFFF4B4B);
   static const Color bg = Color(0xFFFDF8FF);
   final LessonService _lessonService = LessonService();
+  final DictionaryService _dictionaryService = DictionaryService();
   final TextEditingController _answerTextController = TextEditingController();
   late final AudioPlayer _audioPlayer;
   StreamSubscription<PlayerState>? _playerStateSub;
@@ -964,6 +967,33 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
     return 'Wrong answer';
   }
 
+  Future<void> _saveWord(String word) async {
+    final trimmed = word.trim();
+    if (trimmed.isEmpty) return;
+
+    try {
+      final result = await _dictionaryService.saveWord(trimmed);
+      if (!mounted) return;
+
+      final message = result.alreadySaved
+          ? 'Already saved: ' + trimmed
+          : result.foundInGlobalDictionary
+              ? 'Saved to dictionary: ' + trimmed
+              : 'Saved, but no translation was found yet: ' + trimmed;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message)),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+      );
+    }
+  }
+  Future<void> _saveCurrentTypedWord() async {
+    await _saveWord(_answerTextController.text);
+  }
   Future<void> _toggleAudioPlayback() async {
     if (_task.audioUrl.trim().isEmpty) return;
 
@@ -1023,6 +1053,7 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
                     words: _bank,
                     isLocked: isWrong,
                     onTapWord: _placeWord,
+                    onSaveWord: _saveWord,
                   ),
                 ],
                 if (_isWordMatch) ...[
@@ -1034,6 +1065,7 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
                     matchedIds: _matchedIds,
                     stage: _stage,
                     isLocked: isWrong || _stage == _ExerciseStage.correct,
+                    onSaveWord: _saveWord,
                     onTapLeft: _selectLeft,
                     onTapRight: _selectRight,
                   ),
@@ -1048,6 +1080,7 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
                         ? 'Type the translation here'
                         : 'Type what you hear',
                     onChanged: (_) => setState(() {}),
+                    onSaveTap: _saveCurrentTypedWord,
                   ),
                 ],
                 if (isWrong) ...[
@@ -1270,13 +1303,13 @@ class _WordBank extends StatelessWidget {
   final List<String> words;
   final bool isLocked;
   final void Function(int index) onTapWord;
-
+  final ValueChanged<String> onSaveWord;
   const _WordBank({
     required this.words,
     required this.isLocked,
     required this.onTapWord,
+    required this.onSaveWord,
   });
-
   @override
   Widget build(BuildContext context) {
     return Wrap(
@@ -1288,33 +1321,32 @@ class _WordBank extends StatelessWidget {
           word: words[i],
           isWrong: false,
           onTap: isLocked ? null : () => onTapWord(i),
+          onSave: () => onSaveWord(words[i]),
         );
       }),
     );
   }
 }
-
 class _WordPill extends StatelessWidget {
   final String word;
   final bool isWrong;
   final VoidCallback? onTap;
-
+  final VoidCallback? onSave;
   const _WordPill({
     required this.word,
     required this.isWrong,
     required this.onTap,
+    this.onSave,
   });
-
   @override
   Widget build(BuildContext context) {
     final borderColor =
-    isWrong ? const Color(0xFFFF4B4B) : const Color(0xFF6A00FF);
-
+        isWrong ? const Color(0xFFFF4B4B) : const Color(0xFF6A00FF);
     return GestureDetector(
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 15),
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
         decoration: BoxDecoration(
           color: Colors.white,
           borderRadius: BorderRadius.circular(18),
@@ -1330,13 +1362,31 @@ class _WordPill extends StatelessWidget {
             ),
           ],
         ),
-        child: Text(
-          word,
-          style: const TextStyle(
-            color: Color(0xFF333333),
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Flexible(
+              child: Text(
+                word,
+                style: const TextStyle(
+                  color: Color(0xFF333333),
+                  fontSize: 20,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            if (onSave != null) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: onSave,
+                child: const Icon(
+                  Icons.bookmark_add_outlined,
+                  color: Color(0xFF6A00FF),
+                  size: 20,
+                ),
+              ),
+            ],
+          ],
         ),
       ),
     );
@@ -1351,6 +1401,7 @@ class _WordMatchBoard extends StatelessWidget {
   final Map<int, int> matchedIds;
   final _ExerciseStage stage;
   final bool isLocked;
+  final ValueChanged<String> onSaveWord;
   final void Function(int id) onTapLeft;
   final void Function(int id) onTapRight;
 
@@ -1362,6 +1413,7 @@ class _WordMatchBoard extends StatelessWidget {
     required this.matchedIds,
     required this.stage,
     required this.isLocked,
+    required this.onSaveWord,
     required this.onTapLeft,
     required this.onTapRight,
   });
@@ -1393,6 +1445,7 @@ class _WordMatchBoard extends StatelessWidget {
                     stage: stage,
                     disabled: isLocked,
                     onTap: () => onTapLeft(pair.id),
+                    onSave: () => onSaveWord(pair.left),
                   ),
                 );
               }).toList(),
@@ -1414,6 +1467,7 @@ class _WordMatchBoard extends StatelessWidget {
                     stage: stage,
                     disabled: isLocked,
                     onTap: () => onTapRight(pair.id),
+                    onSave: () => onSaveWord(pair.right),
                   ),
                 );
               }).toList(),
@@ -1432,6 +1486,7 @@ class _MatchCard extends StatelessWidget {
   final _ExerciseStage stage;
   final bool disabled;
   final VoidCallback onTap;
+  final VoidCallback? onSave;
 
   const _MatchCard({
     required this.text,
@@ -1440,6 +1495,7 @@ class _MatchCard extends StatelessWidget {
     required this.stage,
     required this.disabled,
     required this.onTap,
+    this.onSave,
   });
 
   @override
@@ -1484,15 +1540,31 @@ class _MatchCard extends StatelessWidget {
               ),
             ],
           ),
-          alignment: Alignment.center,
-          child: Text(
-            text,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              color: Color(0xFF333333),
-              fontSize: 18,
-              fontWeight: FontWeight.w800,
-            ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  text,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFF333333),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              if (onSave != null) ...[
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: onSave,
+                  child: const Icon(
+                    Icons.bookmark_add_outlined,
+                    color: Color(0xFF6A00FF),
+                    size: 18,
+                  ),
+                ),
+              ],
+            ],
           ),
         ),
       ),
@@ -1507,6 +1579,7 @@ class _AudioTaskPanel extends StatelessWidget {
   final VoidCallback onPlayTap;
   final String hintText;
   final ValueChanged<String> onChanged;
+  final VoidCallback onSaveTap;
 
   const _AudioTaskPanel({
     required this.isPlaying,
@@ -1515,6 +1588,7 @@ class _AudioTaskPanel extends StatelessWidget {
     required this.onPlayTap,
     required this.hintText,
     required this.onChanged,
+    required this.onSaveTap,
   });
 
   @override
@@ -1580,6 +1654,15 @@ class _AudioTaskPanel extends StatelessWidget {
                   width: 2,
                 ),
               ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton.icon(
+              onPressed: isLocked || answerController.text.trim().isEmpty ? null : onSaveTap,
+              icon: const Icon(Icons.bookmark_add_outlined),
+              label: const Text('Save word'),
             ),
           ),
         ],
@@ -1849,6 +1932,13 @@ class _RewardItem extends StatelessWidget {
     );
   }
 }
+
+
+
+
+
+
+
 
 
 

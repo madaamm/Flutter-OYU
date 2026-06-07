@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 
 import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:kazakh_learning_app/screens/shop_screen.dart';
+import 'package:kazakh_learning_app/screens/dictionary_screen.dart';
 import 'package:kazakh_learning_app/services/follow_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -770,6 +771,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               context,
                               MaterialPageRoute(
                                 builder: (_) => const ShopScreen(),
+                              ),
+                            );
+                          },
+                        ),
+                        const SizedBox(width: 10),
+                        _roundAction(
+                          icon: Icons.menu_book_rounded,
+                          onTap: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const DictionaryScreen(),
                               ),
                             );
                           },
@@ -2571,3 +2584,4 @@ class _PublicStat extends StatelessWidget {
     );
   }
 }
+
