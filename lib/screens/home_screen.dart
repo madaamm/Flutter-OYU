@@ -1,17 +1,16 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kazakh_learning_app/models/lesson_model.dart';
-import 'package:kazakh_learning_app/models/task_model.dart';
 import 'package:kazakh_learning_app/screens/alphabet_screen.dart';
 import 'package:kazakh_learning_app/screens/ask_ai_screen.dart';
 import 'package:kazakh_learning_app/screens/auth_screen.dart';
 import 'package:kazakh_learning_app/screens/game_zone_screen.dart';
-import 'package:kazakh_learning_app/screens/profile_screen.dart';
+import 'package:kazakh_learning_app/screens/profile_page.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:kazakh_learning_app/services/lesson_service.dart';
 import 'package:kazakh_learning_app/screens/exercise_word_order_screen.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -169,16 +168,22 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   static const Color purple = Color(0xFF5D0099);
   static const Color darkPurple = Color(0xFF3D0067);
+  static const int _levelDividerRewardAmount = 10;
+  static const String _levelRewardPrefsKey = 'claimed_level_reward_keys';
 
   final _lessonService = LessonService();
   late Future<List<LessonModel>> _futureLessons;
   String _userLevel = 'A0';
+  Set<String> _claimedCircleRewardKeys = <String>{};
+  Set<String> _claimedLevelRewardKeys = <String>{};
 
   @override
   void initState() {
     super.initState();
     _futureLessons = _lessonService.getUserLessons();
     _loadUserLevel();
+    _loadCircleRewardClaims();
+    _loadLevelRewardClaims();
   }
 
 
@@ -199,6 +204,9 @@ class _HomePageState extends State<HomePage> {
       _futureLessons = _lessonService.getUserLessons();
     });
     await _futureLessons;
+    await _loadUserLevel();
+    await _loadCircleRewardClaims();
+    await _loadLevelRewardClaims();
   }
 
   Future<void> _logout(BuildContext context) async {
@@ -233,6 +241,319 @@ class _HomePageState extends State<HomePage> {
 
   bool _isGroupCompleted(_LessonGroupData group) {
     return group.lessons.isNotEmpty && group.lessons.every(_isLessonCompleted);
+  }
+
+  String _circleRewardKey(_LessonGroupData group) {
+    return '${group.level}:${group.indexWithinLevel}';
+  }
+
+  bool _isCircleRewardClaimed(_LessonGroupData group) {
+    return _claimedCircleRewardKeys.contains(_circleRewardKey(group));
+  }
+
+  String _levelRewardKey(String level) {
+    return level.trim().toUpperCase();
+  }
+
+  bool _isLevelRewardClaimed(String level) {
+    return _claimedLevelRewardKeys.contains(_levelRewardKey(level));
+  }
+
+  bool _isLevelCompleted(String level, List<_LessonGroupData> allGroups) {
+    final normalizedLevel = _levelRewardKey(level);
+    final levelGroups = allGroups.where(
+      (group) => _levelRewardKey(group.level) == normalizedLevel,
+    );
+    return levelGroups.isNotEmpty && levelGroups.every(_isGroupCompleted);
+  }
+
+  Future<void> _loadCircleRewardClaims() async {
+    try {
+      final claims = await _lessonService.getCircleRewardClaims();
+      if (!mounted) return;
+
+      setState(() {
+        _claimedCircleRewardKeys = claims.map((claim) {
+          final level = (claim['level'] ?? '').toString().trim().toUpperCase();
+          final groupIndexRaw = claim['groupIndex'];
+          final groupIndex = groupIndexRaw is int
+              ? groupIndexRaw
+              : int.tryParse('$groupIndexRaw') ?? 0;
+          return '$level:$groupIndex';
+        }).toSet();
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _loadLevelRewardClaims() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final stored = prefs.getStringList(_levelRewardPrefsKey) ?? const <String>[];
+      if (!mounted) return;
+
+      setState(() {
+        _claimedLevelRewardKeys = stored
+            .map((item) => item.trim().toUpperCase())
+            .where((item) => item.isNotEmpty)
+            .toSet();
+      });
+    } catch (_) {}
+  }
+
+  Future<void> _claimLevelReward(
+    String level,
+    List<_LessonGroupData> allGroups,
+  ) async {
+    final normalizedLevel = _levelRewardKey(level);
+
+    if (_isLevelRewardClaimed(normalizedLevel)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Level reward already claimed')),
+      );
+      return;
+    }
+
+    if (!_isLevelCompleted(normalizedLevel, allGroups)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Finish all lessons in $normalizedLevel first'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final updatedKeys = <String>{
+        ..._claimedLevelRewardKeys,
+        normalizedLevel,
+      };
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setStringList(
+        _levelRewardPrefsKey,
+        updatedKeys.toList()..sort(),
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _claimedLevelRewardKeys = updatedKeys;
+      });
+
+      await _showRewardDialog(
+        amount: _levelDividerRewardAmount,
+        title: 'Level Reward Unlocked',
+        subtitle: '$normalizedLevel is complete',
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Reward error: $e')),
+      );
+    }
+  }
+
+  Future<void> _claimCircleReward(_LessonGroupData group) async {
+    if (group.lessons.length != 6) return;
+
+    if (_isCircleRewardClaimed(group)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reward already claimed')),
+      );
+      return;
+    }
+
+    if (!_isGroupCompleted(group)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Complete all 6 lessons in this circle first'),
+        ),
+      );
+      return;
+    }
+
+    try {
+      final result = await _lessonService.claimCircleReward(
+        level: group.level,
+        groupIndex: group.indexWithinLevel,
+      );
+
+      if (!mounted) return;
+
+      final alreadyClaimed = result['alreadyClaimed'] == true;
+      final earnedRaw = result['earnedSilvEgg'];
+      final earned = earnedRaw is int ? earnedRaw : int.tryParse('$earnedRaw') ?? 0;
+
+      if (!alreadyClaimed) {
+        setState(() {
+          _claimedCircleRewardKeys = <String>{
+            ..._claimedCircleRewardKeys,
+            _circleRewardKey(group),
+          };
+        });
+
+        await _showRewardDialog(
+          amount: earned,
+          title: 'Bonus Collected',
+          subtitle: 'Oyu prepared a reward for you',
+        );
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            alreadyClaimed
+                ? 'Reward already claimed'
+                : 'You received +$earned',
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Reward error: $e')),
+      );
+    }
+  }
+
+  Future<void> _showRewardDialog({
+    required int amount,
+    required String title,
+    required String subtitle,
+  }) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                colors: [purple, darkPurple],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(30),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.24),
+                  blurRadius: 24,
+                  offset: const Offset(0, 14),
+                ),
+              ],
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(20),
+                    onTap: () => Navigator.of(dialogContext).pop(),
+                    child: const Padding(
+                      padding: EdgeInsets.all(4),
+                      child: Icon(
+                        Icons.close_rounded,
+                        color: Colors.white,
+                        size: 26,
+                      ),
+                    ),
+                  ),
+                ),
+                Image.asset(
+                  'assets/images/Oyu.png',
+                  height: 118,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  title,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  subtitle,
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    color: Color(0xFFE6D6FF),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  width: 250,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(22),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(
+                        'assets/images/Sandyk.png',
+                        width: 50,
+                        height: 50,
+                        fit: BoxFit.contain,
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        '+$amount',
+                        style: const TextStyle(
+                          color: Colors.black,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w900,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 18),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    onPressed: () => Navigator.of(dialogContext).pop(),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: purple,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                    ),
+                    child: const Text(
+                      'Awesome',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   List<_LessonGroupData> _buildLessonGroups(List<LessonModel> lessons) {
@@ -455,9 +776,22 @@ class _HomePageState extends State<HomePage> {
                             return Column(
                               children: [
                                 if (showLevelDivider)
-                                  const Padding(
+                                  Padding(
                                     padding: EdgeInsets.symmetric(vertical: 12),
-                                    child: _LevelDivider(),
+                                    child: _LevelDivider(
+                                      levelLabel: groups[groupIndex - 1].level,
+                                      isCompleted: _isLevelCompleted(
+                                        groups[groupIndex - 1].level,
+                                        groups,
+                                      ),
+                                      isClaimed: _isLevelRewardClaimed(
+                                        groups[groupIndex - 1].level,
+                                      ),
+                                      onTap: () => _claimLevelReward(
+                                        groups[groupIndex - 1].level,
+                                        groups,
+                                      ),
+                                    ),
                                   ),
                                 _LessonCircleGroup(
                                   base: base,
@@ -468,6 +802,10 @@ class _HomePageState extends State<HomePage> {
                                       ? 'assets/images/Oyu.png'
                                       : 'assets/images/Oyu_uyktauda.png',
                                   isLockedGroup: !isUnlockedGroup,
+                                  isRewardClaimed: _isCircleRewardClaimed(group),
+                                  onTapReward: group.lessons.length == 6
+                                      ? () => _claimCircleReward(group)
+                                      : null,
                                   onTapLesson: (lesson, number) {
                                     _openLessonSheet(lesson, number);
                                   },
@@ -555,9 +893,22 @@ class _LessonGroupData {
   });
 }
 class _LevelDivider extends StatelessWidget {
-  const _LevelDivider();
+  final String levelLabel;
+  final bool isCompleted;
+  final bool isClaimed;
+  final VoidCallback onTap;
+
+  const _LevelDivider({
+    required this.levelLabel,
+    required this.isCompleted,
+    required this.isClaimed,
+    required this.onTap,
+  });
+
   @override
   Widget build(BuildContext context) {
+    final double opacity = isClaimed ? 0.58 : (isCompleted ? 1.0 : 0.75);
+
     return Row(
       children: [
         const Expanded(
@@ -567,11 +918,31 @@ class _LevelDivider extends StatelessWidget {
             endIndent: 16,
           ),
         ),
-        Image.asset(
-          'assets/images/Qorap.png',
-          width: 58,
-          height: 58,
-          fit: BoxFit.contain,
+        Opacity(
+          opacity: opacity,
+          child: Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(40),
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Tooltip(
+                  message: isClaimed
+                      ? '$levelLabel reward already claimed'
+                      : isCompleted
+                          ? 'Claim $levelLabel reward: +10'
+                          : 'Complete all $levelLabel lessons first',
+                  child: Image.asset(
+                    'assets/images/Qorap.png',
+                    width: 58,
+                    height: 58,
+                    fit: BoxFit.contain,
+                  ),
+                ),
+              ),
+            ),
+          ),
         ),
         const Expanded(
           child: Divider(
@@ -591,6 +962,8 @@ class _LessonCircleGroup extends StatelessWidget {
   final bool showBox;
   final String mascotAsset;
   final bool isLockedGroup;
+  final bool isRewardClaimed;
+  final VoidCallback? onTapReward;
   final void Function(LessonModel lesson, int number) onTapLesson;
 
   const _LessonCircleGroup({
@@ -600,6 +973,8 @@ class _LessonCircleGroup extends StatelessWidget {
     required this.showBox,
     required this.mascotAsset,
     required this.isLockedGroup,
+    required this.isRewardClaimed,
+    required this.onTapReward,
     required this.onTapLesson,
   });
 
@@ -653,11 +1028,24 @@ class _LessonCircleGroup extends StatelessWidget {
               if (showBox)
                 Positioned(
                   top: size - eggSize * 0.2,
-                  child: Image.asset(
-                    'assets/images/Qorap.png',
-                    width: eggSize,
-                    height: eggSize,
-                    fit: BoxFit.contain,
+                  child: Opacity(
+                    opacity: isRewardClaimed ? 0.58 : 1,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: onTapReward,
+                        borderRadius: BorderRadius.circular(eggSize),
+                        child: Padding(
+                          padding: const EdgeInsets.all(2),
+                          child: Image.asset(
+                            'assets/images/Qorap.png',
+                            width: eggSize,
+                            height: eggSize,
+                            fit: BoxFit.contain,
+                          ),
+                        ),
+                      ),
+                    ),
                   ),
                 ),
             ],

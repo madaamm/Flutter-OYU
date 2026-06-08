@@ -1,4 +1,4 @@
-﻿import 'dart:convert';
+import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:kazakh_learning_app/models/lesson_model.dart';
@@ -272,6 +272,55 @@ class LessonService {
     return _extractData(jsonDecode(response.body));
   }
 
+  Future<List<Map<String, dynamic>>> getCircleRewardClaims() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/progress/circle-rewards'),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw _buildException(response);
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! List) return <Map<String, dynamic>>[];
+
+    return decoded
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
+  Future<Map<String, dynamic>> claimCircleReward({
+    required String level,
+    required int groupIndex,
+  }) async {
+    final token = await AuthService().getToken();
+
+    if (token == null || token.isEmpty) {
+      throw Exception('Token missing. Please log in again.');
+    }
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/progress/circle-rewards/claim'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'level': level,
+        'groupIndex': groupIndex,
+      }),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Circle reward error ${response.statusCode}: ${response.body}');
+    }
+
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+  }
   Future<Map<String, dynamic>> getMyStreak() async {
     final response = await http.get(
       Uri.parse('$baseUrl/users/me/streak'),
@@ -299,6 +348,7 @@ class LessonService {
     return _extractData(jsonDecode(response.body));
   }
 }
+
 
 
 

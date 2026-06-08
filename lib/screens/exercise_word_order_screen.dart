@@ -526,6 +526,8 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
   bool _submittingAnswer = false;
   bool _alreadyCompletedTask = false;
   int _earnedXp = 0;
+  int _earnedSilvEgg = 0;
+  bool _lessonCompletedNow = false;
   bool _isPlayingAudio = false;
 
   _ExerciseStage _stage = _ExerciseStage.building;
@@ -733,6 +735,21 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
     return <String, dynamic>{};
   }
 
+  int _resolveEarnedSilvEgg(Map<String, dynamic> result) {
+    final earnedRaw = result['earnedSilvEgg'];
+    final earned = earnedRaw is int
+        ? earnedRaw
+        : int.tryParse('${earnedRaw ?? 0}') ?? 0;
+    final lessonCompletedNow = result['lessonCompletedNow'] == true;
+    final alreadyCompleted = result['alreadySubmitted'] == true;
+
+    if (lessonCompletedNow && !alreadyCompleted && earned <= 0) {
+      return 10;
+    }
+
+    return earned;
+  }
+
   String _normalize(String word) {
     return word.trim().toLowerCase().replaceAll(RegExp(r'[.,!?]'), '');
   }
@@ -788,6 +805,8 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
             _earnedXp = result['earnedXp'] is int
                 ? result['earnedXp'] as int
                 : int.tryParse('${result['earnedXp'] ?? 0}') ?? 0;
+            _earnedSilvEgg = _resolveEarnedSilvEgg(result);
+            _lessonCompletedNow = result['lessonCompletedNow'] == true;
           });
 
           await Future<void>.delayed(const Duration(milliseconds: 700));
@@ -839,6 +858,8 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
         _earnedXp = result['earnedXp'] is int
             ? result['earnedXp'] as int
             : int.tryParse('${result['earnedXp'] ?? 0}') ?? 0;
+        _earnedSilvEgg = _resolveEarnedSilvEgg(result);
+        _lessonCompletedNow = result['lessonCompletedNow'] == true;
 
         await Future<void>.delayed(const Duration(milliseconds: 700));
 
@@ -889,6 +910,8 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
       _submittingAnswer = false;
       _alreadyCompletedTask = false;
       _earnedXp = 0;
+      _earnedSilvEgg = 0;
+      _lessonCompletedNow = false;
       _setupTask();
     });
   }
@@ -1017,6 +1040,8 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
     if (_stage == _ExerciseStage.reward) {
       return _RewardScreen(
         xp: _earnedXp > 0 ? _earnedXp : _task.xpReward,
+        silvEgg: _earnedSilvEgg,
+        lessonCompletedNow: _lessonCompletedNow,
         alreadyCompleted: _alreadyCompletedTask,
         onGet: _handleRewardGet,
         onClose: () => Navigator.pop(context, true),
@@ -1717,6 +1742,8 @@ class _FeedbackBox extends StatelessWidget {
 
 class _RewardScreen extends StatelessWidget {
   final int xp;
+  final int silvEgg;
+  final bool lessonCompletedNow;
   final bool alreadyCompleted;
   final VoidCallback onGet;
   final VoidCallback onClose;
@@ -1724,6 +1751,8 @@ class _RewardScreen extends StatelessWidget {
 
   const _RewardScreen({
     required this.xp,
+    required this.silvEgg,
+    required this.lessonCompletedNow,
     required this.alreadyCompleted,
     required this.onGet,
     required this.onClose,
@@ -1773,7 +1802,9 @@ class _RewardScreen extends StatelessWidget {
                 Text(
                   alreadyCompleted
                       ? 'You already completed this task'
-                      : 'You did great job',
+                      : lessonCompletedNow
+                          ? 'You completed the lesson'
+                          : 'You did great job',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Colors.white,
@@ -1785,7 +1816,9 @@ class _RewardScreen extends StatelessWidget {
                 Text(
                   alreadyCompleted
                       ? 'No additional rewards are given for repeated completion'
-                      : 'Task finished',
+                      : lessonCompletedNow
+                          ? 'Lesson finished'
+                          : 'Task finished',
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Color(0xFFE8D9FF),
@@ -1796,7 +1829,7 @@ class _RewardScreen extends StatelessWidget {
                 const SizedBox(height: 24),
                 if (!alreadyCompleted)
                   Container(
-                    width: 250,
+                    width: silvEgg > 0 ? 250 : 170,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 24,
                       vertical: 20,
@@ -1815,11 +1848,12 @@ class _RewardScreen extends StatelessWidget {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        _RewardItem(
-                          image: 'assets/images/Sandyk.png',
-                          value: '+1',
-                          size: 64,
-                        ),
+                        if (silvEgg > 0)
+                          _RewardItem(
+                            image: 'assets/images/Sandyk.png',
+                            value: '+$silvEgg',
+                            size: 64,
+                          ),
                         _RewardItem(
                           image: 'assets/images/diamond.png',
                           value: '+$xp',
@@ -1932,6 +1966,9 @@ class _RewardItem extends StatelessWidget {
     );
   }
 }
+
+
+
 
 
 
