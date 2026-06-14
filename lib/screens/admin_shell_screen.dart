@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:kazakh_learning_app/screens/admin_home_screen.dart';
-import 'package:kazakh_learning_app/screens/home_screen.dart';
-import 'package:kazakh_learning_app/screens/profile_screen.dart';
+import 'package:kazakh_learning_app/screens/profile_page.dart';
 
 class AdminShellScreen extends StatefulWidget {
   final String userName;

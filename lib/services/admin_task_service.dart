@@ -56,7 +56,7 @@ class AdminTaskService {
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Тапсырмаларды алу ?атесі: ${response.body}');
+      throw Exception('Тапсырмаларды алу қатесі: ${response.body}');
     }
 
     final decoded = jsonDecode(response.body);
@@ -213,7 +213,7 @@ class AdminTaskService {
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Тапсырма ?осу ?атесі: ${response.body}');
+      throw Exception('Тапсырма қосу қатесі: ${response.body}');
     }
 
     final decoded = jsonDecode(response.body);
@@ -259,7 +259,7 @@ class AdminTaskService {
     );
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw Exception('Тапсырма ?згерту ?атесі: ${response.body}');
+      throw Exception('Тапсырма өзгерту қатесі: ${response.body}');
     }
 
     final decoded = jsonDecode(response.body);

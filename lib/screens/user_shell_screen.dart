@@ -4,7 +4,7 @@ import 'package:kazakh_learning_app/screens/home_screen.dart';
 import 'package:kazakh_learning_app/screens/alphabet_screen.dart';
 import 'package:kazakh_learning_app/screens/ask_ai_screen.dart';
 import 'package:kazakh_learning_app/screens/game_zone_screen.dart';
-import 'package:kazakh_learning_app/screens/profile_screen.dart';
+import 'package:kazakh_learning_app/screens/profile_page.dart';
 
 class UserShellScreen extends StatefulWidget {
   final String userName;

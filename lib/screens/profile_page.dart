@@ -379,7 +379,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<bool?> _checkNicknameAvailable(String nick) async {
     final token = await AuthService().getToken();
     if (token == null || token.isEmpty) {
-      _errorSnack('Token Р¶РѕТ›. ТљР°Р№С‚Р° login Р¶Р°СЃР°.');
+      _errorSnack('Token жоқ. Қайта login жаса.');
       return null;
     }
 
@@ -404,7 +404,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final token = await AuthService().getToken();
     if (token == null || token.isEmpty) {
-      _errorSnack('Token Р¶РѕТ›. ТљР°Р№С‚Р° login Р¶Р°СЃР°.');
+      _errorSnack('Token жоқ. Қайта login жаса.');
       return;
     }
 
@@ -444,12 +444,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
             await AuthService().saveNicknameForUser(uid, updatedNick);
           }
         } else {
-          _errorSnack('Nickname Р±РѕСЃ РµРјРµСЃ (409)');
+          _errorSnack('Nickname бос емес (409)');
         }
         return;
       }
 
-      _errorSnack('ТљР°С‚Рµ: ${res.statusCode}');
+      _errorSnack('Қате: ${res.statusCode}');
     } catch (e) {
       _errorSnack('Server error: $e');
     } finally {
@@ -464,7 +464,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text('Nickname У©Р·РіРµСЂС‚Сѓ'),
+        title: const Text('Nickname өзгерту'),
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(
@@ -475,12 +475,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Р–Р°Р±Сѓ'),
+            child: const Text('Жабу'),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: purple),
-            child: const Text('РЎР°Т›С‚Р°Сѓ'),
+            child: const Text('Сақтау'),
           ),
         ],
       ),
@@ -490,13 +490,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final newNick = controller.text.trim();
     if (newNick.isEmpty) {
-      _errorSnack('Nickname Р±РѕСЃ Р±РѕР»РјР°СѓС‹ РєРµСЂРµРє');
+      _errorSnack('Nickname бос болмауы керек');
       return;
     }
 
     final available = await _checkNicknameAvailable(newNick);
     if (available == false) {
-      _errorSnack('РћРЅРґР°Р№ nickname Р±РѕСЃ РµРјРµСЃ');
+      _errorSnack('Ондай nickname бос емес');
       return;
     }
 
@@ -516,13 +516,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (res['ok'] == true) {
               setState(() => _fullName = (res['username'] ?? value).toString().trim());
             } else {
-              throw Exception((res['message'] ?? 'ТљР°С‚Рµ').toString());
+              throw Exception((res['message'] ?? 'Қате').toString());
             }
           },
           onSaveNickname: (value) async {
             final available = await _checkNicknameAvailable(value);
             if (available == false) {
-              throw Exception('РћРЅРґР°Р№ nickname Р±РѕСЃ РµРјРµСЃ');
+              throw Exception('Ондай nickname бос емес');
             }
             await _updateNickname(value);
           },
@@ -579,7 +579,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ElevatedButton(
                   onPressed: _loadMe,
                   style: ElevatedButton.styleFrom(backgroundColor: purple),
-                  child: const Text('ТљР°Р№С‚Р° Р¶ТЇРєС‚РµСѓ'),
+                  child: const Text('Қайта жүктеу'),
                 ),
               ],
             ),
@@ -670,7 +670,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '@${nickname.isNotEmpty ? nickname : _fullName.toLowerCase().replaceAll(' ', '_')} вЂў Joined 2025',
+                                '@${nickname.isNotEmpty ? nickname : _fullName.toLowerCase().replaceAll(' ', '_')} • Joined 2025',
                                 style: const TextStyle(
                                   color: Colors.black45,
                                   fontWeight: FontWeight.w500,
@@ -850,7 +850,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'YouвЂ™re almost there!',
+                            "You're almost there!",
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
@@ -976,14 +976,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Expanded(
                           child: _infoMiniCard(
                             title: 'Full Name',
-                            value: _fullName.isNotEmpty ? _fullName : 'вЂ”',
+                            value: _fullName.isNotEmpty ? _fullName : '—',
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: _infoMiniCard(
                             title: 'Nickname',
-                            value: nickname.isNotEmpty ? nickname : 'вЂ”',
+                            value: nickname.isNotEmpty ? nickname : '—',
                           ),
                         ),
                       ],
@@ -1239,7 +1239,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   )
                       : const Icon(Icons.edit_outlined),
                   label: const Text(
-                    'Nickname У©Р·РіРµСЂС‚Сѓ',
+                    'Nickname өзгерту',
                     style: TextStyle(fontWeight: FontWeight.w900),
                   ),
                   style: ElevatedButton.styleFrom(
@@ -1266,14 +1266,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: Icons.help_outline,
                 title: 'Help & Support',
                 subtitle: 'Get help with your account and app usage',
-                onTap: () => _errorSnack('Help & Support РєРµР№С–РЅ Т›РѕСЃР°РјС‹Р·'),
+                onTap: () => _errorSnack('Help & Support кейін қосамыз'),
               ),
               const SizedBox(height: 10),
               _moreTile(
                 icon: Icons.favorite_border,
                 title: 'About App',
                 subtitle: 'Learn more about OYU',
-                onTap: () => _errorSnack('About App РєРµР№С–РЅ Т›РѕСЃР°РјС‹Р·'),
+                onTap: () => _errorSnack('About App кейін қосамыз'),
               ),
               const SizedBox(height: 10),
               _moreTile(
@@ -1595,7 +1595,7 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
 
     if (nick.isEmpty) {
       setState(() {
-        error = 'Nickname РµРЅРіС–Р·';
+        error = 'Nickname енгіз';
         foundUser = null;
         isFollowing = null;
       });
@@ -1616,7 +1616,7 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
 
       if (user == null) {
         setState(() {
-          error = 'User С‚Р°Р±С‹Р»РјР°РґС‹';
+          error = 'User табылмады';
           searching = false;
         });
         return;
@@ -1624,7 +1624,7 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
 
       if (user.id <= 0) {
         setState(() {
-          error = 'Backend user id Р¶С–Р±РµСЂРјРµРґС–';
+          error = 'Backend user id жібермеді';
           foundUser = null;
           isFollowing = null;
           searching = false;
@@ -1668,7 +1668,7 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
 
     if (user.id <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User id С‚Р°Р±С‹Р»РјР°РґС‹')),
+        const SnackBar(content: Text('User id табылмады')),
       );
       return;
     }
@@ -1700,7 +1700,7 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(status ? 'Follow Р¶Р°СЃР°Р»РґС‹' : 'Unfollow Р¶Р°СЃР°Р»РґС‹'),
+          content: Text(status ? 'Follow жасалды' : 'Unfollow жасалды'),
         ),
       );
     } catch (e) {
@@ -1874,7 +1874,7 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Level ${user.level} вЂў XP ${user.xp}',
+                                    'Level ${user.level} • XP ${user.xp}',
                                     style: const TextStyle(
                                       color: Colors.black45,
                                     ),
@@ -1897,7 +1897,7 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: const Text(
-                        'Р‘Т±Р» У©Р·С–ТЈРЅС–ТЈ Р°РєРєР°СѓРЅС‚С‹ТЈ',
+                        'Бұл өзіңнің аккаунтың',
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           color: Colors.green,
@@ -2004,7 +2004,7 @@ class _BioDataScreenState extends State<BioDataScreen> {
 
     if (newName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Name Р±РѕСЃ Р±РѕР»РјР°СѓС‹ РєРµСЂРµРє')),
+        const SnackBar(content: Text('Name бос болмауы керек')),
       );
       return;
     }
@@ -2102,7 +2102,7 @@ class _BioDataScreenState extends State<BioDataScreen> {
             ),
             const SizedBox(height: 4),
             Text(
-              widget.email.isNotEmpty ? widget.email : 'вЂ”',
+              widget.email.isNotEmpty ? widget.email : '—',
               textAlign: TextAlign.center,
               style: const TextStyle(
                 color: Colors.black38,
@@ -2119,7 +2119,7 @@ class _BioDataScreenState extends State<BioDataScreen> {
               readOnly: true,
               decoration: _input('Email'),
               controller: TextEditingController(
-                text: widget.email.isNotEmpty ? widget.email : 'вЂ”',
+                text: widget.email.isNotEmpty ? widget.email : '—',
               ),
             ),
             const SizedBox(height: 24),
@@ -2371,7 +2371,7 @@ class _FollowListBaseState extends State<_FollowListBase> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Level ${u.level} вЂў XP ${u.xp}',
+                          'Level ${u.level} • XP ${u.xp}',
                           style: const TextStyle(color: Colors.black54),
                         ),
                       ],

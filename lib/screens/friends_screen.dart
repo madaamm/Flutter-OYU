@@ -322,7 +322,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                           _FriendCard(
                             user: _searchedUser!,
                             subtitle:
-                                'Level ${_searchedUser!.level} � XP ${_searchedUser!.xp}',
+                                'Level ${_searchedUser!.level} • XP ${_searchedUser!.xp}',
                             trailing: _buildSearchAction(),
                             onTap: () => _openFriendProfile(_searchedUser!),
                           ),
@@ -343,7 +343,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         child: _FriendCard(
                           user: item.user,
                           subtitle:
-                              'Level ${item.user.level} � XP ${item.user.xp}',
+                              'Level ${item.user.level} • XP ${item.user.xp}',
                           onTap: () => _openFriendProfile(item.user),
                           trailing: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -378,7 +378,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         child: _FriendCard(
                           user: item.user,
                           subtitle:
-                              'Level ${item.user.level} � XP ${item.user.xp}',
+                              'Level ${item.user.level} • XP ${item.user.xp}',
                           onTap: () => _openFriendProfile(item.user),
                           trailing: IconButton(
                             onPressed: _actionLoading
@@ -402,7 +402,7 @@ class _FriendsScreenState extends State<FriendsScreen> {
                         padding: const EdgeInsets.only(bottom: 10),
                         child: _FriendCard(
                           user: user,
-                          subtitle: 'Level ${user.level} � XP ${user.xp}',
+                          subtitle: 'Level ${user.level} • XP ${user.xp}',
                           onTap: () => _openFriendProfile(user),
                           trailing: ElevatedButton(
                             onPressed: _actionLoading
@@ -569,7 +569,7 @@ class _FriendProfileScreenState extends State<FriendProfileScreen> {
                                   title: 'Top rank',
                                   value: _profile!.leaderboardRank > 0
                                       ? '#${_profile!.leaderboardRank}'
-                                      : '�'),
+                                      : '—'),
                             ],
                           ),
                         ],
