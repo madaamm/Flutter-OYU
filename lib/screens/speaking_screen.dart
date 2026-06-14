@@ -1,10 +1,11 @@
 import 'dart:convert';
-import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:path_provider/path_provider.dart';
+import 'package:http_parser/http_parser.dart';
 import 'package:record/record.dart';
+import 'package:kazakh_learning_app/utils/speaking_audio_storage.dart';
 
 class SpeakingScreen extends StatefulWidget {
   const SpeakingScreen({super.key});
@@ -36,34 +37,56 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
   Future<void> toggleRecording() async {
     if (isLoading) return;
 
-    if (isRecording) {
-      await stopAndSendRecording();
-    } else {
-      await startRecording();
+    try {
+      if (isRecording) {
+        await stopAndSendRecording();
+      } else {
+        await startRecording();
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        isRecording = false;
+        isLoading = false;
+      });
+      showMessage('Could not access the microphone. $e');
     }
   }
 
   Future<void> startRecording() async {
-    final hasPermission = await recorder.hasPermission();
-
-    if (!hasPermission) {
-      showMessage('Микрофонға рұқсат керек');
+    final trimmedTopic = topicController.text.trim();
+    if (trimmedTopic.isEmpty) {
+      showMessage('Please enter a topic first.');
       return;
     }
 
-    final dir = await getTemporaryDirectory();
-    final filePath =
-        '${dir.path}/speaking_${DateTime.now().millisecondsSinceEpoch}.m4a';
+    final hasPermission = await recorder.hasPermission();
+
+    if (!hasPermission) {
+      showMessage('Microphone permission is required.');
+      return;
+    }
+
+    final filePath = await createSpeakingRecordingPath();
+
+    final config = kIsWeb
+        ? const RecordConfig(
+            encoder: AudioEncoder.wav,
+            bitRate: 128000,
+            sampleRate: 44100,
+          )
+        : const RecordConfig(
+            encoder: AudioEncoder.aacLc,
+            bitRate: 128000,
+            sampleRate: 44100,
+          );
 
     await recorder.start(
-      const RecordConfig(
-        encoder: AudioEncoder.aacLc,
-        bitRate: 128000,
-        sampleRate: 44100,
-      ),
+      config,
       path: filePath,
     );
 
+    if (!mounted) return;
     setState(() {
       isRecording = true;
       result = null;
@@ -73,12 +96,13 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
   Future<void> stopAndSendRecording() async {
     final audioPath = await recorder.stop();
 
+    if (!mounted) return;
     setState(() {
       isRecording = false;
     });
 
     if (audioPath == null) {
-      showMessage('Аудио жазылмады');
+      showMessage('Audio was not recorded.');
       return;
     }
 
@@ -86,6 +110,7 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
   }
 
   Future<void> sendToBackend(String audioPath) async {
+    if (!mounted) return;
     setState(() {
       isLoading = true;
     });
@@ -96,13 +121,17 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
         Uri.parse(apiUrl),
       );
 
+      final audio = await readSpeakingRecording(audioPath);
+
       request.fields['topic'] = topicController.text.trim();
-      request.fields['language'] = 'ru';
+      request.fields['language'] = 'en';
 
       request.files.add(
-        await http.MultipartFile.fromPath(
+        http.MultipartFile.fromBytes(
           'audio',
-          audioPath,
+          audio.bytes,
+          filename: audio.filename,
+          contentType: MediaType.parse(audio.mimeType),
         ),
       );
 
@@ -110,25 +139,34 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
       final response = await http.Response.fromStream(streamedResponse);
 
       if (response.statusCode != 200) {
+        final decodedError = jsonDecode(response.body);
+        if (decodedError is Map<String, dynamic>) {
+          final message =
+              decodedError['details']?.toString() ??
+              decodedError['message']?.toString() ??
+              decodedError['error']?.toString() ??
+              response.body;
+          throw Exception(message);
+        }
         throw Exception(response.body);
       }
 
-      final data = jsonDecode(response.body);
+      final data = jsonDecode(response.body) as Map<String, dynamic>;
 
+      if (!mounted) return;
       setState(() {
         result = data;
       });
     } catch (e) {
-      showMessage('Қате: $e');
+      showMessage('Error: $e');
     } finally {
-      setState(() {
-        isLoading = false;
-      });
-
-      final file = File(audioPath);
-      if (await file.exists()) {
-        await file.delete();
+      if (mounted) {
+        setState(() {
+          isLoading = false;
+        });
       }
+
+      await cleanupSpeakingRecording(audioPath);
     }
   }
 
@@ -152,7 +190,7 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 16,
             offset: const Offset(0, 4),
           ),
@@ -168,9 +206,7 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
               fontWeight: FontWeight.w700,
             ),
           ),
-
           const SizedBox(height: 12),
-
           Text(
             'Overall score: ${result!['overall_score'] ?? 0}/10',
             style: const TextStyle(
@@ -178,33 +214,25 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
               fontWeight: FontWeight.w600,
             ),
           ),
-
           const SizedBox(height: 12),
-
           Text('Fluency: ${scores['fluency'] ?? 0}'),
           Text('Pronunciation: ${scores['pronunciation'] ?? 0}'),
           Text('Grammar: ${scores['grammar'] ?? 0}'),
           Text('Vocabulary: ${scores['vocabulary'] ?? 0}'),
           Text('Coherence: ${scores['coherence'] ?? 0}'),
-
           const SizedBox(height: 12),
-
           const Text(
             'Transcript:',
             style: TextStyle(fontWeight: FontWeight.w700),
           ),
           Text(result!['transcript'] ?? ''),
-
           const SizedBox(height: 12),
-
           const Text(
             'Summary:',
             style: TextStyle(fontWeight: FontWeight.w700),
           ),
           Text(result!['summary'] ?? ''),
-
           const SizedBox(height: 12),
-
           if (result!['tips'] is List)
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -214,7 +242,7 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
                 ...List.from(result!['tips']).map(
-                      (tip) => Text('• $tip'),
+                  (tip) => Text('- $tip'),
                 ),
               ],
             ),
@@ -259,7 +287,6 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
                 ],
               ),
             ),
-
             Expanded(
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(28, 60, 28, 32),
@@ -276,7 +303,7 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.08),
+                            color: Colors.black.withValues(alpha: 0.08),
                             blurRadius: 18,
                             offset: const Offset(0, 4),
                           ),
@@ -287,7 +314,7 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
                         maxLines: 5,
                         decoration: const InputDecoration(
                           border: InputBorder.none,
-                          hintText: 'Напишите тему, о которой будете говорить...',
+                          hintText: 'Write the topic you want to speak about...',
                           hintStyle: TextStyle(
                             fontSize: 18,
                             color: Color(0xFF777777),
@@ -300,63 +327,57 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 60),
-
                     SizedBox(
                       width: MediaQuery.of(context).size.width * 0.62,
                       height: 82,
                       child: ElevatedButton(
                         onPressed: toggleRecording,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor:
-                          isRecording ? Colors.black87 : red,
+                          backgroundColor: isRecording ? Colors.black87 : red,
                           elevation: 6,
-                          shadowColor: Colors.black.withOpacity(0.35),
+                          shadowColor: Colors.black.withValues(alpha: 0.35),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(18),
                           ),
                         ),
                         child: isLoading
                             ? const CircularProgressIndicator(
-                          color: Colors.white,
-                        )
-                            : Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              isRecording
-                                  ? Icons.stop_rounded
-                                  : Icons.mic_none_rounded,
-                              color: Colors.white,
-                              size: 42,
-                            ),
-                            const SizedBox(width: 10),
-                            Text(
-                              buttonText,
-                              style: const TextStyle(
                                 color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
+                              )
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    isRecording
+                                        ? Icons.stop_rounded
+                                        : Icons.mic_none_rounded,
+                                    color: Colors.white,
+                                    size: 42,
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Text(
+                                    buttonText,
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
+                                ],
                               ),
-                            ),
-                          ],
-                        ),
                       ),
                     ),
-
                     const SizedBox(height: 12),
-
                     Text(
                       isRecording
-                          ? 'Recording... сөйлеңіз'
-                          : 'Тақырыпты жазып, батырманы басыңыз',
+                          ? 'Recording... speak now'
+                          : 'Enter a topic and press the button',
                       style: const TextStyle(
                         color: Color(0xFF777777),
                         fontSize: 15,
                       ),
                     ),
-
                     buildResult(),
                   ],
                 ),

@@ -283,7 +283,7 @@ class _UserTaskCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(24),
         child: Container(
-          padding: const EdgeInsets.all(18),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(24),
             border: Border.all(
@@ -301,8 +301,8 @@ class _UserTaskCard extends StatelessWidget {
           child: Row(
             children: [
               Container(
-                width: 66,
-                height: 66,
+                width: 56,
+                height: 56,
                 decoration: const BoxDecoration(
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
@@ -315,13 +315,14 @@ class _UserTaskCard extends StatelessWidget {
                 child: Icon(
                   _icon,
                   color: Colors.white,
-                  size: 34,
+                  size: 30,
                 ),
               ),
-              const SizedBox(width: 18),
+              const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
                       _title,
@@ -333,7 +334,7 @@ class _UserTaskCard extends StatelessWidget {
                         fontWeight: FontWeight.w900,
                       ),
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     Text(
                       '${task.promptLang} → ${task.targetLang}',
                       style: TextStyle(
@@ -342,10 +343,10 @@ class _UserTaskCard extends StatelessWidget {
                         fontWeight: FontWeight.w700,
                       ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     Wrap(
                       spacing: 8,
-                      runSpacing: 8,
+                      runSpacing: 6,
                       children: [
                         _TaskTag(text: _typeLabel, fillColor: tagFill, textColor: tagTextColor),
                         _TaskTag(text: 'XP: ', fillColor: tagFill, textColor: tagTextColor),
@@ -356,11 +357,11 @@ class _UserTaskCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
+              const SizedBox(width: 6),
               const Icon(
                 Icons.play_circle_fill_rounded,
                 color: purple,
-                size: 38,
+                size: 34,
               ),
             ],
           ),
@@ -384,7 +385,7 @@ class _TaskTag extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
       decoration: BoxDecoration(
         color: fillColor,
         borderRadius: BorderRadius.circular(999),
