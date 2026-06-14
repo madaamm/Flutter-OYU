@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:kazakh_learning_app/models/audio_book_model.dart';
 import 'package:kazakh_learning_app/services/audio_book_service.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
+import 'package:kazakh_learning_app/services/book_review_service.dart';
+import 'package:kazakh_learning_app/widgets/book_review_section.dart';
 
 class ListeningScreen extends StatefulWidget {
   const ListeningScreen({super.key});
@@ -475,6 +477,11 @@ class _ListeningDetailsScreenState extends State<ListeningDetailsScreen> {
                 ),
                 const Icon(Icons.repeat_rounded, color: Color(0xFF1E1E1E)),
               ],
+            ),
+            const SizedBox(height: 34),
+            BookReviewSection(
+              contentType: ReviewContentType.audioBook,
+              contentId: widget.book.id,
             ),
             const SizedBox(height: 34),
             if (relatedBooks.isNotEmpty) ...[

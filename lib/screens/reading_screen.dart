@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:kazakh_learning_app/models/book_model.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:kazakh_learning_app/services/book_service.dart';
+import 'package:kazakh_learning_app/services/book_review_service.dart';
+import 'package:kazakh_learning_app/widgets/book_review_section.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class ReadingScreen extends StatefulWidget {
@@ -309,28 +311,6 @@ class BookDetailsScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                const Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text(
-                      '8.0',
-                      style: TextStyle(
-                        fontSize: 18,
-                        color: Color(0xFF313131),
-                      ),
-                    ),
-                    SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.star_rounded, size: 14, color: Colors.black54),
-                        Icon(Icons.star_rounded, size: 14, color: Colors.black54),
-                        Icon(Icons.star_rounded, size: 14, color: Colors.black54),
-                        Icon(Icons.star_rounded, size: 14, color: Colors.black54),
-                        Icon(Icons.star_half_rounded, size: 14, color: Colors.black54),
-                      ],
-                    ),
-                  ],
-                ),
               ],
             ),
             const SizedBox(height: 14),
@@ -373,6 +353,11 @@ class BookDetailsScreen extends StatelessWidget {
                   ),
                 ),
               ),
+            ),
+            const SizedBox(height: 30),
+            BookReviewSection(
+              contentType: ReviewContentType.book,
+              contentId: book.id,
             ),
             const SizedBox(height: 30),
             _SectionHeader(title: 'Most Likes', actionText: 'See All'),
