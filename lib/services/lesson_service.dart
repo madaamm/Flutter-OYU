@@ -291,6 +291,25 @@ class LessonService {
         .toList();
   }
 
+  Future<List<Map<String, dynamic>>> getLevelRewardClaims() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/progress/level-rewards'),
+      headers: await _headers(),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw _buildException(response);
+    }
+
+    final decoded = jsonDecode(response.body);
+    if (decoded is! List) return <Map<String, dynamic>>[];
+
+    return decoded
+        .whereType<Map>()
+        .map((e) => Map<String, dynamic>.from(e))
+        .toList();
+  }
+
   Future<Map<String, dynamic>> claimCircleReward({
     required String level,
     required int groupIndex,
@@ -316,6 +335,35 @@ class LessonService {
 
     if (response.statusCode < 200 || response.statusCode >= 300) {
       throw Exception('Circle reward error ${response.statusCode}: ${response.body}');
+    }
+
+    final decoded = jsonDecode(response.body);
+    return decoded is Map<String, dynamic> ? decoded : <String, dynamic>{};
+  }
+
+  Future<Map<String, dynamic>> claimLevelReward({
+    required String level,
+  }) async {
+    final token = await AuthService().getToken();
+
+    if (token == null || token.isEmpty) {
+      throw Exception('Token missing. Please log in again.');
+    }
+
+    final response = await http.post(
+      Uri.parse('$baseUrl/progress/level-rewards/claim'),
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+        'Authorization': 'Bearer $token',
+      },
+      body: jsonEncode({
+        'level': level,
+      }),
+    );
+
+    if (response.statusCode < 200 || response.statusCode >= 300) {
+      throw Exception('Level reward error ${response.statusCode}: ${response.body}');
     }
 
     final decoded = jsonDecode(response.body);

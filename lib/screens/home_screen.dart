@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kazakh_learning_app/models/lesson_model.dart';
 import 'package:kazakh_learning_app/screens/alphabet_screen.dart';
 import 'package:kazakh_learning_app/screens/ask_ai_screen.dart';
@@ -169,7 +168,6 @@ class _HomePageState extends State<HomePage> {
   static const Color purple = Color(0xFF5D0099);
   static const Color darkPurple = Color(0xFF3D0067);
   static const int _levelDividerRewardAmount = 10;
-  static const String _levelRewardPrefsKey = 'claimed_level_reward_keys';
 
   final _lessonService = LessonService();
   late Future<List<LessonModel>> _futureLessons;
@@ -287,13 +285,12 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _loadLevelRewardClaims() async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      final stored = prefs.getStringList(_levelRewardPrefsKey) ?? const <String>[];
+      final claims = await _lessonService.getLevelRewardClaims();
       if (!mounted) return;
 
       setState(() {
-        _claimedLevelRewardKeys = stored
-            .map((item) => item.trim().toUpperCase())
+        _claimedLevelRewardKeys = claims
+            .map((claim) => (claim['level'] ?? '').toString().trim().toUpperCase())
             .where((item) => item.isNotEmpty)
             .toSet();
       });
@@ -325,26 +322,35 @@ class _HomePageState extends State<HomePage> {
     }
 
     try {
-      final updatedKeys = <String>{
-        ..._claimedLevelRewardKeys,
-        normalizedLevel,
-      };
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setStringList(
-        _levelRewardPrefsKey,
-        updatedKeys.toList()..sort(),
+      final result = await _lessonService.claimLevelReward(
+        level: normalizedLevel,
       );
 
       if (!mounted) return;
 
-      setState(() {
-        _claimedLevelRewardKeys = updatedKeys;
-      });
+      final alreadyClaimed = result['alreadyClaimed'] == true;
+      final earnedRaw = result['earnedSilvEgg'];
+      final earned = earnedRaw is int ? earnedRaw : int.tryParse('$earnedRaw') ?? 0;
 
-      await _showRewardDialog(
-        amount: _levelDividerRewardAmount,
-        title: 'Level Reward Unlocked',
-        subtitle: '$normalizedLevel is complete',
+      if (!alreadyClaimed) {
+        setState(() {
+          _claimedLevelRewardKeys = <String>{
+            ..._claimedLevelRewardKeys,
+            normalizedLevel,
+          };
+        });
+
+        await _showRewardDialog(
+          amount: earned > 0 ? earned : _levelDividerRewardAmount,
+          title: 'Level Reward Unlocked',
+          subtitle: '$normalizedLevel is complete',
+        );
+        return;
+      }
+
+      await _showSilverEggNotice(
+        title: 'Reward collected',
+        message: 'You have already collected the reward for $normalizedLevel.',
       );
     } catch (e) {
       if (!mounted) return;
