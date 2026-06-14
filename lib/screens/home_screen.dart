@@ -308,18 +308,18 @@ class _HomePageState extends State<HomePage> {
 
     if (_isLevelRewardClaimed(normalizedLevel)) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Level reward already claimed')),
+      await _showSilverEggNotice(
+        title: 'Reward collected',
+        message: 'You have already collected the reward for $normalizedLevel.',
       );
       return;
     }
 
     if (!_isLevelCompleted(normalizedLevel, allGroups)) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Finish all lessons in $normalizedLevel first'),
-        ),
+      await _showSilverEggNotice(
+        title: '$normalizedLevel is not complete',
+        message: 'Finish all lessons in $normalizedLevel to unlock this reward.',
       );
       return;
     }
@@ -359,18 +359,18 @@ class _HomePageState extends State<HomePage> {
 
     if (_isCircleRewardClaimed(group)) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Reward already claimed')),
+      await _showSilverEggNotice(
+        title: 'Reward collected',
+        message: 'You have already collected the Silver Egg for this circle.',
       );
       return;
     }
 
     if (!_isGroupCompleted(group)) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Complete all 6 lessons in this circle first'),
-        ),
+      await _showSilverEggNotice(
+        title: 'Silver Egg is locked',
+        message: 'Complete all 6 lessons in this circle to unlock this reward.',
       );
       return;
     }
@@ -399,18 +399,14 @@ class _HomePageState extends State<HomePage> {
           amount: earned,
           title: 'Bonus Collected',
           subtitle: 'Oyu prepared a reward for you',
+          rewardAsset: 'assets/images/Qorap.png',
         );
         return;
       }
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            alreadyClaimed
-                ? 'Reward already claimed'
-                : 'You received +$earned',
-          ),
-        ),
+      await _showSilverEggNotice(
+        title: 'Reward collected',
+        message: 'You have already collected the Silver Egg for this circle.',
       );
     } catch (e) {
       if (!mounted) return;
@@ -420,139 +416,39 @@ class _HomePageState extends State<HomePage> {
     }
   }
 
-  Future<void> _showRewardDialog({
-    required int amount,
+  Future<void> _showSilverEggNotice({
     required String title,
-    required String subtitle,
+    required String message,
   }) async {
     if (!mounted) return;
 
     await showDialog<void>(
       context: context,
-      barrierDismissible: true,
-      builder: (dialogContext) {
-        return Dialog(
-          backgroundColor: Colors.transparent,
-          insetPadding: const EdgeInsets.symmetric(horizontal: 24),
-          child: Container(
-            padding: const EdgeInsets.fromLTRB(24, 24, 24, 20),
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                colors: [purple, darkPurple],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
-              borderRadius: BorderRadius.circular(30),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.24),
-                  blurRadius: 24,
-                  offset: const Offset(0, 14),
-                ),
-              ],
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(20),
-                    onTap: () => Navigator.of(dialogContext).pop(),
-                    child: const Padding(
-                      padding: EdgeInsets.all(4),
-                      child: Icon(
-                        Icons.close_rounded,
-                        color: Colors.white,
-                        size: 26,
-                      ),
-                    ),
-                  ),
-                ),
-                Image.asset(
-                  'assets/images/Oyu.png',
-                  height: 118,
-                  fit: BoxFit.contain,
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  title,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.w900,
-                  ),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  subtitle,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(
-                    color: Color(0xFFE6D6FF),
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                Container(
-                  width: 250,
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 14,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Image.asset(
-                        'assets/images/Sandyk.png',
-                        width: 50,
-                        height: 50,
-                        fit: BoxFit.contain,
-                      ),
-                      const SizedBox(width: 12),
-                      Text(
-                        '+$amount',
-                        style: const TextStyle(
-                          color: Colors.black,
-                          fontSize: 20,
-                          fontWeight: FontWeight.w900,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 18),
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: () => Navigator.of(dialogContext).pop(),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: purple,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(18),
-                      ),
-                    ),
-                    child: const Text(
-                      'Awesome',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w900,
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
+      barrierColor: Colors.black.withValues(alpha: 0.28),
+      builder: (_) => _SilverEggNoticeDialog(
+        title: title,
+        message: message,
+      ),
+    );
+  }
+
+  Future<void> _showRewardDialog({
+    required int amount,
+    required String title,
+    required String subtitle,
+    String rewardAsset = 'assets/images/Qorap.png',
+  }) async {
+    if (!mounted) return;
+
+    await showDialog<void>(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.28),
+      builder: (_) => _RewardSuccessDialog(
+        title: title,
+        message: subtitle,
+        amount: amount,
+        rewardAsset: rewardAsset,
+      ),
     );
   }
 
@@ -1136,6 +1032,7 @@ class _LessonCircleGroup extends StatelessWidget {
 
 class _LockedLessonDialog extends StatelessWidget {
   const _LockedLessonDialog();
+
   @override
   Widget build(BuildContext context) {
     return Dialog(
@@ -1186,6 +1083,251 @@ class _LockedLessonDialog extends StatelessWidget {
     );
   }
 }
+
+class _SilverEggNoticeDialog extends StatelessWidget {
+  final String title;
+  final String message;
+
+  const _SilverEggNoticeDialog({
+    required this.title,
+    required this.message,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 22),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const Image(
+                image: AssetImage('assets/images/angrybaby.png'),
+                width: 112,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _LockedSpeechBubble(
+                  title: title,
+                  message: message,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0xFF6A00FF),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              child: const Text(
+                'OK',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RewardSuccessDialog extends StatelessWidget {
+  final String title;
+  final String message;
+  final int amount;
+  final String rewardAsset;
+
+  const _RewardSuccessDialog({
+    required this.title,
+    required this.message,
+    required this.amount,
+    required this.rewardAsset,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 22),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const Image(
+                image: AssetImage('assets/images/happybaby.png'),
+                width: 112,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _RewardSpeechBubble(
+                  title: title,
+                  message: message,
+                  amount: amount,
+                  rewardAsset: rewardAsset,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0xFF6A00FF),
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(999),
+                ),
+              ),
+              child: const Text(
+                'OK',
+                style: TextStyle(fontWeight: FontWeight.w800),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RewardSpeechBubble extends StatelessWidget {
+  final String title;
+  final String message;
+  final int amount;
+  final String rewardAsset;
+
+  const _RewardSpeechBubble({
+    required this.title,
+    required this.message,
+    required this.amount,
+    required this.rewardAsset,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(18, 18, 18, 16),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF7F1FF),
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+              BoxShadow(
+                color: const Color(0xFF6A00FF).withValues(alpha: 0.10),
+                blurRadius: 18,
+                offset: const Offset(0, 10),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                title,
+                style: const TextStyle(
+                  color: Color(0xFF41107A),
+                  fontSize: 21,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                style: const TextStyle(
+                  color: Color(0xFF5D4A77),
+                  fontSize: 14,
+                  height: 1.35,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              const SizedBox(height: 14),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset(
+                      rewardAsset,
+                      width: 42,
+                      height: 42,
+                      fit: BoxFit.contain,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      '+$amount',
+                      style: const TextStyle(
+                        color: Color(0xFF41107A),
+                        fontSize: 18,
+                        fontWeight: FontWeight.w900,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        Positioned(
+          left: -12,
+          bottom: 24,
+          child: Transform.rotate(
+            angle: 0.78,
+            child: Container(
+              width: 24,
+              height: 24,
+              decoration: const BoxDecoration(
+                color: Color(0xFFF7F1FF),
+                borderRadius: BorderRadius.only(
+                  topLeft: Radius.circular(6),
+                  topRight: Radius.circular(16),
+                  bottomLeft: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
 class _LockedSpeechBubble extends StatelessWidget {
   final String title;
   final String message;
