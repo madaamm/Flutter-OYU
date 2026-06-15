@@ -6,7 +6,33 @@ import 'package:kazakh_learning_app/models/audio_book_model.dart';
 import 'package:kazakh_learning_app/services/audio_book_service.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:kazakh_learning_app/services/book_review_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:kazakh_learning_app/widgets/book_review_section.dart';
+
+const String _recentAudioBookIdsKey = 'recent_audio_book_ids';
+
+Future<List<int>> _loadRecentAudioBookIds() async {
+  final prefs = await SharedPreferences.getInstance();
+  return (prefs.getStringList(_recentAudioBookIdsKey) ?? const <String>[])
+      .map((value) => int.tryParse(value))
+      .whereType<int>()
+      .toList();
+}
+
+Future<void> _rememberRecentAudioBook(int bookId) async {
+  final prefs = await SharedPreferences.getInstance();
+  final updated = <String>[
+    bookId.toString(),
+    ...(prefs.getStringList(_recentAudioBookIdsKey) ?? const <String>[])
+        .where((value) => value != bookId.toString()),
+  ];
+
+  if (updated.length > 20) {
+    updated.removeRange(20, updated.length);
+  }
+
+  await prefs.setStringList(_recentAudioBookIdsKey, updated);
+}
 
 class ListeningScreen extends StatefulWidget {
   const ListeningScreen({super.key});
@@ -23,6 +49,7 @@ class _ListeningScreenState extends State<ListeningScreen> {
   String? _error;
   String _selectedGenre = 'All';
   List<AudioBookModel> _audioBooks = [];
+  List<int> _recentAudioBookIds = [];
 
   @override
   void initState() {
@@ -45,9 +72,11 @@ class _ListeningScreenState extends State<ListeningScreen> {
 
     try {
       final audioBooks = await _audioBookService.getAudioBooks();
+      final recentAudioBookIds = await _loadRecentAudioBookIds();
       if (!mounted) return;
       setState(() {
         _audioBooks = audioBooks;
+        _recentAudioBookIds = recentAudioBookIds;
         _loading = false;
       });
     } catch (e) {
@@ -61,7 +90,12 @@ class _ListeningScreenState extends State<ListeningScreen> {
 
   List<String> get _genres {
     final genres = _audioBooks
-        .map((book) => book.genre.trim().isEmpty ? 'General' : book.genre.trim())
+        .map((book) {
+          final genre = book.genre.trim();
+          if (genre.isEmpty) return 'General';
+          if (genre.toLowerCase() == 'all') return 'General';
+          return genre;
+        })
         .toSet()
         .toList()
       ..sort();
@@ -81,7 +115,35 @@ class _ListeningScreenState extends State<ListeningScreen> {
     }).toList();
   }
 
+  List<AudioBookModel> get _recentlyPlayedBooks {
+    final query = _searchController.text.trim().toLowerCase();
+    final booksById = {
+      for (final book in _audioBooks) book.id: book,
+    };
+
+    return _recentAudioBookIds
+        .map((id) => booksById[id])
+        .whereType<AudioBookModel>()
+        .where((book) {
+          final genreOk =
+              _selectedGenre == 'All' || book.genre.toLowerCase() == _selectedGenre.toLowerCase();
+          final queryOk = query.isEmpty ||
+              book.title.toLowerCase().contains(query) ||
+              book.author.toLowerCase().contains(query);
+          return genreOk && queryOk;
+        })
+        .take(3)
+        .toList();
+  }
+
   void _openDetails(AudioBookModel book) {
+    _rememberRecentAudioBook(book.id);
+    setState(() {
+      _recentAudioBookIds = [
+        book.id,
+        ..._recentAudioBookIds.where((id) => id != book.id),
+      ].take(20).toList();
+    });
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -93,11 +155,24 @@ class _ListeningScreenState extends State<ListeningScreen> {
     );
   }
 
+  void _openAllPodcasts() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _AllPodcastsScreen(
+          title: _selectedGenre == 'All' ? 'All podcasts' : '$_selectedGenre podcasts',
+          books: _filteredAudioBooks,
+          onTapBook: _openDetails,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final filtered = _filteredAudioBooks;
     final featured = filtered.isNotEmpty ? filtered.first : null;
-    final recentlyPlayed = filtered.take(3).toList();
+    final recentlyPlayed = _recentlyPlayedBooks;
     final popular = filtered.skip(filtered.length > 1 ? 1 : 0).take(8).toList();
 
     return Scaffold(
@@ -181,7 +256,7 @@ class _ListeningScreenState extends State<ListeningScreen> {
                         _SectionTitle(title: 'Recently played'),
                         const SizedBox(height: 14),
                         if (recentlyPlayed.isEmpty)
-                          const _EmptySection(message: 'No audio books in this genre yet')
+                          const _EmptySection(message: 'You have not opened any podcasts yet')
                         else
                           ...recentlyPlayed.map(
                             (book) => Padding(
@@ -192,13 +267,17 @@ class _ListeningScreenState extends State<ListeningScreen> {
                         const SizedBox(height: 8),
                         const Divider(color: Color(0xFFBABABA), thickness: 1),
                         const SizedBox(height: 18),
-                        _SectionHeader(title: 'Popular podcasts', actionText: 'See all'),
+                        _SectionHeader(
+                          title: 'Popular podcasts',
+                          actionText: 'See all',
+                          onActionTap: _openAllPodcasts,
+                        ),
                         const SizedBox(height: 14),
                         if (popular.isEmpty)
                           const _EmptySection(message: 'Nothing to play here yet')
                         else
                           SizedBox(
-                            height: 170,
+                            height: 188,
                             child: ListView.builder(
                               scrollDirection: Axis.horizontal,
                               itemCount: popular.length,
@@ -485,10 +564,38 @@ class _ListeningDetailsScreenState extends State<ListeningDetailsScreen> {
             ),
             const SizedBox(height: 34),
             if (relatedBooks.isNotEmpty) ...[
-              _SectionHeader(title: 'Popular podcasts', actionText: 'See all'),
+              _SectionHeader(
+                title: 'Popular podcasts',
+                actionText: 'See all',
+                onActionTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => _AllPodcastsScreen(
+                        title: widget.book.genre.trim().isEmpty
+                            ? 'Related podcasts'
+                            : '${widget.book.genre} podcasts',
+                        books: relatedBooks,
+                        onTapBook: (item) {
+                          _rememberRecentAudioBook(item.id);
+                          Navigator.pushReplacement(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ListeningDetailsScreen(
+                                book: item,
+                                allBooks: widget.allBooks,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  );
+                },
+              ),
               const SizedBox(height: 14),
               SizedBox(
-                height: 170,
+                height: 188,
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: relatedBooks.length,
@@ -905,10 +1012,12 @@ class _SectionTitle extends StatelessWidget {
 class _SectionHeader extends StatelessWidget {
   final String title;
   final String actionText;
+  final VoidCallback? onActionTap;
 
   const _SectionHeader({
     required this.title,
     required this.actionText,
+    this.onActionTap,
   });
 
   @override
@@ -924,14 +1033,93 @@ class _SectionHeader extends StatelessWidget {
             color: Color(0xFF222222),
           ),
         ),
-        Text(
-          actionText,
-          style: const TextStyle(
-            fontSize: 16,
-            color: Color(0xFFFF6F47),
+        GestureDetector(
+          onTap: onActionTap,
+          child: Text(
+            actionText,
+            style: const TextStyle(
+              fontSize: 16,
+              color: Color(0xFFFF6F47),
+            ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _AllPodcastsScreen extends StatelessWidget {
+  final String title;
+  final List<AudioBookModel> books;
+  final void Function(AudioBookModel book) onTapBook;
+
+  const _AllPodcastsScreen({
+    required this.title,
+    required this.books,
+    required this.onTapBook,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(18, 14, 18, 10),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                    ),
+                    Expanded(
+                      child: Text(
+                        title,
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w800,
+                          color: Colors.black,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 48),
+                  ],
+                ),
+              ),
+            ),
+            if (books.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: _EmptySection(message: 'Nothing to play here yet'),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(18, 8, 18, 24),
+                sliver: SliverGrid(
+                  delegate: SliverChildBuilderDelegate(
+                    (context, index) => _PopularAudioCard(
+                      book: books[index],
+                      onTap: onTapBook,
+                    ),
+                    childCount: books.length,
+                  ),
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 220,
+                    crossAxisSpacing: 14,
+                    mainAxisSpacing: 18,
+                    childAspectRatio: 0.82,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }
