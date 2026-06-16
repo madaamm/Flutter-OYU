@@ -112,6 +112,30 @@ class _ReadingScreenState extends State<ReadingScreen> {
     );
   }
 
+  void _openAllBooks(String title, List<BookModel> books) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _AllBooksScreen(
+          title: title,
+          books: books,
+          onBookTap: _openDetails,
+        ),
+      ),
+    );
+  }
+
+  void _openAllAuthors(List<String> authors) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => _AllAuthorsScreen(
+          authors: authors,
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final filtered = _filteredBooks;
@@ -198,11 +222,19 @@ class _ReadingScreenState extends State<ReadingScreen> {
                           ),
                         ),
                         const SizedBox(height: 22),
-                        _SectionHeader(title: 'Best seller', actionText: 'See All'),
+                        _SectionHeader(
+                          title: 'Best seller',
+                          actionText: 'See All',
+                          onActionTap: () => _openAllBooks('Best seller', bestSeller),
+                        ),
                         const SizedBox(height: 12),
                         _HorizontalBookStrip(books: bestSeller, onBookTap: _openDetails),
                         const SizedBox(height: 28),
-                        _SectionHeader(title: 'Top authors', actionText: 'See All'),
+                        _SectionHeader(
+                          title: 'Top authors',
+                          actionText: 'See All',
+                          onActionTap: () => _openAllAuthors(authors),
+                        ),
                         const SizedBox(height: 14),
                         SizedBox(
                           height: 110,
@@ -216,7 +248,11 @@ class _ReadingScreenState extends State<ReadingScreen> {
                           ),
                         ),
                         const SizedBox(height: 28),
-                        _SectionHeader(title: 'Popular', actionText: 'See All'),
+                        _SectionHeader(
+                          title: 'Popular',
+                          actionText: 'See All',
+                          onActionTap: () => _openAllBooks('Popular', popular),
+                        ),
                         const SizedBox(height: 12),
                         _HorizontalBookStrip(books: popular, onBookTap: _openDetails),
                         if (filtered.isEmpty) ...[
@@ -360,7 +396,33 @@ class BookDetailsScreen extends StatelessWidget {
               contentId: book.id,
             ),
             const SizedBox(height: 30),
-            _SectionHeader(title: 'Most Likes', actionText: 'See All'),
+            _SectionHeader(
+              title: 'Most Likes',
+              actionText: 'See All',
+              onActionTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => _AllBooksScreen(
+                      title: 'Most Likes',
+                      books: relatedBooks,
+                      onBookTap: (item) {
+                        Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) => BookDetailsScreen(
+                              book: item,
+                              allBooks: allBooks,
+                              openBook: openBook,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                );
+              },
+            ),
             const SizedBox(height: 14),
             _HorizontalBookStrip(
               books: relatedBooks,
@@ -563,10 +625,12 @@ class _GenreButton extends StatelessWidget {
 class _SectionHeader extends StatelessWidget {
   final String title;
   final String actionText;
+  final VoidCallback? onActionTap;
 
   const _SectionHeader({
     required this.title,
     required this.actionText,
+    this.onActionTap,
   });
 
   @override
@@ -582,15 +646,225 @@ class _SectionHeader extends StatelessWidget {
             color: Color(0xFF4C4C4C),
           ),
         ),
-        Text(
-          actionText,
-          style: const TextStyle(
-            fontSize: 16,
-            color: Color(0xFF6C6C6C),
-            decoration: TextDecoration.underline,
+        GestureDetector(
+          onTap: onActionTap,
+          child: Text(
+            actionText,
+            style: const TextStyle(
+              fontSize: 16,
+              color: Color(0xFF6C6C6C),
+              decoration: TextDecoration.underline,
+            ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _AllBooksScreen extends StatelessWidget {
+  final String title;
+  final List<BookModel> books;
+  final void Function(BookModel book) onBookTap;
+
+  const _AllBooksScreen({
+    required this.title,
+    required this.books,
+    required this.onBookTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 14, 18, 10),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                  ),
+                  Expanded(
+                    child: Text(
+                      title,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF212121),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 48),
+                ],
+              ),
+            ),
+            Expanded(
+              child: books.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Nothing here yet',
+                        style: TextStyle(color: Color(0xFF888888)),
+                      ),
+                    )
+                  : LayoutBuilder(
+                      builder: (context, constraints) {
+                        const horizontalPadding = 18.0;
+                        const spacing = 18.0;
+                        const minTileWidth = 120.0;
+                        const maxTileWidth = 168.0;
+                        final availableWidth = constraints.maxWidth - horizontalPadding * 2;
+                        final rawCount = ((availableWidth + spacing) / (minTileWidth + spacing))
+                            .floor()
+                            .clamp(2, 6);
+                        var tileWidth =
+                            (availableWidth - spacing * (rawCount - 1)) / rawCount;
+                        final crossAxisCount = tileWidth > maxTileWidth
+                            ? ((availableWidth + spacing) / (maxTileWidth + spacing))
+                                .floor()
+                                .clamp(2, 6)
+                            : rawCount;
+                        tileWidth =
+                            (availableWidth - spacing * (crossAxisCount - 1)) / crossAxisCount;
+                        final cardWidth = tileWidth.clamp(minTileWidth, maxTileWidth);
+                        final titleHeight = cardWidth >= 150 ? 44.0 : 38.0;
+                        final itemHeight = 146 + 10 + titleHeight;
+
+                        return Align(
+                          alignment: Alignment.topCenter,
+                          child: ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 1200),
+                            child: GridView.builder(
+                              padding: const EdgeInsets.fromLTRB(18, 10, 18, 24),
+                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                                crossAxisCount: crossAxisCount,
+                                crossAxisSpacing: spacing,
+                                mainAxisSpacing: 18,
+                                childAspectRatio: cardWidth / itemHeight,
+                              ),
+                              itemCount: books.length,
+                              itemBuilder: (context, index) => Align(
+                                alignment: Alignment.topLeft,
+                                child: SizedBox(
+                                  width: cardWidth,
+                                  child: GestureDetector(
+                                    onTap: () => onBookTap(books[index]),
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        _CoverCard(
+                                          book: books[index],
+                                          width: cardWidth,
+                                          height: 146,
+                                        ),
+                                        const SizedBox(height: 10),
+                                        SizedBox(
+                                          height: titleHeight,
+                                          child: Text(
+                                            books[index].title,
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              color: Color(0xFF313131),
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AllAuthorsScreen extends StatelessWidget {
+  final List<String> authors;
+
+  const _AllAuthorsScreen({
+    required this.authors,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(10, 14, 18, 10),
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                  ),
+                  const Expanded(
+                    child: Text(
+                      'Top authors',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF212121),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 48),
+                ],
+              ),
+            ),
+            Expanded(
+              child: authors.isEmpty
+                  ? const Center(
+                      child: Text(
+                        'Nothing here yet',
+                        style: TextStyle(color: Color(0xFF888888)),
+                      ),
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(18, 10, 18, 24),
+                      itemCount: authors.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 14),
+                      itemBuilder: (context, index) {
+                        final author = authors[index];
+                        return Row(
+                          children: [
+                            _AuthorAvatar(name: author),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Text(
+                                author,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w600,
+                                  color: Color(0xFF313131),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

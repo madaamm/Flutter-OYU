@@ -432,42 +432,31 @@ class _ListeningDetailsScreenState extends State<ListeningDetailsScreen> {
                     ),
                   ),
                 ),
-                IconButton(
-                  onPressed: () {},
-                  icon: const Icon(Icons.share_outlined),
-                ),
+                const SizedBox(width: 48),
               ],
             ),
             const SizedBox(height: 28),
             _AudioArtwork(book: widget.book, width: double.infinity, height: 254),
             const SizedBox(height: 42),
-            Row(
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.book.title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w800,
-                          color: Color(0xFF191919),
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        widget.book.author,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Color(0xFF7C7C7C),
-                        ),
-                      ),
-                    ],
+                Text(
+                  widget.book.title,
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: Color(0xFF191919),
                   ),
                 ),
-                const Icon(Icons.favorite_rounded, color: Color(0xFFFF6F47), size: 28),
+                const SizedBox(height: 6),
+                Text(
+                  widget.book.author,
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Color(0xFF7C7C7C),
+                  ),
+                ),
               ],
             ),
             const SizedBox(height: 18),
@@ -516,13 +505,13 @@ class _ListeningDetailsScreenState extends State<ListeningDetailsScreen> {
             ),
             const SizedBox(height: 22),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.shuffle_rounded, color: Color(0xFF1E1E1E)),
                 _RoundIconButton(
                   icon: Icons.replay_10_rounded,
                   onTap: () => _seekBy(-10),
                 ),
+                const SizedBox(width: 22),
                 GestureDetector(
                   onTap: _togglePlayback,
                   child: Container(
@@ -550,11 +539,11 @@ class _ListeningDetailsScreenState extends State<ListeningDetailsScreen> {
                     ),
                   ),
                 ),
+                const SizedBox(width: 22),
                 _RoundIconButton(
                   icon: Icons.forward_10_rounded,
                   onTap: () => _seekBy(10),
                 ),
-                const Icon(Icons.repeat_rounded, color: Color(0xFF1E1E1E)),
               ],
             ),
             const SizedBox(height: 34),
