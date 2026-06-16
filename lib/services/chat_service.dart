@@ -6,27 +6,40 @@ class ChatService {
   static Future<String> sendMessage({
     required int userId,
     required String message,
+    Duration timeout = const Duration(seconds: 250),
   }) async {
     final token = await AuthService().getToken(); // backend auth сұраса
     final uri = Uri.parse('${AuthService.baseUrl}/chat/chat');
 
     final res = await http
         .post(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-        if (token != null && token.isNotEmpty)
-          'Authorization': 'Bearer $token',
-      },
-      body: jsonEncode({
-        "userId": userId,
-        "message": message,
-      }),
-    )
-        .timeout(const Duration(seconds: 25));
+          uri,
+          headers: {
+            'Content-Type': 'application/json',
+            if (token != null && token.isNotEmpty)
+              'Authorization': 'Bearer $token',
+          },
+          body: jsonEncode({
+            "userId": userId,
+            "message": message,
+          }),
+        )
+        .timeout(timeout);
 
     if (res.statusCode != 200 && res.statusCode != 201) {
-      throw Exception('Chat error ${res.statusCode}: ${res.body}');
+      String details = res.body;
+      try {
+        final decoded = jsonDecode(res.body);
+        if (decoded is Map<String, dynamic>) {
+          final messageText =
+              (decoded['message'] ?? 'Chat error').toString().trim();
+          final detailsText = (decoded['details'] ?? '').toString().trim();
+          details = detailsText.isNotEmpty
+              ? '$messageText: $detailsText'
+              : messageText;
+        }
+      } catch (_) {}
+      throw Exception('Chat error ${res.statusCode}: $details');
     }
 
     // ✅ кейде backend JSON, кейде plain string, кейде JSON string қайтарады

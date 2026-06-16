@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'speaking_screen.dart';
 import 'reading_screen.dart';
 import 'listening_screen.dart';
+import 'writing_screen.dart';
 
 class GameZoneScreen extends StatelessWidget {
   const GameZoneScreen({super.key});
@@ -123,6 +124,14 @@ class _GameCard extends StatelessWidget {
         ),
       );
     }
+    else if (title == 'Writing') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => const WritingScreen(),
+        ),
+      );
+    }
   }
 
   @override
@@ -140,7 +149,7 @@ class _GameCard extends StatelessWidget {
           boxShadow: [
             BoxShadow(
               blurRadius: 10,
-              color: Colors.black.withOpacity(0.2),
+              color: Colors.black.withValues(alpha: 0.2),
               offset: const Offset(0, 6),
             ),
           ],

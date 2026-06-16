@@ -149,7 +149,7 @@ class _Bubble extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         constraints: const BoxConstraints(maxWidth: 290),
         decoration: BoxDecoration(
-          color: isAi ? purple : purple.withOpacity(0.85),
+          color: isAi ? purple : purple.withValues(alpha: 0.85),
           borderRadius: BorderRadius.circular(18),
         ),
         child: Text(
