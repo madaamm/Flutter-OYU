@@ -1,6 +1,7 @@
 ﻿import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:url_launcher/url_launcher.dart';
 
 import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:kazakh_learning_app/screens/shop_screen.dart';
@@ -65,6 +66,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   void _errorSnack(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  Future<void> _openHelpSupport() async {
+    const phone = '77009325730';
+    const message = 'Здравствуйте! Нужна помощь по приложению OYU.';
+    final uri = Uri.parse(
+      'https://wa.me/$phone?text=${Uri.encodeComponent(message)}',
+    );
+
+    final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!opened && mounted) {
+      _errorSnack('Не удалось открыть WhatsApp');
+    }
   }
 
   @override
@@ -1266,7 +1280,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 icon: Icons.help_outline,
                 title: 'Help & Support',
                 subtitle: 'Get help with your account and app usage',
-                onTap: () => _errorSnack('Help & Support кейін қосамыз'),
+                onTap: _openHelpSupport,
               ),
               const SizedBox(height: 10),
               _moreTile(
