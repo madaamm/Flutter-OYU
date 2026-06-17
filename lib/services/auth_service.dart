@@ -1,4 +1,6 @@
 import 'dart:convert';
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -6,6 +8,8 @@ import 'package:kazakh_learning_app/services/chat_session_service.dart';
 
 class AuthService {
   static const String baseUrl = 'https://learnkz.kazi.rocks/api';
+  static const String _googleWebClientId =
+      '571997766638-6no22qkied8t4p2l76aprc1k7r052k4v.apps.googleusercontent.com';
 
   static String _scenarioKey(String email) =>
       'scenario_shown_${email.trim().toLowerCase()}';
@@ -372,11 +376,14 @@ class AuthService {
   }
 
   Future<Map<String, dynamic>> loginWithGoogle() async {
+    final isAndroid = !kIsWeb && Platform.isAndroid;
     final GoogleSignIn googleSignIn = GoogleSignIn(
       scopes: ['email', 'profile'],
-      clientId: '571997766638-6no22qkied8t4p2l76aprc1k7r052k4v.apps.googleusercontent.com',
+      serverClientId: isAndroid ? _googleWebClientId : null,
+      clientId: isAndroid ? null : _googleWebClientId,
     );
 
+    await googleSignIn.signOut();
     final GoogleSignInAccount? account = await googleSignIn.signIn();
 
     if (account == null) {
