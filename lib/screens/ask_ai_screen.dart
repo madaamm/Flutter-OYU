@@ -1,7 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' show ClientException;
 import 'package:kazakh_learning_app/l10n/app_text.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:kazakh_learning_app/services/chat_service.dart';
+import 'package:kazakh_learning_app/services/chat_session_service.dart';
 
 class AskAiScreen extends StatefulWidget {
   const AskAiScreen({super.key});
@@ -17,7 +21,15 @@ class _AskAiScreenState extends State<AskAiScreen> {
   final _scroll = ScrollController();
 
   bool sending = false;
-  final List<_Msg> messages = [];
+  List<AiChatMessage> messages = const [];
+
+  @override
+  void initState() {
+    super.initState();
+    ChatSessionService.ensureGreeting(context.tr('ask_ai_greeting'));
+    _syncMessages();
+    _scrollDown();
+  }
 
   @override
   void dispose() {
@@ -28,6 +40,10 @@ class _AskAiScreenState extends State<AskAiScreen> {
 
   void _error(String msg) {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  void _syncMessages() {
+    messages = ChatSessionService.snapshot();
   }
 
   Future<int> _getUserId() async {
@@ -51,42 +67,60 @@ class _AskAiScreenState extends State<AskAiScreen> {
   Future<void> _send() async {
     final text = _c.text.trim();
     if (text.isEmpty || sending) return;
+    final userIdErrorText = context.tr('chat_user_id_error');
 
     FocusScope.of(context).unfocus();
 
     setState(() {
       sending = true;
-      messages.add(_Msg.user(text));
+      ChatSessionService.addUserMessage(text);
       _c.clear();
-      messages.add(_Msg.ai('...'));
+      ChatSessionService.addAiPlaceholder();
+      _syncMessages();
     });
     _scrollDown();
 
     try {
       final userId = await _getUserId();
-      if (userId == 0) throw Exception(context.tr('chat_user_id_error'));
+      if (userId == 0) throw Exception(userIdErrorText);
 
-      final reply = await ChatService.sendMessage(userId: userId, message: text);
+      final reply = await ChatService.sendMessage(
+        userId: userId,
+        message: text,
+        history: messages,
+      );
 
       setState(() {
-        final idx = messages.lastIndexWhere((m) => m.isAi && m.text == '...');
-        if (idx != -1) {
-          messages[idx] = _Msg.ai(reply);
-        } else {
-          messages.add(_Msg.ai(reply));
-        }
+        ChatSessionService.replaceLastPlaceholder(reply);
+        _syncMessages();
       });
       _scrollDown();
     } catch (e) {
       setState(() {
-        if (messages.isNotEmpty && messages.last.isAi && messages.last.text == '...') {
-          messages.removeLast();
-        }
+        ChatSessionService.removeLastPlaceholder();
+        _syncMessages();
       });
-      _error(context.tr('chat_error', args: {'error': '$e'}));
+      if (!mounted) return;
+      _error(_formatChatError(e));
     } finally {
       if (mounted) setState(() => sending = false);
     }
+  }
+
+  String _formatChatError(Object error) {
+    if (error is TimeoutException) {
+      return context.tr('chat_timeout_error');
+    }
+
+    if (error is ClientException || '$error'.contains('Failed to fetch')) {
+      return context.tr('chat_connection_error');
+    }
+
+    if ('$error'.contains('Chat error 500')) {
+      return context.tr('chat_server_error');
+    }
+
+    return context.tr('chat_error', args: {'error': '$error'});
   }
 
   @override
@@ -120,19 +154,9 @@ class _AskAiScreenState extends State<AskAiScreen> {
   }
 }
 
-class _Msg {
-  final bool isAi;
-  final String text;
-
-  _Msg({required this.isAi, required this.text});
-
-  factory _Msg.user(String t) => _Msg(isAi: false, text: t);
-  factory _Msg.ai(String t) => _Msg(isAi: true, text: t);
-}
-
 class _Bubble extends StatelessWidget {
   static const purple = Color(0xFF3D0067);
-  final _Msg msg;
+  final AiChatMessage msg;
 
   const _Bubble({required this.msg});
 

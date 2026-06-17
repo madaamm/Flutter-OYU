@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:kazakh_learning_app/services/chat_session_service.dart';
 
 class AuthService {
   static const String baseUrl = 'https://learnkz.kazi.rocks/api';
@@ -367,6 +368,7 @@ class AuthService {
     await prefs.remove('role');
     await prefs.remove('user_id');
     await prefs.remove('nickname');
+    ChatSessionService.clear();
   }
 
   Future<Map<String, dynamic>> loginWithGoogle() async {
