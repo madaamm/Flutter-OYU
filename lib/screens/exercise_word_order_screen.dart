@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:kazakh_learning_app/l10n/app_text.dart';
 import 'package:kazakh_learning_app/models/task_model.dart';
+import 'package:kazakh_learning_app/services/language_service.dart';
 import 'package:kazakh_learning_app/services/lesson_service.dart';
 import 'package:kazakh_learning_app/services/dictionary_service.dart';
 
@@ -221,26 +223,26 @@ class _UserTaskCard extends StatelessWidget {
     if (task.type == 'SENTENCE_BUILD') {
       return task.promptText.trim().isNotEmpty
           ? task.promptText.trim()
-          : 'Sentence build';
+          : AppText.translate(LanguageService().currentLanguage, 'sentence_build');
     }
 
     if (task.type == 'WORD_MATCH') {
-      return 'Word match';
+      return AppText.translate(LanguageService().currentLanguage, 'word_match');
     }
 
     if (task.type == 'AUDIO_DICTATION') {
       return task.promptText.trim().isNotEmpty
           ? task.promptText.trim()
-          : 'Audio dictation';
+          : AppText.translate(LanguageService().currentLanguage, 'audio_dictation');
     }
 
     if (task.type == 'AUDIO_TRANSLATE') {
       return task.promptText.trim().isNotEmpty
           ? task.promptText.trim()
-          : 'Audio translate';
+          : AppText.translate(LanguageService().currentLanguage, 'audio_translate');
     }
 
-    return 'Task';
+    return AppText.translate(LanguageService().currentLanguage, 'task');
   }
 
   IconData get _icon {
@@ -252,10 +254,16 @@ class _UserTaskCard extends StatelessWidget {
   }
 
   String get _typeLabel {
-    if (task.type == 'AUDIO_DICTATION') return 'Audio dictation';
-    if (task.type == 'AUDIO_TRANSLATE') return 'Audio translate';
-    if (task.type == 'WORD_MATCH') return 'Word match';
-    return 'Sentence build';
+    if (task.type == 'AUDIO_DICTATION') {
+      return AppText.translate(LanguageService().currentLanguage, 'audio_dictation');
+    }
+    if (task.type == 'AUDIO_TRANSLATE') {
+      return AppText.translate(LanguageService().currentLanguage, 'audio_translate');
+    }
+    if (task.type == 'WORD_MATCH') {
+      return AppText.translate(LanguageService().currentLanguage, 'word_match');
+    }
+    return AppText.translate(LanguageService().currentLanguage, 'sentence_build');
   }
 
   int get _itemsCount {
@@ -349,9 +357,24 @@ class _UserTaskCard extends StatelessWidget {
                       runSpacing: 6,
                       children: [
                         _TaskTag(text: _typeLabel, fillColor: tagFill, textColor: tagTextColor),
-                        _TaskTag(text: 'XP: ', fillColor: tagFill, textColor: tagTextColor),
-                        _TaskTag(text: 'Order: ', fillColor: tagFill, textColor: tagTextColor),
-                        if (_itemsCount > 0) _TaskTag(text: 'Items: ', fillColor: tagFill, textColor: tagTextColor),
+                        _TaskTag(text: 'XP', fillColor: tagFill, textColor: tagTextColor),
+                        _TaskTag(
+                          text: AppText.translate(
+                            LanguageService().currentLanguage,
+                            'order',
+                          ),
+                          fillColor: tagFill,
+                          textColor: tagTextColor,
+                        ),
+                        if (_itemsCount > 0)
+                          _TaskTag(
+                            text: AppText.translate(
+                              LanguageService().currentLanguage,
+                              'items',
+                            ),
+                            fillColor: tagFill,
+                            textColor: tagTextColor,
+                          ),
                       ],
                     ),
                   ],
@@ -960,35 +983,38 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
     if (_isAudioDictation) {
       return _task.promptText.trim().isNotEmpty
           ? _task.promptText.trim()
-          : 'Listen and type what you hear';
+          : context.tr('listen_and_type');
     }
 
     if (_isAudioTranslate) {
       return _task.promptText.trim().isNotEmpty
           ? _task.promptText.trim()
-          : 'Listen and translate the audio';
+          : context.tr('listen_and_translate');
     }
 
-    return 'Exercise';
+    return context.tr('task');
   }
 
   String _wrongAnswerText() {
     if (_isSentenceBuild) {
-      return 'Wrong. Correct answer: ${_cleanWords(_task.correctWords).join(' ')}';
+      return context.tr(
+        'wrong_correct_answer',
+        args: {'answer': _cleanWords(_task.correctWords).join(' ')},
+      );
     }
 
     if (_isWordMatch) {
       final correct = _task.matchingPairs
           .map((pair) => '${pair.left} — ${pair.right}')
           .join(', ');
-      return 'Wrong. Correct pairs: $correct';
+      return context.tr('wrong_correct_pairs', args: {'pairs': correct});
     }
 
     if (_isAudioTask) {
-      return 'Wrong answer. Listen again and try one more time.';
+      return context.tr('wrong_listen_again');
     }
 
-    return 'Wrong answer';
+    return context.tr('wrong_answer');
   }
 
   Future<void> _saveWord(String word) async {
@@ -1000,10 +1026,10 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
       if (!mounted) return;
 
       final message = result.alreadySaved
-          ? 'Already saved: ' + trimmed
+          ? context.tr('already_saved', args: {'word': trimmed})
           : result.foundInGlobalDictionary
-              ? 'Saved to dictionary: ' + trimmed
-              : 'Saved, but no translation was found yet: ' + trimmed;
+              ? context.tr('saved_to_dictionary', args: {'word': trimmed})
+              : context.tr('saved_no_translation', args: {'word': trimmed});
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
@@ -1031,7 +1057,7 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
     } catch (_) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not play this audio')),
+        SnackBar(content: Text(context.tr('could_not_play_audio'))),
       );
     }
   }
@@ -1103,8 +1129,8 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
                     isLocked: isWrong || _stage == _ExerciseStage.correct || _submittingAnswer,
                     onPlayTap: _toggleAudioPlayback,
                     hintText: _isAudioTranslate
-                        ? 'Type the translation here'
-                        : 'Type what you hear',
+                        ? context.tr('type_translation_here')
+                        : context.tr('type_what_you_hear'),
                     onChanged: (_) => setState(() {}),
                     onSaveTap: _saveCurrentTypedWord,
                   ),
@@ -1137,12 +1163,12 @@ class _ExerciseWordOrderScreenState extends State<ExerciseWordOrderScreen> {
                 ),
                 child: Text(
                   _stage == _ExerciseStage.wrong && _lives == 0
-                      ? 'Finish'
+                      ? context.tr('finish')
                       : _stage == _ExerciseStage.correct
-                          ? 'Correct!'
+                          ? context.tr('correct')
                       : _submittingAnswer
-                          ? 'Saving...'
-                          : 'Check',
+                          ? context.tr('saving')
+                          : context.tr('check'),
                   style: TextStyle(
                     color: _buttonTextColor(),
                     fontSize: 16,
@@ -1299,11 +1325,11 @@ class _AnswerBox extends StatelessWidget {
         border: Border.all(color: borderColor, width: 2),
       ),
       child: words.isEmpty
-          ? const Align(
+          ? Align(
         alignment: Alignment.topLeft,
         child: Text(
-          'Tap words below',
-          style: TextStyle(
+          context.tr('tap_words_below'),
+          style: const TextStyle(
             color: Color(0xFF9C9C9C),
             fontWeight: FontWeight.w700,
             fontSize: 16,
@@ -1647,7 +1673,7 @@ class _AudioTaskPanel extends StatelessWidget {
               size: 28,
             ),
             label: Text(
-              isPlaying ? 'Pause audio' : 'Play audio',
+              isPlaying ? context.tr('pause_audio') : context.tr('play_audio'),
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.w900,
@@ -1688,7 +1714,7 @@ class _AudioTaskPanel extends StatelessWidget {
             child: TextButton.icon(
               onPressed: isLocked || answerController.text.trim().isEmpty ? null : onSaveTap,
               icon: const Icon(Icons.bookmark_add_outlined),
-              label: const Text('Save word'),
+              label: Text(context.tr('save_word')),
             ),
           ),
         ],
@@ -1802,10 +1828,10 @@ class _RewardScreen extends StatelessWidget {
                 const SizedBox(height: 26),
                 Text(
                   alreadyCompleted
-                      ? 'You already completed this task'
+                      ? context.tr('you_already_completed_task')
                       : lessonCompletedNow
-                          ? 'You completed the lesson'
-                          : 'You did great job',
+                          ? context.tr('you_completed_lesson')
+                          : context.tr('you_did_great_job'),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Colors.white,
@@ -1816,10 +1842,10 @@ class _RewardScreen extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   alreadyCompleted
-                      ? 'No additional rewards are given for repeated completion'
+                      ? context.tr('no_additional_rewards')
                       : lessonCompletedNow
-                          ? 'Lesson finished'
-                          : 'Task finished',
+                          ? context.tr('lesson_finished')
+                          : context.tr('task_finished'),
                   textAlign: TextAlign.center,
                   style: const TextStyle(
                     color: Color(0xFFE8D9FF),
@@ -1881,10 +1907,10 @@ class _RewardScreen extends StatelessWidget {
                         ),
                       ],
                     ),
-                    child: const Text(
-                      'Task already passed',
+                    child: Text(
+                      context.tr('task_already_passed'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.black,
                         fontSize: 22,
                         fontWeight: FontWeight.w900,
@@ -1905,8 +1931,8 @@ class _RewardScreen extends StatelessWidget {
                         borderRadius: BorderRadius.circular(20),
                       ),
                     ),
-                    child: const Text(
-                      'Get',
+                    child: Text(
+                      context.tr('get'),
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.w900,
@@ -1917,8 +1943,8 @@ class _RewardScreen extends StatelessWidget {
                 const SizedBox(height: 12),
                 TextButton(
                   onPressed: onRestart,
-                  child: const Text(
-                    'Try again',
+                  child: Text(
+                    context.tr('try_again'),
                     style: TextStyle(
                       color: Colors.white,
                       fontWeight: FontWeight.w900,

@@ -2,6 +2,7 @@
 import 'package:kazakh_learning_app/screens/home_screen.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:kazakh_learning_app/services/language_service.dart';
+import 'package:kazakh_learning_app/l10n/app_text.dart';
 
 class InitialSetupScreen extends StatefulWidget {
   final String userName;
@@ -163,7 +164,7 @@ class _InitialSetupScreenState extends State<InitialSetupScreen> {
     if (_busy || _questions.isEmpty) return;
 
     if (_answers.length != _questions.length) {
-      _showMessage('Please answer all questions first.');
+      _showMessage(context.tr('please_answer_all'));
       return;
     }
 
@@ -187,12 +188,14 @@ class _InitialSetupScreenState extends State<InitialSetupScreen> {
         context: context,
         builder: (context) {
           return AlertDialog(
-            title: const Text('Your level is set'),
-            content: Text('You have been assigned level $level.'),
+            title: Text(context.tr('your_level_is_set')),
+            content: Text(
+              context.tr('assigned_level', args: {'level': level}),
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),
-                child: const Text('Continue'),
+                child: Text(context.tr('continue')),
               ),
             ],
           );
@@ -287,27 +290,39 @@ class _InitialSetupScreenState extends State<InitialSetupScreen> {
   }
 
   Widget _buildLanguageStep() {
-    const languages = [
-      {'code': 'ru', 'title': 'Русский', 'subtitle': 'Russian interface'},
-      {'code': 'en', 'title': 'English', 'subtitle': 'English interface'},
-      {'code': 'kz', 'title': 'Qazaqsha', 'subtitle': 'Kazakh interface'},
+    final languages = [
+      {
+        'code': 'ru',
+        'title': context.tr('russian'),
+        'subtitle': context.tr('russian_interface'),
+      },
+      {
+        'code': 'en',
+        'title': context.tr('english'),
+        'subtitle': context.tr('english_interface'),
+      },
+      {
+        'code': 'kz',
+        'title': context.tr('kazakh'),
+        'subtitle': context.tr('kazakh_interface'),
+      },
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text(
-          'Choose your interface language',
-          style: TextStyle(
+        Text(
+          context.tr('choose_interface_language'),
+          style: const TextStyle(
             fontSize: 24,
             fontWeight: FontWeight.w900,
             color: Colors.black87,
           ),
         ),
         const SizedBox(height: 8),
-        const Text(
-          'You can change it later in the app settings.',
-          style: TextStyle(
+        Text(
+          context.tr('change_language_later'),
+          style: const TextStyle(
             fontSize: 14,
             color: Colors.black54,
             fontWeight: FontWeight.w600,
@@ -398,18 +413,18 @@ class _InitialSetupScreenState extends State<InitialSetupScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Choose how to start learning',
-            style: TextStyle(
+          Text(
+            context.tr('choose_how_to_start_learning'),
+            style: const TextStyle(
               fontSize: 24,
               fontWeight: FontWeight.w900,
               color: Colors.black87,
             ),
           ),
           const SizedBox(height: 8),
-          const Text(
-            'You can take a quick test or start from the very beginning with level A0.',
-            style: TextStyle(
+          Text(
+            context.tr('choose_how_to_start_learning_subtitle'),
+            style: const TextStyle(
               fontSize: 14,
               color: Colors.black54,
               fontWeight: FontWeight.w600,
@@ -418,19 +433,17 @@ class _InitialSetupScreenState extends State<InitialSetupScreen> {
           const SizedBox(height: 26),
           _choiceCard(
             icon: Icons.quiz_outlined,
-            title: 'Test for my level',
-            subtitle:
-                'After the test, lessons up to your level will become available.',
-            actionLabel: 'Start test',
+            title: context.tr('test_for_my_level'),
+            subtitle: context.tr('test_for_my_level_subtitle'),
+            actionLabel: context.tr('start_test'),
             onTap: _openPlacementTest,
           ),
           const SizedBox(height: 16),
           _choiceCard(
             icon: Icons.flag_outlined,
-            title: 'Start from zero (A0)',
-            subtitle:
-                'You will begin from the first 6 lessons for complete beginners.',
-            actionLabel: 'Start with A0',
+            title: context.tr('start_from_zero_a0'),
+            subtitle: context.tr('start_from_zero_a0_subtitle'),
+            actionLabel: context.tr('start_with_a0'),
             onTap: _startFromZero,
           ),
           const SizedBox(height: 12),

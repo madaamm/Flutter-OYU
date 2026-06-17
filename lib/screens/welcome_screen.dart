@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kazakh_learning_app/l10n/app_text.dart';
 import 'auth_screen.dart';
 
 class WelcomeScreen extends StatefulWidget {
@@ -57,10 +58,10 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
               const SizedBox(height: 38),
 
               // ✅ TITLE
-              const Text(
-                'Discover the Kazakh Language\nwith OYU',
+              Text(
+                context.tr('welcome_title'),
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 22,
                   height: 1.25,
@@ -100,9 +101,9 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       borderRadius: BorderRadius.circular(30),
                     ),
                   ),
-                  child: const Text(
-                    'We are waiting for you at OYU',
-                    style: TextStyle(
+                  child: Text(
+                    context.tr('welcome_button'),
+                    style: const TextStyle(
                       fontSize: 15,
                       fontWeight: FontWeight.w700,
                     ),

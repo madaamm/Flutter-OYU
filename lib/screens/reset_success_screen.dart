@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:kazakh_learning_app/l10n/app_text.dart';
 import 'package:kazakh_learning_app/screens/change_password_screen.dart';
 
 class ResetSuccessScreen extends StatelessWidget {
-  final String email; // ✅ ОСЫ ЖОҚ БОЛҒАН
+  final String email;
 
   const ResetSuccessScreen({
     super.key,
-    required this.email, // ✅ ҚОСТЫҚ
+    required this.email,
   });
 
   static const purple = Color(0xFF8E5BFF);
@@ -18,8 +19,6 @@ class ResetSuccessScreen extends StatelessWidget {
       body: SafeArea(
         child: Column(
           children: [
-
-            // HEADER
             Container(
               width: double.infinity,
               height: 170,
@@ -58,35 +57,28 @@ class ResetSuccessScreen extends StatelessWidget {
                 ),
               ),
             ),
-
             const SizedBox(height: 40),
-
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 children: [
-
-                  const Text(
-                    'Success',
-                    style: TextStyle(
+                  Text(
+                    context.tr('success'),
+                    style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
-
                   const SizedBox(height: 10),
-
                   Text(
-                    'Code sent to:\n$email', // ✅ email көрсетіледі
+                    context.tr('code_sent_to', args: {'email': email}),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
                       color: Colors.black54,
                       fontWeight: FontWeight.w600,
                     ),
                   ),
-
                   const SizedBox(height: 30),
-
                   SizedBox(
                     width: double.infinity,
                     height: 52,
@@ -106,9 +98,9 @@ class ResetSuccessScreen extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                       ),
-                      child: const Text(
-                        'Back Email',
-                        style: TextStyle(
+                      child: Text(
+                        context.tr('back_email'),
+                        style: const TextStyle(
                           fontWeight: FontWeight.w800,
                         ),
                       ),

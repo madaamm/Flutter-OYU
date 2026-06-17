@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
+import 'package:kazakh_learning_app/l10n/app_text.dart';
 import 'package:kazakh_learning_app/models/audio_book_model.dart';
 import 'package:kazakh_learning_app/services/audio_book_service.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
@@ -160,7 +161,9 @@ class _ListeningScreenState extends State<ListeningScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => _AllPodcastsScreen(
-          title: _selectedGenre == 'All' ? 'All podcasts' : '$_selectedGenre podcasts',
+          title: _selectedGenre == 'All'
+              ? context.tr('all_podcasts')
+              : '$_selectedGenre podcasts',
           books: _filteredAudioBooks,
           onTapBook: _openDetails,
         ),
@@ -193,9 +196,9 @@ class _ListeningScreenState extends State<ListeningScreen> {
                               onPressed: () => Navigator.pop(context),
                               icon: const Icon(Icons.arrow_back_ios_new_rounded),
                             ),
-                            const Expanded(
+                            Expanded(
                               child: Text(
-                                'Listening',
+                                context.tr('listening_title'),
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 18,
@@ -222,9 +225,9 @@ class _ListeningScreenState extends State<ListeningScreen> {
                               Expanded(
                                 child: TextField(
                                   controller: _searchController,
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     border: InputBorder.none,
-                                    hintText: 'Title, author, ...',
+                                    hintText: context.tr('title_author_search'),
                                     hintStyle: TextStyle(color: Color(0xFF999999)),
                                   ),
                                 ),
@@ -253,10 +256,10 @@ class _ListeningScreenState extends State<ListeningScreen> {
                         const SizedBox(height: 20),
                         if (featured != null) _FeaturedAudioCard(book: featured, onTap: _openDetails),
                         const SizedBox(height: 22),
-                        _SectionTitle(title: 'Recently played'),
+                        _SectionTitle(title: context.tr('recently_played')),
                         const SizedBox(height: 14),
                         if (recentlyPlayed.isEmpty)
-                          const _EmptySection(message: 'You have not opened any podcasts yet')
+                          _EmptySection(message: context.tr('you_have_not_opened_any_podcasts_yet'))
                         else
                           ...recentlyPlayed.map(
                             (book) => Padding(
@@ -268,8 +271,8 @@ class _ListeningScreenState extends State<ListeningScreen> {
                         const Divider(color: Color(0xFFBABABA), thickness: 1),
                         const SizedBox(height: 18),
                         _SectionHeader(
-                          title: 'Popular podcasts',
-                          actionText: 'See all',
+                          title: context.tr('popular_podcasts'),
+                          actionText: context.tr('see_all'),
                           onActionTap: _openAllPodcasts,
                         ),
                         const SizedBox(height: 14),
@@ -384,7 +387,7 @@ class _ListeningDetailsScreenState extends State<ListeningDetailsScreen> {
       if (!mounted) return;
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not play this audio book')),
+        SnackBar(content: Text(context.tr('could_not_play_audio_book'))),
       );
     }
   }
@@ -554,8 +557,8 @@ class _ListeningDetailsScreenState extends State<ListeningDetailsScreen> {
             const SizedBox(height: 34),
             if (relatedBooks.isNotEmpty) ...[
               _SectionHeader(
-                title: 'Popular podcasts',
-                actionText: 'See all',
+                title: context.tr('popular_podcasts'),
+                actionText: context.tr('see_all'),
                 onActionTap: () {
                   Navigator.push(
                     context,
@@ -1209,7 +1212,7 @@ class _ListeningError extends StatelessWidget {
             const SizedBox(height: 14),
             ElevatedButton(
               onPressed: onRetry,
-              child: const Text('Retry'),
+              child: Text(context.tr('retry')),
             ),
           ],
         ),

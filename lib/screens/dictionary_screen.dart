@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kazakh_learning_app/l10n/app_text.dart';
 import 'package:kazakh_learning_app/models/dictionary_entry_model.dart';
 import 'package:kazakh_learning_app/services/dictionary_service.dart';
 
@@ -34,17 +35,19 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('Remove word?'),
-        content: Text('Delete "${entry.word}" from your dictionary?'),
+        title: Text(context.tr('remove_word_question')),
+        content: Text(
+          context.tr('remove_word_named', args: {'word': entry.word}),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
+            child: Text(context.tr('cancel')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: purple),
-            child: const Text('Delete'),
+            child: Text(context.tr('delete')),
           ),
         ],
       ),
@@ -56,7 +59,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
       await _dictionaryService.deleteEntry(entry.id);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Word removed from dictionary')),
+        SnackBar(content: Text(context.tr('word_removed_from_dictionary'))),
       );
       await _reload();
     } catch (e) {
@@ -73,7 +76,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
       backgroundColor: bg,
       appBar: AppBar(
         backgroundColor: purple,
-        title: const Text('My Dictionary'),
+        title: Text(context.tr('dictionary_title')),
         centerTitle: true,
       ),
       body: RefreshIndicator(
@@ -106,7 +109,7 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                   ElevatedButton(
                     onPressed: _reload,
                     style: ElevatedButton.styleFrom(backgroundColor: purple),
-                    child: const Text('Try again'),
+                    child: Text(context.tr('try_again')),
                   ),
                 ],
               );
@@ -116,14 +119,18 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
             if (entries.isEmpty) {
               return ListView(
                 padding: const EdgeInsets.all(24),
-                children: const [
-                  SizedBox(height: 80),
-                  Icon(Icons.bookmark_border_rounded, size: 72, color: purple),
-                  SizedBox(height: 18),
+                children: [
+                  const SizedBox(height: 80),
+                  const Icon(
+                    Icons.bookmark_border_rounded,
+                    size: 72,
+                    color: purple,
+                  ),
+                  const SizedBox(height: 18),
                   Text(
-                    'Your dictionary is empty for now.\nSave words from tasks with one tap.',
+                    context.tr('dictionary_empty'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: Colors.black54,
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -178,7 +185,10 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                         ],
                       ),
                       const SizedBox(height: 8),
-                      _InfoRow(label: 'Translation', value: entry.primaryTranslation),
+                      _InfoRow(
+                        label: context.tr('translation'),
+                        value: entry.primaryTranslation,
+                      ),
                       if (entry.translationRu.trim().isNotEmpty &&
                           entry.translationEn.trim().isNotEmpty &&
                           entry.translationRu.trim() != entry.translationEn.trim()) ...[
@@ -187,10 +197,10 @@ class _DictionaryScreenState extends State<DictionaryScreen> {
                       ],
                       const SizedBox(height: 6),
                       _InfoRow(
-                        label: 'Transcription',
+                        label: context.tr('transcription'),
                         value: entry.transcription.trim().isNotEmpty
                             ? entry.transcription
-                            : 'No transcription yet',
+                            : context.tr('no_transcription_yet'),
                       ),
                       if (entry.description.trim().isNotEmpty) ...[
                         const SizedBox(height: 10),

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:kazakh_learning_app/l10n/app_text.dart';
 import 'package:kazakh_learning_app/models/lesson_model.dart';
 import 'package:kazakh_learning_app/screens/alphabet_screen.dart';
 import 'package:kazakh_learning_app/screens/ask_ai_screen.dart';
@@ -8,6 +9,7 @@ import 'package:kazakh_learning_app/screens/auth_screen.dart';
 import 'package:kazakh_learning_app/screens/game_zone_screen.dart';
 import 'package:kazakh_learning_app/screens/profile_page.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
+import 'package:kazakh_learning_app/services/language_service.dart';
 import 'package:kazakh_learning_app/services/lesson_service.dart';
 import 'package:kazakh_learning_app/screens/exercise_word_order_screen.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -27,7 +29,11 @@ class _HomeScreenState extends State<HomeScreen> {
   int currentIndex = 0;
   final _auth = AuthService();
   String _name = 'User';
+  String _language = LanguageService().currentLanguage;
   int _homePageEpoch = 0;
+  int _alphabetPageEpoch = 0;
+  int _askAiPageEpoch = 0;
+  int _gameZonePageEpoch = 0;
   int _profilePageEpoch = 0;
   late List<Widget> pages;
 
@@ -36,6 +42,7 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _name = widget.userName.trim().isEmpty ? 'User' : widget.userName.trim();
     pages = _buildPages();
+    LanguageService().addListener(_handleLanguageChanged);
     _bootstrap();
   }
 
@@ -45,14 +52,27 @@ class _HomeScreenState extends State<HomeScreen> {
         key: ValueKey('home-page-$_homePageEpoch'),
         userName: _name,
       ),
-      const AlphabetScreen(),
-      const AskAiScreen(),
-      const GameZoneScreen(),
+      AlphabetScreen(key: ValueKey('alphabet-page-$_alphabetPageEpoch-$_language')),
+      AskAiScreen(key: ValueKey('ask-ai-page-$_askAiPageEpoch-$_language')),
+      GameZoneScreen(key: ValueKey('game-zone-page-$_gameZonePageEpoch-$_language')),
       ProfileScreen(
-        key: ValueKey('profile-page-$_profilePageEpoch'),
+        key: ValueKey('profile-page-$_profilePageEpoch-$_language'),
         userName: _name,
       ),
     ];
+  }
+
+  void _handleLanguageChanged() {
+    if (!mounted) return;
+    setState(() {
+      _language = LanguageService().currentLanguage;
+      _homePageEpoch++;
+      _alphabetPageEpoch++;
+      _askAiPageEpoch++;
+      _gameZonePageEpoch++;
+      _profilePageEpoch++;
+      pages = _buildPages();
+    });
   }
 
   Future<void> _bootstrap() async {
@@ -94,7 +114,7 @@ class _HomeScreenState extends State<HomeScreen> {
       if (index == 4) {
         _profilePageEpoch++;
         pages[4] = ProfileScreen(
-          key: ValueKey('profile-page-$_profilePageEpoch'),
+          key: ValueKey('profile-page-$_profilePageEpoch-$_language'),
           userName: _name,
         );
       }
@@ -105,6 +125,12 @@ class _HomeScreenState extends State<HomeScreen> {
     if (index == 0 || index == 4) {
       await _refreshMeSilently();
     }
+  }
+
+  @override
+  void dispose() {
+    LanguageService().removeListener(_handleLanguageChanged);
+    super.dispose();
   }
 
   @override
@@ -306,8 +332,11 @@ class _HomePageState extends State<HomePage> {
     if (_isLevelRewardClaimed(normalizedLevel)) {
       if (!mounted) return;
       await _showSilverEggNotice(
-        title: 'Reward collected',
-        message: 'You have already collected the reward for $normalizedLevel.',
+        title: context.tr('reward_collected'),
+        message: context.tr(
+          'reward_already_collected_for_level',
+          args: {'level': normalizedLevel},
+        ),
       );
       return;
     }
@@ -315,8 +344,14 @@ class _HomePageState extends State<HomePage> {
     if (!_isLevelCompleted(normalizedLevel, allGroups)) {
       if (!mounted) return;
       await _showSilverEggNotice(
-        title: '$normalizedLevel is not complete',
-        message: 'Finish all lessons in $normalizedLevel to unlock this reward.',
+        title: context.tr(
+          'level_not_complete',
+          args: {'level': normalizedLevel},
+        ),
+        message: context.tr(
+          'finish_all_lessons_to_unlock',
+          args: {'level': normalizedLevel},
+        ),
       );
       return;
     }
@@ -342,20 +377,30 @@ class _HomePageState extends State<HomePage> {
 
         await _showRewardDialog(
           amount: earned > 0 ? earned : _levelDividerRewardAmount,
-          title: 'Level Reward Unlocked',
-          subtitle: '$normalizedLevel is complete',
+          title: context.tr('level_reward_unlocked'),
+          subtitle: context.tr(
+            'level_is_complete',
+            args: {'level': normalizedLevel},
+          ),
         );
         return;
       }
 
       await _showSilverEggNotice(
-        title: 'Reward collected',
-        message: 'You have already collected the reward for $normalizedLevel.',
+        title: context.tr('reward_collected'),
+        message: context.tr(
+          'reward_already_collected_for_level',
+          args: {'level': normalizedLevel},
+        ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Reward error: $e')),
+        SnackBar(
+          content: Text(
+            context.tr('reward_error', args: {'error': '$e'}),
+          ),
+        ),
       );
     }
   }
@@ -366,8 +411,8 @@ class _HomePageState extends State<HomePage> {
     if (_isCircleRewardClaimed(group)) {
       if (!mounted) return;
       await _showSilverEggNotice(
-        title: 'Reward collected',
-        message: 'You have already collected the Silver Egg for this circle.',
+        title: context.tr('reward_collected'),
+        message: context.tr('silver_egg_already_collected'),
       );
       return;
     }
@@ -375,8 +420,8 @@ class _HomePageState extends State<HomePage> {
     if (!_isGroupCompleted(group)) {
       if (!mounted) return;
       await _showSilverEggNotice(
-        title: 'Silver Egg is locked',
-        message: 'Complete all 6 lessons in this circle to unlock this reward.',
+        title: context.tr('silver_egg_locked'),
+        message: context.tr('complete_all_6_lessons'),
       );
       return;
     }
@@ -403,21 +448,25 @@ class _HomePageState extends State<HomePage> {
 
         await _showRewardDialog(
           amount: earned,
-          title: 'Bonus Collected',
-          subtitle: 'Oyu prepared a reward for you',
+          title: context.tr('bonus_collected'),
+          subtitle: context.tr('oyu_prepared_reward'),
           rewardAsset: 'assets/images/Qorap.png',
         );
         return;
       }
 
       await _showSilverEggNotice(
-        title: 'Reward collected',
-        message: 'You have already collected the Silver Egg for this circle.',
+        title: context.tr('reward_collected'),
+        message: context.tr('silver_egg_already_collected'),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Reward error: $e')),
+        SnackBar(
+          content: Text(
+            context.tr('reward_error', args: {'error': '$e'}),
+          ),
+        ),
       );
     }
   }
@@ -622,8 +671,8 @@ class _HomePageState extends State<HomePage> {
                                       color: Colors.grey,
                                     ),
                                     const SizedBox(height: 14),
-                                    const Text(
-                                      'Lessons failed to load',
+                                    Text(
+                                      context.tr('lessons_failed_to_load'),
                                       style: TextStyle(
                                         fontSize: 22,
                                         fontWeight: FontWeight.w800,
@@ -754,7 +803,7 @@ class _HomePageState extends State<HomePage> {
               return _HeaderStat(
                 icon: Icons.stars_rounded,
                 iconColor: Colors.orange,
-                value: '$xp XP',
+                value: context.tr('xp_value', args: {'value': '$xp'}),
               );
             },
           ),
@@ -766,8 +815,8 @@ class _HomePageState extends State<HomePage> {
               color: Colors.white,
               size: 15,
             ),
-            label: const Text(
-              'Logout',
+            label: Text(
+              context.tr('logout'),
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 15,
@@ -831,10 +880,19 @@ class _LevelDivider extends StatelessWidget {
                 padding: const EdgeInsets.all(12),
                 child: Tooltip(
                   message: isClaimed
-                      ? '$levelLabel reward already claimed'
+                      ? context.tr(
+                          'level_reward_already_claimed',
+                          args: {'level': levelLabel},
+                        )
                       : isCompleted
-                          ? 'Claim $levelLabel reward: +10'
-                          : 'Complete all $levelLabel lessons first',
+                          ? context.tr(
+                              'claim_level_reward',
+                              args: {'level': levelLabel},
+                            )
+                          : context.tr(
+                              'complete_level_lessons_first',
+                              args: {'level': levelLabel},
+                            ),
                   child: Image.asset(
                     'assets/images/Qorap.png',
                     width: 58,
@@ -1050,17 +1108,17 @@ class _LockedLessonDialog extends StatelessWidget {
         children: [
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
-            children: const [
-              Image(
+            children: [
+              const Image(
                 image: AssetImage('assets/images/crybaby.png'),
                 width: 112,
                 fit: BoxFit.contain,
               ),
-              SizedBox(width: 12),
+              const SizedBox(width: 12),
               Expanded(
                 child: _LockedSpeechBubble(
-                  title: 'Locked lesson',
-                  message: 'Complete the previous levels to unlock this lesson.',
+                  title: context.tr('locked_lesson'),
+                  message: context.tr('complete_previous_levels'),
                 ),
               ),
             ],
@@ -1078,8 +1136,8 @@ class _LockedLessonDialog extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
-              child: const Text(
-                'OK',
+              child: Text(
+                context.tr('ok'),
                 style: TextStyle(fontWeight: FontWeight.w700),
               ),
             ),
@@ -1141,8 +1199,8 @@ class _SilverEggNoticeDialog extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
-              child: const Text(
-                'OK',
+              child: Text(
+                context.tr('ok'),
                 style: TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
@@ -1210,8 +1268,8 @@ class _RewardSuccessDialog extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                 ),
               ),
-              child: const Text(
-                'OK',
+              child: Text(
+                context.tr('ok'),
                 style: TextStyle(fontWeight: FontWeight.w800),
               ),
             ),
@@ -1568,13 +1626,13 @@ class _LessonActionSheet extends StatelessWidget {
               ],
               const SizedBox(height: 18),
               _PopupButton(
-                text: 'Theory',
+                text: context.tr('theory'),
                 textColor: purple,
                 onTap: onTheoryTap,
               ),
               const SizedBox(height: 14),
               _PopupButton(
-                text: 'Start exercise',
+                text: context.tr('start_exercise'),
                 textColor: Color(0xFFFFC400),
                 onTap: onExerciseTap,
               ),
@@ -1635,27 +1693,27 @@ class _EmptyLessonsState extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 24),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Image(
+          children: [
+            const Image(
               image: AssetImage('assets/images/Oyu_uyktauda.png'),
               width: 150,
               fit: BoxFit.contain,
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             Text(
-              'No lessons yet',
+              context.tr('no_lessons_yet'),
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w800,
                 color: Color(0xFF5B21B6),
               ),
             ),
-            SizedBox(height: 10),
+            const SizedBox(height: 10),
             Text(
-              'Lessons will appear here after the admin adds them',
+              context.tr('lessons_will_appear_after_admin'),
               textAlign: TextAlign.center,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 15,
                 color: Color(0xFF8A8A8A),
                 fontWeight: FontWeight.w500,
@@ -1722,7 +1780,7 @@ class TheoryLessonScreen extends StatelessWidget {
       appBar: AppBar(
         backgroundColor: purple,
         foregroundColor: Colors.white,
-        title: Text(title.isEmpty ? 'Theory' : title),
+        title: Text(title.isEmpty ? context.tr('theory') : title),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -1739,13 +1797,19 @@ class TheoryLessonScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   if (level.isNotEmpty)
-                    Text('Level: $level', style: const TextStyle(fontWeight: FontWeight.bold, color: purple)),
+                    Text(
+                      context.tr('level_label', args: {'level': level}),
+                      style: const TextStyle(
+                        fontWeight: FontWeight.bold,
+                        color: purple,
+                      ),
+                    ),
                   const SizedBox(height: 12),
                   if (description.isNotEmpty)
                     Text(description, style: const TextStyle(height: 1.5)),
                   const SizedBox(height: 16),
                   lectureText.trim().isEmpty
-                      ? const Text('No theory available')
+                      ? Text(context.tr('no_theory_available'))
                       : MarkdownBody(
                     data: lectureText,
                     selectable: true,

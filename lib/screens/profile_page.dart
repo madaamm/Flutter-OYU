@@ -3,12 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:url_launcher/url_launcher.dart';
 
+import 'package:kazakh_learning_app/l10n/app_text.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:kazakh_learning_app/screens/shop_screen.dart';
 import 'package:kazakh_learning_app/screens/dictionary_screen.dart';
 import 'package:kazakh_learning_app/screens/friends_screen.dart';
 import 'package:kazakh_learning_app/services/friend_service.dart';
 import 'package:kazakh_learning_app/services/follow_service.dart';
+import 'package:kazakh_learning_app/services/language_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userName;
@@ -40,6 +42,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   late String _fullName;
 
+  final AuthService _auth = AuthService();
   final FollowService _follow = FollowService();
   final FriendService _friendService = FriendService();
   FollowCounts? _counts;
@@ -77,7 +80,70 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final opened = await launchUrl(uri, mode: LaunchMode.externalApplication);
     if (!opened && mounted) {
-      _errorSnack('Не удалось открыть WhatsApp');
+      _errorSnack(context.tr('could_not_open_whatsapp'));
+    }
+  }
+
+  Future<void> _openLanguagePicker() async {
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        final current = LanguageService().currentLanguage;
+        final options = [
+          ('ru', context.tr('russian')),
+          ('en', context.tr('english')),
+          ('kz', context.tr('kazakh')),
+        ];
+
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  context.tr('interface_language'),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                ...options.map((item) {
+                  final code = item.$1;
+                  final title = item.$2;
+                  final isSelected = current == code;
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(title),
+                    trailing: isSelected ? const Icon(Icons.check, color: deepPurple) : null,
+                    onTap: () => Navigator.pop(context, code),
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    if (selected == null || selected == LanguageService().currentLanguage) {
+      return;
+    }
+
+    try {
+      await _auth.saveInterfaceLanguage(selected);
+      await LanguageService().setLanguage(selected);
+      if (!mounted) return;
+      _errorSnack(context.tr('language_changed'));
+    } catch (e) {
+      if (!mounted) return;
+      _errorSnack(e.toString().replaceFirst('Exception: ', ''));
     }
   }
 
@@ -371,11 +437,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String get _xpPrimaryLabel {
     switch (_xpWindow) {
       case 'DAILY':
-        return 'Today';
+        return context.tr('today');
       case 'ALL_TIME':
-        return 'Total';
+        return context.tr('total');
       default:
-        return 'This week';
+        return context.tr('this_week');
     }
   }
 
@@ -393,7 +459,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<bool?> _checkNicknameAvailable(String nick) async {
     final token = await AuthService().getToken();
     if (token == null || token.isEmpty) {
-      _errorSnack('Token жоқ. Қайта login жаса.');
+      _errorSnack(context.tr('server_error'));
       return null;
     }
 
@@ -409,7 +475,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       return null;
     }
 
-    _errorSnack('Check error: ${res.statusCode}');
+    _errorSnack(context.tr('check_error', args: {'error': '${res.statusCode}'}));
     return null;
   }
 
@@ -418,7 +484,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final token = await AuthService().getToken();
     if (token == null || token.isEmpty) {
-      _errorSnack('Token жоқ. Қайта login жаса.');
+      _errorSnack(context.tr('server_error'));
       return;
     }
 
@@ -458,14 +524,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
             await AuthService().saveNicknameForUser(uid, updatedNick);
           }
         } else {
-          _errorSnack('Nickname бос емес (409)');
+          _errorSnack(context.tr('nickname_taken'));
         }
         return;
       }
 
-      _errorSnack('Қате: ${res.statusCode}');
+      _errorSnack(context.tr('check_error', args: {'error': '${res.statusCode}'}));
     } catch (e) {
-      _errorSnack('Server error: $e');
+      _errorSnack(context.tr('server_error'));
     } finally {
       if (mounted) setState(() => savingNick = false);
     }
@@ -478,7 +544,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context: context,
       builder: (_) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
-        title: const Text('Nickname өзгерту'),
+        title: Text(context.tr('nickname_change_title')),
         content: TextField(
           controller: controller,
           decoration: const InputDecoration(
@@ -489,12 +555,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Жабу'),
+            child: Text(context.tr('close')),
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(backgroundColor: purple),
-            child: const Text('Сақтау'),
+            child: Text(context.tr('save')),
           ),
         ],
       ),
@@ -504,13 +570,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final newNick = controller.text.trim();
     if (newNick.isEmpty) {
-      _errorSnack('Nickname бос болмауы керек');
+      _errorSnack(context.tr('nickname_empty'));
       return;
     }
 
     final available = await _checkNicknameAvailable(newNick);
     if (available == false) {
-      _errorSnack('Ондай nickname бос емес');
+      _errorSnack(context.tr('nickname_taken'));
       return;
     }
 
@@ -530,13 +596,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             if (res['ok'] == true) {
               setState(() => _fullName = (res['username'] ?? value).toString().trim());
             } else {
-              throw Exception((res['message'] ?? 'Қате').toString());
+              throw Exception((res['message'] ?? context.tr('server_error')).toString());
             }
           },
           onSaveNickname: (value) async {
             final available = await _checkNicknameAvailable(value);
             if (available == false) {
-              throw Exception('Ондай nickname бос емес');
+              throw Exception(context.tr('nickname_taken'));
             }
             await _updateNickname(value);
           },
@@ -593,7 +659,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ElevatedButton(
                   onPressed: _loadMe,
                   style: ElevatedButton.styleFrom(backgroundColor: purple),
-                  child: const Text('Қайта жүктеу'),
+                  child: Text(context.tr('reload_data')),
                 ),
               ],
             ),
@@ -623,11 +689,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     onPressed: () {},
                     icon: const Icon(Icons.arrow_back, color: Colors.transparent),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Profile',
+                      context.tr('profile'),
                       textAlign: TextAlign.center,
-                      style: TextStyle(
+                      style: const TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
                         color: Color(0xFF252525),
@@ -684,7 +750,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                '@${nickname.isNotEmpty ? nickname : _fullName.toLowerCase().replaceAll(' ', '_')} • Joined 2025',
+                                '@${nickname.isNotEmpty ? nickname : _fullName.toLowerCase().replaceAll(' ', '_')} • ${context.tr('joined_year', args: {'year': '2025'})}',
                                 style: const TextStyle(
                                   color: Colors.black45,
                                   fontWeight: FontWeight.w500,
@@ -718,7 +784,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const SizedBox(width: 14),
                         Expanded(
                           child: _topStat(
-                            title: 'Friends',
+                            title: context.tr('friends'),
                             value: friendsCount,
                             onTap: () async {
                               await Navigator.of(context, rootNavigator: true).push(
@@ -736,7 +802,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Container(width: 1, height: 34, color: Colors.black12),
                         Expanded(
                           child: _topStat(
-                            title: 'Requests',
+                            title: context.tr('requests'),
                             value: requestsCount,
                             onTap: () async {
                               await Navigator.of(context, rootNavigator: true).push(
@@ -782,9 +848,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   ),
                                 ],
                               ),
-                              child: const Center(
+                              child: Center(
                                 child: Text(
-                                  'FRIENDS',
+                                  context.tr('friends_upper'),
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.w900,
@@ -863,8 +929,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text(
-                            "You're almost there!",
+                          Text(
+                            context.tr('you_are_almost_there'),
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
@@ -873,7 +939,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 6),
                           Text(
-                            'XP to next step',
+                            context.tr('xp_to_next_step'),
                             style: TextStyle(
                               color: Colors.black54,
                               fontWeight: FontWeight.w600,
@@ -911,8 +977,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Your XP Progress',
+                    Text(
+                      context.tr('your_xp_progress'),
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w900,
@@ -928,10 +994,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       child: Row(
                         children: [
-                          Expanded(child: _xpSwitchChip(label: 'Daily', value: 'DAILY')),
-                          Expanded(child: _xpSwitchChip(label: 'Weekly', value: 'WEEKLY')),
+                          Expanded(child: _xpSwitchChip(label: context.tr('daily'), value: 'DAILY')),
+                          Expanded(child: _xpSwitchChip(label: context.tr('weekly'), value: 'WEEKLY')),
                           Expanded(
-                            child: _xpSwitchChip(label: 'All time', value: 'ALL_TIME'),
+                            child: _xpSwitchChip(label: context.tr('all_time'), value: 'ALL_TIME'),
                           ),
                         ],
                       ),
@@ -989,14 +1055,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         Expanded(
                           child: _infoMiniCard(
-                            title: 'Full Name',
+                            title: context.tr('full_name'),
                             value: _fullName.isNotEmpty ? _fullName : '—',
                           ),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: _infoMiniCard(
-                            title: 'Nickname',
+                            title: context.tr('nickname'),
                             value: nickname.isNotEmpty ? nickname : '—',
                           ),
                         ),
@@ -1007,7 +1073,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         Expanded(
                           child: _infoMiniCard(
-                            title: 'Level',
+                            title: context.tr('level'),
                             value: level.isNotEmpty ? level : 'A0',
                           ),
                         ),
@@ -1044,10 +1110,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         const Icon(Icons.public_rounded, color: purple),
                         const SizedBox(width: 10),
-                        const Expanded(
+                        Expanded(
                           child: Text(
-                            'World Records',
-                            style: TextStyle(
+                            context.tr('world_records'),
+                            style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.w900,
                               color: Color(0xFF2F2034),
@@ -1067,13 +1133,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           Expanded(
                             child: _leaderboardSwitchChip(
-                              label: 'Week',
+                              label: context.tr('week'),
                               value: 'week',
                             ),
                           ),
                           Expanded(
                             child: _leaderboardSwitchChip(
-                              label: 'Month',
+                              label: context.tr('month'),
                               value: 'month',
                             ),
                           ),
@@ -1089,12 +1155,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                       )
                     else if (_leaderboardItems.isEmpty)
-                      const Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                         child: Center(
                           child: Text(
-                            'No leaderboard data yet',
-                            style: TextStyle(
+                            context.tr('no_leaderboard_data_yet'),
+                            style: const TextStyle(
                               color: Colors.black54,
                               fontWeight: FontWeight.w600,
                             ),
@@ -1190,7 +1256,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          isCurrentUser ? 'You ($displayName)' : displayName,
+                                          isCurrentUser
+                                              ? context.tr('you_named', args: {'name': displayName})
+                                              : displayName,
                                           style: const TextStyle(
                                             fontSize: 18,
                                             fontWeight: FontWeight.w700,
@@ -1219,9 +1287,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                           fontWeight: FontWeight.w900,
                                         ),
                                       ),
-                                      const Text(
-                                        'points',
-                                        style: TextStyle(
+                                      Text(
+                                        context.tr('points'),
+                                        style: const TextStyle(
                                           color: Color(0xFF7A7091),
                                           fontWeight: FontWeight.w500,
                                         ),
@@ -1252,9 +1320,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   )
                       : const Icon(Icons.edit_outlined),
-                  label: const Text(
-                    'Nickname өзгерту',
-                    style: TextStyle(fontWeight: FontWeight.w900),
+                  label: Text(
+                    context.tr('nickname_change'),
+                    style: const TextStyle(fontWeight: FontWeight.w900),
                   ),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: deepPurple,
@@ -1266,34 +1334,41 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
               const SizedBox(height: 18),
-              const Padding(
-                padding: EdgeInsets.only(left: 4, bottom: 12),
+              Padding(
+                padding: const EdgeInsets.only(left: 4, bottom: 12),
                 child: Text(
-                  'More',
-                  style: TextStyle(
+                  context.tr('more'),
+                  style: const TextStyle(
                     color: Color(0xFF434343),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
               ),
               _moreTile(
+                icon: Icons.language_rounded,
+                title: context.tr('interface_language'),
+                subtitle: context.tr('interface_language_subtitle'),
+                onTap: _openLanguagePicker,
+              ),
+              const SizedBox(height: 10),
+              _moreTile(
                 icon: Icons.help_outline,
-                title: 'Help & Support',
-                subtitle: 'Get help with your account and app usage',
+                title: context.tr('help_support'),
+                subtitle: context.tr('help_support_subtitle'),
                 onTap: _openHelpSupport,
               ),
               const SizedBox(height: 10),
               _moreTile(
                 icon: Icons.favorite_border,
-                title: 'About App',
-                subtitle: 'Learn more about OYU',
-                onTap: () => _errorSnack('About App кейін қосамыз'),
+                title: context.tr('about_app'),
+                subtitle: context.tr('about_app_subtitle'),
+                onTap: () => _errorSnack(context.tr('about_app_soon')),
               ),
               const SizedBox(height: 10),
               _moreTile(
                 icon: Icons.logout,
-                title: 'Log out',
-                subtitle: 'Further secure your account for safety',
+                title: context.tr('log_out'),
+                subtitle: context.tr('log_out_subtitle'),
                 onTap: _logout,
               ),
             ],
@@ -1586,7 +1661,7 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
 
     if (nick.isNotEmpty) return nick;
     if (username.isNotEmpty) return username;
-    return 'Unknown user';
+    return context.tr('unknown_user');
   }
 
   String _secondLine(SearchUserResult user) {
@@ -1600,7 +1675,7 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
 
   String _initial(SearchUserResult user) {
     final name = _displayName(user).trim();
-    if (name.isEmpty || name == 'Unknown user') return '?';
+    if (name.isEmpty || name == context.tr('unknown_user')) return '?';
     return name.characters.first.toUpperCase();
   }
 
@@ -1609,7 +1684,7 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
 
     if (nick.isEmpty) {
       setState(() {
-        error = 'Nickname енгіз';
+        error = context.tr('enter_nickname');
         foundUser = null;
         isFollowing = null;
       });
@@ -1630,7 +1705,7 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
 
       if (user == null) {
         setState(() {
-          error = 'User табылмады';
+          error = context.tr('user_not_found_short');
           searching = false;
         });
         return;
@@ -1638,7 +1713,7 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
 
       if (user.id <= 0) {
         setState(() {
-          error = 'Backend user id жібермеді';
+          error = context.tr('backend_user_id_missing');
           foundUser = null;
           isFollowing = null;
           searching = false;
@@ -1682,7 +1757,7 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
 
     if (user.id <= 0) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('User id табылмады')),
+        SnackBar(content: Text(context.tr('user_id_not_found'))),
       );
       return;
     }
@@ -1714,7 +1789,9 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(status ? 'Follow жасалды' : 'Unfollow жасалды'),
+          content: Text(
+            status ? context.tr('follow_done') : context.tr('unfollow_done'),
+          ),
         ),
       );
     } catch (e) {
@@ -1756,8 +1833,8 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
                   ),
                 ),
                 const SizedBox(height: 16),
-                const Text(
-                  'Invite by nickname',
+                Text(
+                  context.tr('invite_by_nickname'),
                   style: TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.w900,
@@ -1809,8 +1886,8 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
                             color: Colors.white,
                           ),
                         )
-                            : const Text(
-                          'Search',
+                            : Text(
+                          context.tr('search'),
                           style: TextStyle(fontWeight: FontWeight.w800),
                         ),
                       ),
@@ -1888,7 +1965,13 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
-                                    'Level ${user.level} • XP ${user.xp}',
+                                    context.tr(
+                                      'lesson_level_xp',
+                                      args: {
+                                        'level': user.level,
+                                        'xp': '${user.xp}',
+                                      },
+                                    ),
                                     style: const TextStyle(
                                       color: Colors.black45,
                                     ),
@@ -1910,8 +1993,8 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
                         color: const Color(0xFFEFF8EF),
                         borderRadius: BorderRadius.circular(16),
                       ),
-                      child: const Text(
-                        'Бұл өзіңнің аккаунтың',
+                      child: Text(
+                        context.tr('user_account_self'),
                         style: TextStyle(
                           fontWeight: FontWeight.w700,
                           color: Colors.green,
@@ -1950,7 +2033,9 @@ class _InviteSearchSheetState extends State<InviteSearchSheet> {
                           ),
                         )
                             : Text(
-                          isFollowing == true ? 'Unfollow' : 'Follow',
+                          isFollowing == true
+                              ? context.tr('unfollow')
+                              : context.tr('follow'),
                           style: const TextStyle(
                             fontWeight: FontWeight.w900,
                             fontSize: 15,
@@ -2018,7 +2103,7 @@ class _BioDataScreenState extends State<BioDataScreen> {
 
     if (newName.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Name бос болмауы керек')),
+        SnackBar(content: Text(context.tr('name_must_not_be_empty'))),
       );
       return;
     }
@@ -2036,7 +2121,7 @@ class _BioDataScreenState extends State<BioDataScreen> {
       Navigator.pop(context);
 
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile updated')),
+        SnackBar(content: Text(context.tr('profile_updated'))),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -2078,11 +2163,11 @@ class _BioDataScreenState extends State<BioDataScreen> {
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.arrow_back),
                 ),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Bio-data',
+                    context.tr('bio_data'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                     ),
@@ -2126,12 +2211,12 @@ class _BioDataScreenState extends State<BioDataScreen> {
             const SizedBox(height: 44),
             TextField(
               controller: _nameC,
-              decoration: _input('Name'),
+              decoration: _input(context.tr('name')),
             ),
             const SizedBox(height: 24),
             TextField(
               readOnly: true,
-              decoration: _input('Email'),
+              decoration: _input(context.tr('email')),
               controller: TextEditingController(
                 text: widget.email.isNotEmpty ? widget.email : '—',
               ),
@@ -2139,12 +2224,12 @@ class _BioDataScreenState extends State<BioDataScreen> {
             const SizedBox(height: 24),
             TextField(
               controller: _nickC,
-              decoration: _input('Nickname'),
+              decoration: _input(context.tr('nickname')),
             ),
             const SizedBox(height: 24),
             TextField(
               readOnly: true,
-              decoration: _input('Level'),
+              decoration: _input(context.tr('level')),
               controller: TextEditingController(text: widget.level),
             ),
             const SizedBox(height: 44),
@@ -2168,8 +2253,8 @@ class _BioDataScreenState extends State<BioDataScreen> {
                     color: Colors.white,
                   ),
                 )
-                    : const Text(
-                  'Update Profile',
+                    : Text(
+                  context.tr('update_profile'),
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
                     fontSize: 16,
@@ -2191,7 +2276,7 @@ class FollowersListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _FollowListBase(
-      title: 'Followers',
+      title: AppText.tr(context, 'followers'),
       loadPage: (cursor) => FollowService().getFollowers(userId: userId, cursor: cursor),
     );
   }
@@ -2204,7 +2289,7 @@ class FollowingListScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return _FollowListBase(
-      title: 'Following',
+      title: AppText.tr(context, 'following'),
       loadPage: (cursor) => FollowService().getFollowing(userId: userId, cursor: cursor),
     );
   }
@@ -2322,8 +2407,8 @@ class _FollowListBaseState extends State<_FollowListBase> {
                   height: 22,
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
-                    : const Text(
-                  'Load more',
+                    : Text(
+                  context.tr('load_more'),
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w900,
@@ -2385,7 +2470,10 @@ class _FollowListBaseState extends State<_FollowListBase> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Level ${u.level} • XP ${u.xp}',
+                          context.tr(
+                            'lesson_level_xp',
+                            args: {'level': u.level, 'xp': '${u.xp}'},
+                          ),
                           style: const TextStyle(color: Colors.black54),
                         ),
                       ],
@@ -2488,7 +2576,7 @@ class _PublicUserProfileScreenState extends State<PublicUserProfileScreen> {
       backgroundColor: bg,
       appBar: AppBar(
         backgroundColor: purple,
-        title: const Text('Profile'),
+        title: Text(context.tr('profile')),
         centerTitle: true,
       ),
       body: loading
@@ -2506,8 +2594,8 @@ class _PublicUserProfileScreenState extends State<PublicUserProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'User profile',
+                Text(
+                  context.tr('user_profile'),
                   style: TextStyle(
                     color: Colors.white,
                     fontSize: 20,
@@ -2538,14 +2626,14 @@ class _PublicUserProfileScreenState extends State<PublicUserProfileScreen> {
                   children: [
                     Expanded(
                       child: _PublicStat(
-                        label: 'Following',
+                        label: context.tr('following'),
                         value: '${counts?.followingCount ?? 0}',
                       ),
                     ),
                     Container(width: 1, height: 36, color: Colors.black12),
                     Expanded(
                       child: _PublicStat(
-                        label: 'Followers',
+                        label: context.tr('followers'),
                         value: '${counts?.followersCount ?? 0}',
                       ),
                     ),
@@ -2571,7 +2659,9 @@ class _PublicUserProfileScreenState extends State<PublicUserProfileScreen> {
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                           : Text(
-                        isFollowing ? 'Unfollow' : 'Follow',
+                        isFollowing
+                            ? context.tr('unfollow')
+                            : context.tr('follow'),
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w900,

@@ -1,7 +1,8 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-
+import 'package:kazakh_learning_app/l10n/app_text.dart';
 import 'package:kazakh_learning_app/screens/auth_screen.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
 
@@ -25,7 +26,7 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
     final code = _codeController.text.trim();
 
     if (code.isEmpty) {
-      setState(() => errorText = 'Enter the code.');
+      setState(() => errorText = context.tr('enter_code'));
       return;
     }
 
@@ -54,9 +55,7 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Email successfully verified 🎉 Login now'),
-          ),
+          SnackBar(content: Text(context.tr('email_verified'))),
         );
 
         await Future.delayed(const Duration(milliseconds: 500));
@@ -65,7 +64,7 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
 
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(builder: (_) => const AuthScreen()),
-              (route) => false,
+          (route) => false,
         );
       } else {
         setState(() {
@@ -74,7 +73,7 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
       }
     } catch (_) {
       setState(() {
-        errorText = 'Server error';
+        errorText = context.tr('server_error');
       });
     } finally {
       if (mounted) setState(() => isLoading = false);
@@ -105,10 +104,10 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
                     bottomRight: Radius.circular(26),
                   ),
                 ),
-                child: const Center(
+                child: Center(
                   child: Text(
-                    'Confirm Email',
-                    style: TextStyle(
+                    context.tr('confirm_email'),
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 28,
                       fontWeight: FontWeight.w800,
@@ -126,9 +125,9 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
                 ),
                 child: Column(
                   children: [
-                    const Text(
-                      'Code sent:',
-                      style: TextStyle(
+                    Text(
+                      context.tr('code_sent'),
+                      style: const TextStyle(
                         color: Colors.black54,
                         fontWeight: FontWeight.w600,
                       ),
@@ -146,7 +145,7 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
                       controller: _codeController,
                       style: const TextStyle(fontWeight: FontWeight.w700),
                       decoration: InputDecoration(
-                        hintText: 'Enter the code.',
+                        hintText: context.tr('enter_code'),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 14,
                           vertical: 14,
@@ -196,20 +195,20 @@ class _ConfirmEmailScreenState extends State<ConfirmEmailScreen> {
                         ),
                         child: isLoading
                             ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: Colors.white,
-                          ),
-                        )
-                            : const Text(
-                          'Confirm',
-                          style: TextStyle(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 16,
-                          ),
-                        ),
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                context.tr('confirm'),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  fontSize: 16,
+                                ),
+                              ),
                       ),
                     ),
                   ],

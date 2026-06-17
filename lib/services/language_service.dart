@@ -1,6 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class LanguageService {
+class LanguageService extends ChangeNotifier {
   static const String _prefKey = 'app_language';
   static const String defaultLanguage = 'ru'; // ru, en, kz
 
@@ -22,5 +23,6 @@ class LanguageService {
     _currentLanguage = lang;
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_prefKey, lang);
+    notifyListeners();
   }
 }

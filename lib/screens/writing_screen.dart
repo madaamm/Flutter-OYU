@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:kazakh_learning_app/l10n/app_text.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:kazakh_learning_app/services/writing_service.dart';
 
@@ -46,7 +47,7 @@ class _WritingScreenState extends State<WritingScreen> {
 
     if (topic.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Choose or enter a topic first')),
+        SnackBar(content: Text(context.tr('choose_topic_first'))),
       );
       return;
     }
@@ -107,13 +108,13 @@ class _WritingScreenState extends State<WritingScreen> {
                   ),
                 ],
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(Icons.edit_note_rounded, size: 52, color: ink),
                   SizedBox(height: 18),
                   Text(
-                    'Choose a topic',
+                    context.tr('writing_choose_topic'),
                     style: TextStyle(
                       fontSize: 28,
                       fontWeight: FontWeight.w900,
@@ -122,7 +123,7 @@ class _WritingScreenState extends State<WritingScreen> {
                   ),
                   SizedBox(height: 8),
                   Text(
-                    'The learner chooses a topic, writes in Kazakh, then gets AI feedback on grammar, clarity, logic, and vocabulary.',
+                    context.tr('writing_choose_topic_desc'),
                     style: TextStyle(
                       fontSize: 15,
                       height: 1.45,
@@ -133,8 +134,8 @@ class _WritingScreenState extends State<WritingScreen> {
               ),
             ),
             const SizedBox(height: 22),
-            const Text(
-              'Popular topics',
+            Text(
+              context.tr('popular_topics'),
               style: TextStyle(
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
@@ -171,8 +172,8 @@ class _WritingScreenState extends State<WritingScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Your own topic',
+                  Text(
+                    context.tr('your_own_topic'),
                     style: TextStyle(
                       fontSize: 17,
                       fontWeight: FontWeight.w800,
@@ -184,7 +185,7 @@ class _WritingScreenState extends State<WritingScreen> {
                     controller: _customTopicController,
                     onChanged: (_) => setState(() {}),
                     decoration: InputDecoration(
-                      hintText: 'Example: Menin suiykti kitabyim',
+                      hintText: context.tr('your_own_topic_hint'),
                       filled: true,
                       fillColor: const Color(0xFFFFF7D8),
                       contentPadding: const EdgeInsets.symmetric(
@@ -212,8 +213,8 @@ class _WritingScreenState extends State<WritingScreen> {
                     borderRadius: BorderRadius.circular(18),
                   ),
                 ),
-                child: const Text(
-                  'Continue to writing',
+                child: Text(
+                  context.tr('continue_to_writing'),
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w800,
@@ -279,7 +280,7 @@ class _WritingComposeScreenState extends State<WritingComposeScreen> {
     try {
       final userId = await _getUserId();
       if (userId == 0) {
-        throw Exception('Could not resolve user');
+        throw Exception(context.tr('writing_user_error'));
       }
 
       final reply = await WritingService.evaluateWriting(
@@ -305,14 +306,18 @@ class _WritingComposeScreenState extends State<WritingComposeScreen> {
     } on TimeoutException {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('The check took too long. Please try again with a shorter text.'),
+        SnackBar(
+          content: Text(context.tr('writing_timeout')),
         ),
       );
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Writing check error: $e')),
+        SnackBar(
+          content: Text(
+            context.tr('check_error', args: {'error': '$e'}),
+          ),
+        ),
       );
     } finally {
       if (mounted) {
@@ -340,9 +345,9 @@ class _WritingComposeScreenState extends State<WritingComposeScreen> {
                   onPressed: () => Navigator.pop(context),
                   icon: const Icon(Icons.arrow_back_ios_new_rounded),
                 ),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Writing Practice',
+                    context.tr('writing_practice'),
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 20,
@@ -365,8 +370,8 @@ class _WritingComposeScreenState extends State<WritingComposeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Topic',
+                  Text(
+                    context.tr('topic'),
                     style: TextStyle(
                       fontSize: 14,
                       fontWeight: FontWeight.w700,
@@ -402,8 +407,8 @@ class _WritingComposeScreenState extends State<WritingComposeScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Write in Kazakh',
+                  Text(
+                    context.tr('write_in_kazakh'),
                     style: TextStyle(
                       fontSize: 18,
                       fontWeight: FontWeight.w800,
@@ -411,8 +416,8 @@ class _WritingComposeScreenState extends State<WritingComposeScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Write a text or a few sentences in Kazakh. AI will check grammar, clarity, topic relevance, and how well the thought is explained.',
+                  Text(
+                    context.tr('write_in_kazakh_desc'),
                     style: TextStyle(
                       fontSize: 14,
                       height: 1.45,
@@ -426,7 +431,7 @@ class _WritingComposeScreenState extends State<WritingComposeScreen> {
                     maxLines: 16,
                     onChanged: (_) => setState(() {}),
                     decoration: InputDecoration(
-                      hintText: 'Write your text here...',
+                      hintText: context.tr('write_here'),
                       alignLabelWithHint: true,
                       filled: true,
                       fillColor: const Color(0xFFFFFBEE),
@@ -441,7 +446,7 @@ class _WritingComposeScreenState extends State<WritingComposeScreen> {
                   Row(
                     children: [
                       Text(
-                        '$charCount chars',
+                        context.tr('chars', args: {'count': '$charCount'}),
                         style: const TextStyle(
                           fontSize: 13,
                           color: Color(0xFF817A68),
@@ -449,7 +454,9 @@ class _WritingComposeScreenState extends State<WritingComposeScreen> {
                       ),
                       const Spacer(),
                       Text(
-                        charCount < 20 ? 'Write at least 1-2 full sentences' : 'Ready to send',
+                        charCount < 20
+                            ? context.tr('write_1_2_sentences')
+                            : context.tr('ready_to_send'),
                         style: TextStyle(
                           fontSize: 13,
                           color: charCount < 20 ? const Color(0xFF9B6B00) : const Color(0xFF2E7D32),
@@ -481,8 +488,8 @@ class _WritingComposeScreenState extends State<WritingComposeScreen> {
                                 color: Colors.white,
                               ),
                             )
-                          : const Text(
-                              'Send for checking',
+                          : Text(
+                              context.tr('send_for_checking'),
                               style: TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w800,
@@ -505,12 +512,12 @@ class _WritingComposeScreenState extends State<WritingComposeScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
                         Icon(Icons.smart_toy_outlined, color: ink),
                         SizedBox(width: 10),
                         Text(
-                          'AI feedback',
+                          context.tr('writing_feedback'),
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.w900,

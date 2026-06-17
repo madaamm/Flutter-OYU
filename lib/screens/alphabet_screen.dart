@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:kazakh_learning_app/l10n/app_text.dart';
 import 'package:kazakh_learning_app/services/alphabet_prediction_service.dart';
 import 'package:kazakh_learning_app/services/alphabet_service.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
@@ -131,7 +132,7 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
                     children: [
                       const SizedBox(width: 48),
                       const Spacer(),
-                      const Text('Alphabet', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
+                      Text(context.tr('alphabet'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 18)),
                       const Spacer(),
                       const SizedBox(width: 48),
                     ],
@@ -148,7 +149,7 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
                         elevation: 0,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                       ),
-                      child: const Text('PLAY ALPHABET GAME', style: TextStyle(fontWeight: FontWeight.w900)),
+                      child: Text(context.tr('play_alphabet_game'), style: const TextStyle(fontWeight: FontWeight.w900)),
                     ),
                   ),
                 ],
@@ -184,7 +185,7 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
                                 backgroundColor: purple,
                                 foregroundColor: Colors.white,
                               ),
-                              child: const Text('Қайта жүктеу'),
+                              child: Text(context.tr('reload_data')),
                             ),
                           ],
                         ),
@@ -197,23 +198,23 @@ class _AlphabetScreenState extends State<AlphabetScreen> {
                       onRefresh: _loadLetters,
                       color: purple,
                       child: ListView(
-                        children: const [
-                          SizedBox(height: 140),
+                        children: [
+                          const SizedBox(height: 140),
                           Center(
                             child: Text(
-                              'Әзірге әріптер қосылмаған',
-                              style: TextStyle(
+                              context.tr('no_letters_yet'),
+                              style: const TextStyle(
                                 fontSize: 16,
                                 fontWeight: FontWeight.w700,
                                 color: Colors.black54,
                               ),
                             ),
                           ),
-                          SizedBox(height: 8),
+                          const SizedBox(height: 8),
                           Center(
                             child: Text(
-                              'Admin әріп қосқанда мұнда автоматты шығады',
-                              style: TextStyle(
+                              context.tr('letters_will_appear_after_admin'),
+                              style: const TextStyle(
                                 fontSize: 13,
                                 color: Colors.black38,
                               ),
@@ -412,9 +413,10 @@ class _UserAlphabetLetterDetailScreenState
 
   String _getExamplesTitle(String lang) {
     switch (lang) {
-      case 'en': return 'Examples';
-      case 'kz': return 'Мысалдар';
-      default: return 'Примеры';
+      case 'en':
+      case 'kz':
+      default:
+        return AppText.translate(lang, 'examples');
     }
   }
 
@@ -431,7 +433,7 @@ class _UserAlphabetLetterDetailScreenState
         if (!mounted) return;
         setState(() => _audioLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('This letter has no sound.')),
+          SnackBar(content: Text(context.tr('letter_has_no_sound'))),
         );
         return;
       }
@@ -446,7 +448,7 @@ class _UserAlphabetLetterDetailScreenState
         _playing = false;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('This letter has no sound.')),
+        SnackBar(content: Text(context.tr('letter_has_no_sound'))),
       );
     }
   }
@@ -456,7 +458,11 @@ class _UserAlphabetLetterDetailScreenState
       await _player.pause();
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Audio pause error: $e')),
+        SnackBar(
+          content: Text(
+            context.tr('audio_pause_error', args: {'error': '$e'}),
+          ),
+        ),
       );
     }
   }
@@ -467,7 +473,7 @@ class _UserAlphabetLetterDetailScreenState
     if (letter == null) return;
     if (recordedPath == null || recordedPath.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Алдымен микрофонмен өз даусыңды жазып ал')),
+        SnackBar(content: Text(context.tr('record_your_voice_first'))),
       );
       return;
     }
@@ -507,7 +513,9 @@ class _UserAlphabetLetterDetailScreenState
                 ),
                 const SizedBox(height: 18),
                 Text(
-                  isExcellent ? 'Excellent' : 'Try again',
+                  isExcellent
+                      ? context.tr('excellent')
+                      : context.tr('try_again'),
                   style: TextStyle(
                     color: isExcellent ? Colors.green : purple,
                     fontSize: 22,
@@ -515,11 +523,26 @@ class _UserAlphabetLetterDetailScreenState
                   ),
                 ),
                 const SizedBox(height: 14),
-                Text('Expected letter: ${letter.uppercase}${letter.lowercase}'),
+                Text(
+                  context.tr(
+                    'expected_letter',
+                    args: {'value': '${letter.uppercase}${letter.lowercase}'},
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Text('Predicted letter: ${result.predictedLetter}'),
+                Text(
+                  context.tr(
+                    'predicted_letter',
+                    args: {'value': '${result.predictedLetter}'},
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Text('Accuracy: ${percent.toStringAsFixed(1)}%'),
+                Text(
+                  context.tr(
+                    'accuracy',
+                    args: {'value': percent.toStringAsFixed(1)},
+                  ),
+                ),
                 const SizedBox(height: 18),
                 SizedBox(
                   width: double.infinity,
@@ -530,7 +553,7 @@ class _UserAlphabetLetterDetailScreenState
                       backgroundColor: purple,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                     ),
-                    child: const Text('Close', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
+                    child: Text(context.tr('close'), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800)),
                   ),
                 ),
               ],
@@ -542,7 +565,11 @@ class _UserAlphabetLetterDetailScreenState
       if (!mounted) return;
       setState(() => _predictLoading = false);
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Тексеру error: $e')),
+        SnackBar(
+          content: Text(
+            context.tr('check_error', args: {'error': '$e'}),
+          ),
+        ),
       );
     }
   }
@@ -645,7 +672,7 @@ class _UserAlphabetLetterDetailScreenState
                                 // Локализованное описание
                                 if (_getLocalizedDescription(letter, currentLang).isNotEmpty) ...[
                                   Text(
-                                    currentLang == 'en' ? 'Description' : (currentLang == 'kz' ? 'Сипаттама' : 'Описание'),
+                                    AppText.translate(currentLang, 'description'),
                                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: purple),
                                   ),
                                   const SizedBox(height: 6),
@@ -663,7 +690,7 @@ class _UserAlphabetLetterDetailScreenState
                                 const SizedBox(height: 8),
                                 if (examples.isEmpty)
                                   Text(
-                                    currentLang == 'en' ? '— no examples yet —' : (currentLang == 'kz' ? '— мысалдар жоқ —' : '— примеры пока не добавлены —'),
+                                    AppText.translate(currentLang, 'no_examples_yet'),
                                     style: TextStyle(color: Colors.grey[600]),
                                   )
                                 else
@@ -719,8 +746,8 @@ class _UserAlphabetLetterDetailScreenState
                                 : const Icon(Icons.verified_rounded),
                             label: Text(
                               _predictLoading
-                                  ? (currentLang == 'en' ? 'Checking...' : (currentLang == 'kz' ? 'Тексерілуде...' : 'Проверка...'))
-                                  : (currentLang == 'en' ? 'Send for verification' : (currentLang == 'kz' ? 'Дауысты тексеруге жіберу' : 'Отправить на проверку')),
+                                  ? AppText.translate(currentLang, 'checking')
+                                  : AppText.translate(currentLang, 'send_for_verification'),
                               style: const TextStyle(fontWeight: FontWeight.w800),
                             ),
                           ),
@@ -746,7 +773,7 @@ class _UserAlphabetLetterDetailScreenState
                           side: BorderSide(color: purple),
                         ),
                       ),
-                      child: Text(currentLang == 'en' ? '← Previous' : (currentLang == 'kz' ? '← Алдыңғы' : '← Предыдущая')),
+                      child: Text(AppText.translate(currentLang, 'previous')),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -758,7 +785,7 @@ class _UserAlphabetLetterDetailScreenState
                         foregroundColor: Colors.white,
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: Text(currentLang == 'en' ? 'Next →' : (currentLang == 'kz' ? 'Келесі →' : 'Следующая →')),
+                      child: Text(AppText.translate(currentLang, 'next')),
                     ),
                   ),
                 ],

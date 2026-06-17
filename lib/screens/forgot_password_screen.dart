@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:kazakh_learning_app/l10n/app_text.dart';
 
 import 'package:kazakh_learning_app/screens/reset_success_screen.dart';
 
@@ -28,7 +29,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
     final email = _emailC.text.trim();
 
     if (email.isEmpty) {
-      _show('Enter your email.');
+      _show(context.tr('enter_email'));
       return;
     }
 
@@ -51,10 +52,10 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
           ),
         );
       } else {
-        _show((data['message'] ?? 'Request failed').toString());
+        _show((data['message'] ?? context.tr('server_error')).toString());
       }
     } catch (e) {
-      _show('Server error');
+      _show(context.tr('server_error'));
     }
 
     if (mounted) setState(() => _loading = false);
@@ -137,27 +138,27 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Forget Password',
-                      style: TextStyle(
+                    Text(
+                      context.tr('forgot_password_title'),
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w900,
                         color: Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
-                      'Enter your registered email below',
-                      style: TextStyle(
+                    Text(
+                      context.tr('forgot_password_subtitle'),
+                      style: const TextStyle(
                         color: Colors.black54,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 18),
 
-                    const Text(
-                      'Email address',
-                      style: TextStyle(
+                    Text(
+                      context.tr('email_address'),
+                      style: const TextStyle(
                         fontWeight: FontWeight.w800,
                         color: Colors.black87,
                       ),
@@ -169,7 +170,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       keyboardType: TextInputType.emailAddress,
                       style: const TextStyle(fontWeight: FontWeight.w700),
                       decoration: InputDecoration(
-                        hintText: 'example@gmail.com',
+                        hintText: context.tr('email_hint'),
                         hintStyle: const TextStyle(
                           color: Colors.black38,
                           fontWeight: FontWeight.w600,
@@ -196,9 +197,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
 
                     Row(
                       children: [
-                        const Text(
-                          'Remember the password?',
-                          style: TextStyle(
+                        Text(
+                          context.tr('remember_password'),
+                          style: const TextStyle(
                             color: Colors.black54,
                             fontWeight: FontWeight.w600,
                           ),
@@ -206,9 +207,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                         const SizedBox(width: 8),
                         InkWell(
                           onTap: () => Navigator.pop(context),
-                          child: const Text(
-                            'Log in',
-                            style: TextStyle(
+                          child: Text(
+                            context.tr('login'),
+                            style: const TextStyle(
                               color: purple,
                               fontWeight: FontWeight.w900,
                             ),
@@ -241,9 +242,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                             color: Colors.white,
                           ),
                         )
-                            : const Text(
-                          'Submit',
-                          style: TextStyle(
+                            : Text(
+                          context.tr('submit'),
+                          style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
                           ),

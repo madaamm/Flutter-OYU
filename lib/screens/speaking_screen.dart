@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import 'package:kazakh_learning_app/l10n/app_text.dart';
 import 'package:record/record.dart';
 import 'package:kazakh_learning_app/utils/speaking_audio_storage.dart';
 
@@ -49,21 +50,21 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
         isRecording = false;
         isLoading = false;
       });
-      showMessage('Could not access the microphone. $e');
+      showMessage(context.tr('mic_access_error', args: {'error': '$e'}));
     }
   }
 
   Future<void> startRecording() async {
     final trimmedTopic = topicController.text.trim();
     if (trimmedTopic.isEmpty) {
-      showMessage('Please enter a topic first.');
+      showMessage(context.tr('enter_topic_first'));
       return;
     }
 
     final hasPermission = await recorder.hasPermission();
 
     if (!hasPermission) {
-      showMessage('Microphone permission is required.');
+      showMessage(context.tr('microphone_permission_required'));
       return;
     }
 
@@ -102,7 +103,7 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
     });
 
     if (audioPath == null) {
-      showMessage('Audio was not recorded.');
+      showMessage(context.tr('audio_not_recorded'));
       return;
     }
 
@@ -158,7 +159,7 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
         result = data;
       });
     } catch (e) {
-      showMessage('Error: $e');
+      showMessage(context.tr('error_with_message', args: {'error': '$e'}));
     } finally {
       if (mounted) {
         setState(() {
@@ -199,8 +200,8 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
-            'Feedback',
+          Text(
+            context.tr('speaking_feedback'),
             style: TextStyle(
               fontSize: 22,
               fontWeight: FontWeight.w700,
@@ -208,27 +209,30 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
           ),
           const SizedBox(height: 12),
           Text(
-            'Overall score: ${result!['overall_score'] ?? 0}/10',
+            context.tr(
+              'overall_score',
+              args: {'value': '${result!['overall_score'] ?? 0}'},
+            ),
             style: const TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 12),
-          Text('Fluency: ${scores['fluency'] ?? 0}'),
-          Text('Pronunciation: ${scores['pronunciation'] ?? 0}'),
-          Text('Grammar: ${scores['grammar'] ?? 0}'),
-          Text('Vocabulary: ${scores['vocabulary'] ?? 0}'),
-          Text('Coherence: ${scores['coherence'] ?? 0}'),
+          Text('${context.tr('fluency')}: ${scores['fluency'] ?? 0}'),
+          Text('${context.tr('pronunciation')}: ${scores['pronunciation'] ?? 0}'),
+          Text('${context.tr('grammar')}: ${scores['grammar'] ?? 0}'),
+          Text('${context.tr('vocabulary')}: ${scores['vocabulary'] ?? 0}'),
+          Text('${context.tr('coherence')}: ${scores['coherence'] ?? 0}'),
           const SizedBox(height: 12),
-          const Text(
-            'Transcript:',
+          Text(
+            '${context.tr('transcript')}:',
             style: TextStyle(fontWeight: FontWeight.w700),
           ),
           Text(result!['transcript'] ?? ''),
           const SizedBox(height: 12),
-          const Text(
-            'Summary:',
+          Text(
+            '${context.tr('summary')}:',
             style: TextStyle(fontWeight: FontWeight.w700),
           ),
           Text(result!['summary'] ?? ''),
@@ -237,8 +241,8 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'Tips:',
+                Text(
+                  '${context.tr('tips')}:',
                   style: TextStyle(fontWeight: FontWeight.w700),
                 ),
                 ...List.from(result!['tips']).map(
@@ -253,7 +257,9 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final buttonText = isRecording ? 'Stop & Send' : 'Start speaking';
+    final buttonText = isRecording
+        ? context.tr('stop_and_send')
+        : context.tr('start_speaking');
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -272,9 +278,9 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
                       color: Color(0xFF555555),
                     ),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Speaking',
+                      context.tr('speaking'),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 28,
@@ -312,10 +318,10 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
                       child: TextField(
                         controller: topicController,
                         maxLines: 5,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           border: InputBorder.none,
-                          hintText: 'Write the topic you want to speak about...',
-                          hintStyle: TextStyle(
+                          hintText: context.tr('write_topic_to_speak'),
+                          hintStyle: const TextStyle(
                             fontSize: 18,
                             color: Color(0xFF777777),
                           ),
@@ -371,8 +377,8 @@ class _SpeakingScreenState extends State<SpeakingScreen> {
                     const SizedBox(height: 12),
                     Text(
                       isRecording
-                          ? 'Recording... speak now'
-                          : 'Enter a topic and press the button',
+                          ? context.tr('recording_speak_now')
+                          : context.tr('enter_topic_and_press_button'),
                       style: const TextStyle(
                         color: Color(0xFF777777),
                         fontSize: 15,

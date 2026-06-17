@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kazakh_learning_app/l10n/app_text.dart';
 import 'package:kazakh_learning_app/models/book_model.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:kazakh_learning_app/services/book_service.dart';
@@ -66,6 +67,19 @@ class _ReadingScreenState extends State<ReadingScreen> {
     return ['All', ...genres];
   }
 
+  String _genreLabel(BuildContext context, String genre) {
+    switch (genre.trim().toLowerCase()) {
+      case 'all':
+        return context.tr('all');
+      case 'kids':
+        return context.tr('kids');
+      case 'general':
+        return context.tr('general');
+      default:
+        return genre;
+    }
+  }
+
   List<BookModel> get _filteredBooks {
     final query = _searchController.text.trim().toLowerCase();
 
@@ -94,7 +108,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
     final opened = await launchUrl(uri, mode: LaunchMode.platformDefault);
     if (!opened && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Could not open the book')),
+        SnackBar(content: Text(context.tr('could_not_open_book'))),
       );
     }
   }
@@ -161,9 +175,9 @@ class _ReadingScreenState extends State<ReadingScreen> {
                               onPressed: () => Navigator.pop(context),
                               icon: const Icon(Icons.arrow_back_ios_new_rounded),
                             ),
-                            const Expanded(
+                            Expanded(
                               child: Text(
-                                'Reading',
+                                context.tr('reading_title'),
                                 textAlign: TextAlign.center,
                                 style: TextStyle(
                                   fontSize: 18,
@@ -193,9 +207,9 @@ class _ReadingScreenState extends State<ReadingScreen> {
                               Expanded(
                                 child: TextField(
                                   controller: _searchController,
-                                  decoration: const InputDecoration(
+                                  decoration: InputDecoration(
                                     border: InputBorder.none,
-                                    hintText: 'Title, author, ...',
+                                    hintText: context.tr('title_author_search'),
                                     hintStyle: TextStyle(color: Color(0xFF999999)),
                                   ),
                                 ),
@@ -212,7 +226,7 @@ class _ReadingScreenState extends State<ReadingScreen> {
                                   (genre) => Padding(
                                     padding: const EdgeInsets.only(right: 10),
                                     child: _GenreButton(
-                                      title: genre,
+                                      title: _genreLabel(context, genre),
                                       selected: genre == _selectedGenre,
                                       onTap: () => setState(() => _selectedGenre = genre),
                                     ),
@@ -223,16 +237,16 @@ class _ReadingScreenState extends State<ReadingScreen> {
                         ),
                         const SizedBox(height: 22),
                         _SectionHeader(
-                          title: 'Best seller',
-                          actionText: 'See All',
-                          onActionTap: () => _openAllBooks('Best seller', bestSeller),
+                          title: context.tr('best_seller'),
+                          actionText: context.tr('see_all'),
+                          onActionTap: () => _openAllBooks(context.tr('best_seller'), bestSeller),
                         ),
                         const SizedBox(height: 12),
                         _HorizontalBookStrip(books: bestSeller, onBookTap: _openDetails),
                         const SizedBox(height: 28),
                         _SectionHeader(
-                          title: 'Top authors',
-                          actionText: 'See All',
+                          title: context.tr('top_authors'),
+                          actionText: context.tr('see_all'),
                           onActionTap: () => _openAllAuthors(authors),
                         ),
                         const SizedBox(height: 14),
@@ -249,17 +263,17 @@ class _ReadingScreenState extends State<ReadingScreen> {
                         ),
                         const SizedBox(height: 28),
                         _SectionHeader(
-                          title: 'Popular',
-                          actionText: 'See All',
-                          onActionTap: () => _openAllBooks('Popular', popular),
+                          title: context.tr('popular'),
+                          actionText: context.tr('see_all'),
+                          onActionTap: () => _openAllBooks(context.tr('popular'), popular),
                         ),
                         const SizedBox(height: 12),
                         _HorizontalBookStrip(books: popular, onBookTap: _openDetails),
                         if (filtered.isEmpty) ...[
                           const SizedBox(height: 28),
-                          const Center(
+                          Center(
                             child: Text(
-                              'No books found for this genre yet',
+                              context.tr('no_books_found'),
                               style: TextStyle(
                                 color: Color(0xFF777777),
                                 fontWeight: FontWeight.w600,
@@ -397,14 +411,14 @@ class BookDetailsScreen extends StatelessWidget {
             ),
             const SizedBox(height: 30),
             _SectionHeader(
-              title: 'Most Likes',
-              actionText: 'See All',
+              title: context.tr('most_likes'),
+              actionText: context.tr('see_all'),
               onActionTap: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
                     builder: (_) => _AllBooksScreen(
-                      title: 'Most Likes',
+                      title: context.tr('most_likes'),
                       books: relatedBooks,
                       onBookTap: (item) {
                         Navigator.pushReplacement(
@@ -458,11 +472,11 @@ class _HorizontalBookStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (books.isEmpty) {
-      return const SizedBox(
+      return SizedBox(
         height: 80,
         child: Center(
           child: Text(
-            'Nothing here yet',
+            context.tr('nothing_here_yet'),
             style: TextStyle(color: Color(0xFF888888)),
           ),
         ),
@@ -705,9 +719,9 @@ class _AllBooksScreen extends StatelessWidget {
             ),
             Expanded(
               child: books.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
-                        'Nothing here yet',
+                        context.tr('nothing_here_yet'),
                         style: TextStyle(color: Color(0xFF888888)),
                       ),
                     )
@@ -814,9 +828,9 @@ class _AllAuthorsScreen extends StatelessWidget {
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.arrow_back_ios_new_rounded),
                   ),
-                  const Expanded(
+                  Expanded(
                     child: Text(
-                      'Top authors',
+                      context.tr('top_authors'),
                       textAlign: TextAlign.center,
                       style: TextStyle(
                         fontSize: 20,
@@ -831,9 +845,9 @@ class _AllAuthorsScreen extends StatelessWidget {
             ),
             Expanded(
               child: authors.isEmpty
-                  ? const Center(
+                  ? Center(
                       child: Text(
-                        'Nothing here yet',
+                        context.tr('nothing_here_yet'),
                         style: TextStyle(color: Color(0xFF888888)),
                       ),
                     )
@@ -965,7 +979,7 @@ class _ReadingError extends StatelessWidget {
             const SizedBox(height: 14),
             ElevatedButton(
               onPressed: onRetry,
-              child: const Text('Retry'),
+              child: Text(context.tr('retry')),
             ),
           ],
         ),

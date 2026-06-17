@@ -1,6 +1,8 @@
 import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:kazakh_learning_app/l10n/app_text.dart';
 
 class ChangePasswordScreen extends StatefulWidget {
   const ChangePasswordScreen({super.key});
@@ -12,7 +14,7 @@ class ChangePasswordScreen extends StatefulWidget {
 class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
   static const purple = Color(0xFF8E5BFF);
 
-  final _tokenC = TextEditingController(); // ✅ email келген код
+  final _tokenC = TextEditingController();
   final _passC = TextEditingController();
   final _confirmC = TextEditingController();
 
@@ -36,11 +38,11 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
     final confirm = _confirmC.text.trim();
 
     if (token.isEmpty || pass.isEmpty || confirm.isEmpty) {
-      _show('Fill all fields');
+      _show(context.tr('fill_all_fields'));
       return;
     }
     if (pass != confirm) {
-      _show('Passwords do not match');
+      _show(context.tr('passwords_not_match'));
       return;
     }
 
@@ -60,16 +62,14 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       final data = _tryJson(res.body);
 
       if (res.statusCode == 200) {
-        _show((data['message'] ?? 'Password changed').toString());
+        _show((data['message'] ?? context.tr('password_changed')).toString());
         if (!mounted) return;
-
-        // ✅ login бетке қайтару (forgot flow жабылады)
         Navigator.of(context).popUntil((route) => route.isFirst);
       } else {
-        _show((data['message'] ?? 'Reset failed').toString());
+        _show((data['message'] ?? context.tr('reset_failed')).toString());
       }
-    } catch (e) {
-      _show('Server error');
+    } catch (_) {
+      _show(context.tr('server_error'));
     }
 
     if (mounted) setState(() => _loading = false);
@@ -121,7 +121,6 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // HEADER
               Container(
                 width: double.infinity,
                 height: 170,
@@ -160,9 +159,7 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                   ),
                 ),
               ),
-
               const SizedBox(height: 24),
-
               Container(
                 margin: const EdgeInsets.symmetric(horizontal: 18),
                 padding: const EdgeInsets.all(18),
@@ -173,39 +170,36 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Change New Password',
-                      style: TextStyle(
+                    Text(
+                      context.tr('change_new_password'),
+                      style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.w900,
                         color: Colors.black87,
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
-                      'Enter code from email + new password',
-                      style: TextStyle(
+                    Text(
+                      context.tr('enter_code_new_password'),
+                      style: const TextStyle(
                         color: Colors.black54,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 18),
-
-                    const Text(
-                      'Code (token from email)',
-                      style: TextStyle(fontWeight: FontWeight.w800),
+                    Text(
+                      context.tr('code_token_email'),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 8),
                     TextField(
                       controller: _tokenC,
-                      decoration: _inputDec(hint: 'e.g. 123456'),
+                      decoration: _inputDec(hint: context.tr('example_code')),
                     ),
-
                     const SizedBox(height: 16),
-
-                    const Text(
-                      'New Password',
-                      style: TextStyle(fontWeight: FontWeight.w800),
+                    Text(
+                      context.tr('new_password'),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 8),
                     TextField(
@@ -222,12 +216,10 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 16),
-
-                    const Text(
-                      'Confirm Password',
-                      style: TextStyle(fontWeight: FontWeight.w800),
+                    Text(
+                      context.tr('confirm_password_short'),
+                      style: const TextStyle(fontWeight: FontWeight.w800),
                     ),
                     const SizedBox(height: 8),
                     TextField(
@@ -241,14 +233,12 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                                 ? Icons.visibility_off
                                 : Icons.visibility,
                           ),
-                          onPressed: () => setState(
-                                  () => _hideConfirm = !_hideConfirm),
+                          onPressed: () =>
+                              setState(() => _hideConfirm = !_hideConfirm),
                         ),
                       ),
                     ),
-
                     const SizedBox(height: 24),
-
                     SizedBox(
                       width: double.infinity,
                       height: 52,
@@ -264,17 +254,19 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
                         ),
                         child: _loading
                             ? const SizedBox(
-                          width: 22,
-                          height: 22,
-                          child: CircularProgressIndicator(
-                            strokeWidth: 2.5,
-                            color: Colors.white,
-                          ),
-                        )
-                            : const Text(
-                          'Reset Password',
-                          style: TextStyle(fontWeight: FontWeight.w800),
-                        ),
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2.5,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : Text(
+                                context.tr('reset_password'),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
                       ),
                     ),
                   ],

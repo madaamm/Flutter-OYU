@@ -7,6 +7,7 @@ import 'package:kazakh_learning_app/screens/forgot_password_screen.dart';
 import 'package:kazakh_learning_app/screens/home_screen.dart';
 import 'package:kazakh_learning_app/screens/confirm_email_screen.dart';
 import 'initial_setup_screen.dart';
+import 'package:kazakh_learning_app/l10n/app_text.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:kazakh_learning_app/services/language_service.dart';
 
@@ -101,29 +102,29 @@ class _AuthScreenState extends State<AuthScreen> {
     final confirm = _confirmC.text.trim();
 
     if (name.isEmpty) {
-      nameErr = 'Full name is required.';
+      nameErr = context.tr('full_name_required');
     } else if (!_isTitleCaseName(name)) {
-      nameErr = 'Write your name in capital letters (for example: Saltanat Nurbaeva))';
+      nameErr = context.tr('full_name_capital');
     }
 
     if (email.isEmpty) {
-      emailErr = 'Email is required';
+      emailErr = context.tr('email_required');
     } else if (!_emailRegex.hasMatch(email)) {
-      emailErr = 'The email format is incorrect (e.g. example@mail.com)';
+      emailErr = context.tr('email_format_incorrect');
     }
 
     if (pass.isEmpty) {
-      passErr = 'Password is required.';
+      passErr = context.tr('password_required');
     } else if (pass.length < 8) {
-      passErr = 'Password must be at least 8 characters long.';
+      passErr = context.tr('password_min_length');
     } else if (!_passRegex.hasMatch(pass)) {
-      passErr = 'The password must contain a letter, a number, and a symbol (for example: Abc123!@)';
+      passErr = context.tr('password_requirements');
     }
 
     if (confirm.isEmpty) {
-      confirmErr = 'Re-enter password.';
+      confirmErr = context.tr('reenter_password');
     } else if (pass != confirm) {
-      confirmErr = 'Passwords do not match.';
+      confirmErr = context.tr('passwords_not_match');
     }
 
     setState(() {
@@ -147,13 +148,13 @@ class _AuthScreenState extends State<AuthScreen> {
     final pass = _passC.text.trim();
 
     if (email.isEmpty) {
-      emailErr = 'Email is required';
+      emailErr = context.tr('email_required');
     } else if (!_emailRegex.hasMatch(email)) {
-      emailErr = 'Email format is incorrect!';
+      emailErr = context.tr('email_format_incorrect_short');
     }
 
     if (pass.isEmpty) {
-      passErr = 'Password is required!';
+      passErr = context.tr('password_required_short');
     }
 
     setState(() {
@@ -382,14 +383,14 @@ class _AuthScreenState extends State<AuthScreen> {
                   children: [
                     Expanded(
                       child: _tabButton(
-                        title: 'log in',
+                        title: context.tr('login'),
                         active: isLogin,
                         onTap: () => _switchTab(true),
                       ),
                     ),
                     Expanded(
                       child: _tabButton(
-                        title: 'Sign up',
+                        title: context.tr('sign_up'),
                         active: !isLogin,
                         onTap: () => _switchTab(false),
                       ),
@@ -408,24 +409,24 @@ class _AuthScreenState extends State<AuthScreen> {
                 child: Column(
                   children: [
                     if (!isLogin) ...[
-                      _label('Full name'),
+                      _label(context.tr('full_name')),
                       _textField(
                         controller: _nameC,
-                        hint: 'Your name',
+                        hint: context.tr('your_name'),
                         errorText: _nameError,
                         keyboardType: TextInputType.name,
                       ),
                       const SizedBox(height: 14),
                     ],
-                    _label('Your Email'),
+                    _label(context.tr('your_email')),
                     _textField(
                       controller: _emailC,
-                      hint: 'contact@dscodetech.com',
+                      hint: context.tr('email_hint'),
                       errorText: _emailError,
                       keyboardType: TextInputType.emailAddress,
                     ),
                     const SizedBox(height: 14),
-                    _label('Password'),
+                    _label(context.tr('password')),
                     _passwordField(
                       controller: _passC,
                       hint: '••••••••••••',
@@ -440,9 +441,9 @@ class _AuthScreenState extends State<AuthScreen> {
                         children: [
                           TextButton(
                             onPressed: _openForgotPassword,
-                            child: const Text(
-                              'Forgot password?',
-                              style: TextStyle(
+                            child: Text(
+                              context.tr('forgot_password'),
+                              style: const TextStyle(
                                 color: purple,
                                 fontWeight: FontWeight.w800,
                               ),
@@ -453,7 +454,7 @@ class _AuthScreenState extends State<AuthScreen> {
                     ],
                     if (!isLogin) ...[
                       const SizedBox(height: 14),
-                      _label('Repeat Password'),
+                      _label(context.tr('confirm_password')),
                       _passwordField(
                         controller: _confirmC,
                         hint: '••••••••••••',
@@ -486,7 +487,7 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                         )
                             : Text(
-                          isLogin ? 'Log in' : 'Continue',
+                          isLogin ? context.tr('login') : context.tr('continue'),
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w800,
@@ -496,18 +497,18 @@ class _AuthScreenState extends State<AuthScreen> {
                     ),
                     const SizedBox(height: 14),
                     Row(
-                      children: const [
+                      children: [
                         Expanded(child: Divider(color: Colors.black12, thickness: 1)),
                         Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 10),
-                          child: Text('Or', style: TextStyle(color: Colors.black45)),
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Text(context.tr('or'), style: const TextStyle(color: Colors.black45)),
                         ),
                         Expanded(child: Divider(color: Colors.black12, thickness: 1)),
                       ],
                     ),
                     const SizedBox(height: 10),
                     _socialButton(
-                      text: 'Login with Google',
+                      text: context.tr('continue_google'),
                       icon: Icons.g_mobiledata,
                       onTap: _googleLogin,
                     ),

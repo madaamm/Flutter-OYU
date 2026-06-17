@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kazakh_learning_app/l10n/app_text.dart';
 import 'package:kazakh_learning_app/services/auth_service.dart';
 import 'package:kazakh_learning_app/services/chat_service.dart';
 
@@ -16,8 +17,6 @@ class _AskAiScreenState extends State<AskAiScreen> {
   final _scroll = ScrollController();
 
   bool sending = false;
-
-  // message model (simple)
   final List<_Msg> messages = [];
 
   @override
@@ -32,7 +31,6 @@ class _AskAiScreenState extends State<AskAiScreen> {
   }
 
   Future<int> _getUserId() async {
-    // 1) first try from /user/me
     final me = await AuthService().me();
     final id = me['id'];
     if (id is int) return id;
@@ -60,18 +58,17 @@ class _AskAiScreenState extends State<AskAiScreen> {
       sending = true;
       messages.add(_Msg.user(text));
       _c.clear();
-      messages.add(_Msg.ai('...')); // typing placeholder
+      messages.add(_Msg.ai('...'));
     });
     _scrollDown();
 
     try {
       final userId = await _getUserId();
-      if (userId == 0) throw Exception('userId табылмады');
+      if (userId == 0) throw Exception(context.tr('chat_user_id_error'));
 
       final reply = await ChatService.sendMessage(userId: userId, message: text);
 
       setState(() {
-        // replace last "..." with real reply
         final idx = messages.lastIndexWhere((m) => m.isAi && m.text == '...');
         if (idx != -1) {
           messages[idx] = _Msg.ai(reply);
@@ -82,12 +79,11 @@ class _AskAiScreenState extends State<AskAiScreen> {
       _scrollDown();
     } catch (e) {
       setState(() {
-        // remove typing bubble if exists
         if (messages.isNotEmpty && messages.last.isAi && messages.last.text == '...') {
           messages.removeLast();
         }
       });
-      _error('Chat error: $e');
+      _error(context.tr('chat_error', args: {'error': '$e'}));
     } finally {
       if (mounted) setState(() => sending = false);
     }
@@ -99,7 +95,7 @@ class _AskAiScreenState extends State<AskAiScreen> {
       backgroundColor: const Color(0xFFF6F1FF),
       appBar: AppBar(
         backgroundColor: purple,
-        title: const Text('Ask Ai', style: TextStyle(color: Colors.white)),
+        title: Text(context.tr('ask_ai'), style: const TextStyle(color: Colors.white)),
         centerTitle: true,
         automaticallyImplyLeading: false,
       ),
@@ -127,6 +123,7 @@ class _AskAiScreenState extends State<AskAiScreen> {
 class _Msg {
   final bool isAi;
   final String text;
+
   _Msg({required this.isAi, required this.text});
 
   factory _Msg.user(String t) => _Msg(isAi: false, text: t);
@@ -136,6 +133,7 @@ class _Msg {
 class _Bubble extends StatelessWidget {
   static const purple = Color(0xFF3D0067);
   final _Msg msg;
+
   const _Bubble({required this.msg});
 
   @override
@@ -196,10 +194,10 @@ class _Composer extends StatelessWidget {
                   maxLines: 4,
                   textInputAction: TextInputAction.send,
                   onSubmitted: (_) => onSend(),
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     border: InputBorder.none,
-                    hintText: 'Type message here...',
-                    hintStyle: TextStyle(color: Colors.grey), // светлая подсказка
+                    hintText: context.tr('type_message'),
+                    hintStyle: const TextStyle(color: Colors.grey),
                   ),
                 ),
               ),
@@ -218,16 +216,19 @@ class _Composer extends StatelessWidget {
                 ),
                 child: sending
                     ? const SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
-                )
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          color: Colors.white,
+                        ),
+                      )
                     : Transform.translate(
-                  offset: const Offset(0, -2), // смещение вверх
-                  child: const Icon(Icons.send),
-                ),
+                        offset: const Offset(0, -2),
+                        child: const Icon(Icons.send),
+                      ),
               ),
-            )
+            ),
           ],
         ),
       ),

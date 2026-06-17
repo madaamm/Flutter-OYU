@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:kazakh_learning_app/l10n/app_text.dart';
 import 'speaking_screen.dart';
 import 'reading_screen.dart';
 import 'listening_screen.dart';
@@ -27,13 +28,13 @@ class GameZoneScreen extends StatelessWidget {
                   bottomRight: Radius.circular(20),
                 ),
               ),
-              child: const Column(
+              child: Column(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  SizedBox(height: 10),
+                  const SizedBox(height: 10),
                   Text(
-                    'Learn by practice',
-                    style: TextStyle(
+                    context.tr('learn_by_practice'),
+                    style: const TextStyle(
                       color: Colors.white,
                       fontSize: 22,
                       fontWeight: FontWeight.w300,
@@ -49,28 +50,32 @@ class GameZoneScreen extends StatelessWidget {
             Expanded(
               child: PageView(
                 controller: PageController(viewportFraction: 0.85),
-                children: const [
+                children: [
                   _GameCard(
-                    title: 'Speaking',
-                    subtitle: 'improve your speaking skills',
+                    routeKey: 'speaking',
+                    title: context.tr('speaking'),
+                    subtitle: context.tr('improve_speaking'),
                     color1: Color(0xFFC96BFF),
                     color2: Color(0xFFB85CFF),
                   ),
                   _GameCard(
-                    title: 'Reading',
-                    subtitle: 'improve your reading skills',
+                    routeKey: 'reading',
+                    title: context.tr('reading'),
+                    subtitle: context.tr('improve_reading'),
                     color1: Color(0xFF6A00A8),
                     color2: Color(0xFF4B007A),
                   ),
                   _GameCard(
-                    title: 'Listening',
-                    subtitle: 'improve your listening skills',
+                    routeKey: 'listening',
+                    title: context.tr('listening'),
+                    subtitle: context.tr('improve_listening'),
                     color1: Color(0xFF4B007A),
                     color2: Color(0xFF26003D),
                   ),
                   _GameCard(
-                    title: 'Writing',
-                    subtitle: 'improve your writing skills',
+                    routeKey: 'writing',
+                    title: context.tr('writing'),
+                    subtitle: context.tr('improve_writing'),
                     color1: Color(0xFFFFC400),
                     color2: Color(0xFFFFB300),
                   ),
@@ -87,12 +92,14 @@ class GameZoneScreen extends StatelessWidget {
 }
 
 class _GameCard extends StatelessWidget {
+  final String routeKey;
   final String title;
   final String subtitle;
   final Color color1;
   final Color color2;
 
   const _GameCard({
+    required this.routeKey,
     required this.title,
     required this.subtitle,
     required this.color1,
@@ -100,7 +107,7 @@ class _GameCard extends StatelessWidget {
   });
 
   void _openScreen(BuildContext context) {
-    if (title == 'Speaking') {
+    if (routeKey == 'speaking') {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -108,7 +115,7 @@ class _GameCard extends StatelessWidget {
         ),
       );
     }
-    else if (title == 'Reading') {
+    else if (routeKey == 'reading') {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -116,7 +123,7 @@ class _GameCard extends StatelessWidget {
         ),
       );
     }
-    else if (title == 'Listening') {
+    else if (routeKey == 'listening') {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -124,7 +131,7 @@ class _GameCard extends StatelessWidget {
         ),
       );
     }
-    else if (title == 'Writing') {
+    else if (routeKey == 'writing') {
       Navigator.push(
         context,
         MaterialPageRoute(
@@ -188,8 +195,8 @@ class _GameCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(20),
                 ),
               ),
-              child: const Text('Start'),
-            ),
+                child: Text(context.tr('start')),
+              ),
           ],
         ),
       ),
